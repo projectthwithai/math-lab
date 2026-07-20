@@ -1,59 +1,34 @@
-// lib/types.ts
-export interface RoutineStep {
+// 問題のパラメータ（物理の角度や、数学の二次関数パラメータなど）
+export interface ProblemParams {
+  theta?: number;
+  m?: number;
+  mu?: number;
+  a?: number;
+  p?: number;
+  q?: number;
+}
+
+// 問題のデータ構造
+export interface Problem {
   id: string;
   title: string;
-  order: number;
-  isCompleted: boolean;
+  text: string;
+  params: ProblemParams;
+  correct_steps: string[];
+  correct_answer: string;
 }
 
-export interface RoutineItem {
-  id: string;
-  time: string;
-  task: string;
-  icon: string;
-  iconImg?: string | null;
-  done: boolean;
-  freq: string;
-  days: number[];
-  steps?: RoutineStep[];
-  isShared?: boolean;
+// ステップごとの添削データ
+export interface StepEvaluation {
+  step_index: number;
+  formula: string;
+  is_correct: boolean;
+  feedback: string;
 }
 
-export interface PartnerActivity {
-  id: string;
-  user_id: string;
-  partnership_id: string;
-  type: string;
-  metadata: any;
-  created_at: string;
-}
-
-export interface PartnerSnapshot {
-  user_id: string;
-  user_name: string;
-  routine_pct: number;
-  routine_done: number;
-  routine_total: number;
-  goals: any[];
-  updated_at: string;
-}
-
-export interface Partnership {
-  id: string;
-  user1_id: string;
-  user2_id: string;
-  status: string;
-  created_at: string;
-}
-
-export interface GoalItem {
-  id: string;
-  goal: string;
-  deadline: string;
-  icon: string;
-  iconImg?: string | null;
-  progress: number;
-  targetAmount?: number;
-  currentAmount?: number;
-  currency?: string;
+// 添削結果全体のデータ
+export interface EvaluationResult {
+  steps: StepEvaluation[];
+  overall_feedback: string;
+  is_fully_correct: boolean;
 }
