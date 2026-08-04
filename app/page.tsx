@@ -5,9 +5,9 @@ import type { Session, User } from "@supabase/supabase-js";
 import 'katex/dist/katex.min.css';
 
 // 切り出した3つのカスタムモジュールをインポート
-import { LatexRenderer } from "../components/LatexRenderer";
-import { ScienceVisualizer, type ProblemParams } from "../components/ScienceVisualizer";
-import { SettingsPanel } from "../components/SettingsPanel";
+import { LatexRenderer } from "@/components/LatexRenderer";
+import { ScienceVisualizer, type ProblemParams } from "@/components/ScienceVisualizer";
+import { SettingsPanel } from "@/components/SettingsPanel";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SUPABASE LAYER (GBH互換)
