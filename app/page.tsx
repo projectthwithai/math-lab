@@ -1,30 +1,13 @@
-// Math Lab Alpha Deployment: 2026-07-18
 // FORCE UPDATE: 2026-07-20-11:00
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-// @ts-ignore
-import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// react-katexに依存せず、katex本体から直接HTMLを生成するカスタムコンポーネント
-const InlineMath = ({ math }: { math: string }) => {
-  try {
-    const html = katex.renderToString(math, { displayMode: false, throwOnError: false });
-    return <span dangerouslySetInnerHTML={{ __html: html }} />;
-  } catch (error) {
-    return <span>{math}</span>;
-  }
-};
-
-const BlockMath = ({ math }: { math: string }) => {
-  try {
-    const html = katex.renderToString(math, { displayMode: true, throwOnError: false });
-    return <div dangerouslySetInnerHTML={{ __html: html }} />;
-  } catch (error) {
-    return <div>{math}</div>;
-  }
-};
+// 切り出した3つのカスタムモジュールをインポート
+import { LatexRenderer } from "../components/LatexRenderer";
+import { ScienceVisualizer, type ProblemParams } from "../components/ScienceVisualizer";
+import { SettingsPanel } from "../components/SettingsPanel";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SUPABASE LAYER (GBH互換)
@@ -39,7 +22,7 @@ import {
 } from "../lib/supabase";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// THEME (Black & Gold / White & Gold 継承)
+// THEME (全体の背景や時計の表示カラーに使用)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const THEMES = {
   dark: {
@@ -94,7 +77,6 @@ const DICT = {
     sidebar_subtitle: "Logical Sandbox",
     stat_total: "Solved",
     stat_accuracy: "Accuracy",
-    stat_streak: "Streak",
   },
   ja: {
     tagline: "厳密 · 探究 · 卓越",
@@ -122,7 +104,6 @@ const DICT = {
     sidebar_subtitle: "論理演算サンドボックス",
     stat_total: "解いた総数",
     stat_accuracy: "正答率",
-    stat_streak: "連続日数",
   }
 };
 
@@ -161,15 +142,6 @@ const LS: LSApi = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPE DEFINITIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-interface ProblemParams {
-  theta?: number;
-  m?: number;
-  mu?: number;
-  a?: number;
-  p?: number;
-  q?: number;
-}
-
 interface Problem {
   id: string;
   title: string;
@@ -193,204 +165,6 @@ interface EvaluationResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SSR Hydration Safe LaTeX Renderer Component
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const LatexRenderer: React.FC<{ text: string; mounted: boolean }> = ({ text, mounted }) => {
-  if (!text) return null;
-  if (!mounted) {
-    return <span className="font-mono text-xs opacity-75">{text}</span>;
-  }
-
-  // $ と $$ で文章をスプリットし、数式と通常テキストを切り分ける
-  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$.*?\$)/g);
-
-  return (
-    <span>
-      {parts.map((part, i) => {
-        if (part.startsWith("$$") && part.endsWith("$$")) {
-          const formula = part.slice(2, -2);
-          return <BlockMath key={i} math={formula} />;
-        } else if (part.startsWith("$") && part.endsWith("$")) {
-          const formula = part.slice(1, -1);
-          return <InlineMath key={i} math={formula} />;
-        }
-        return <span key={i} className="whitespace-pre-wrap">{part}</span>;
-      })}
-    </span>
-  );
-};
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SCIENCE VISUALIZER (SVG - 物理/数学の動的対応)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const ScienceVisualizer: React.FC<{ params: ProblemParams }> = ({ params }) => {
-  const width = 320;
-  const height = 180;
-  const margin = 20;
-
-  // 1) 物理: 斜面パラメーターが存在する場合の描画
-  if (params?.theta !== undefined && params?.theta > 0) {
-    const theta = params.theta;
-    const m = params.m ?? 5;
-    const rad = (theta * Math.PI) / 180;
-    const slopeLength = 240;
-    const x1 = margin;
-    const y1 = height - margin;
-    const x2 = margin + slopeLength * Math.cos(rad);
-    const y2 = height - margin - slopeLength * Math.sin(rad);
-
-    const boxWidth = Math.min(30 + m * 2, 60);
-    const boxHeight = Math.min(20 + m * 1.5, 40);
-    const midX = (x1 + x2) / 2;
-    const midY = (y1 + y2) / 2;
-
-    return (
-      <div className="flex flex-col items-center p-4 bg-black/40 rounded-xl border border-amber-500/20 shadow-inner">
-        <span className="text-[10px] text-amber-500/60 mb-2 font-mono tracking-widest">DYNAMIC PHYSICS VISUALIZER (θ: {theta}°, m: {m}kg)</span>
-        <svg width={width} height={height} className="overflow-visible">
-          <line x1={0} y1={y1} x2={width} y2={y1} stroke="#555" strokeWidth="1" strokeDasharray="4 4" />
-          <polygon points={`${x1},${y1} ${x2},${y1} ${x2},${y2}`} fill="rgba(201, 168, 76, 0.05)" stroke="#C9A84C" strokeWidth="2" />
-          <path d={`M ${x1 + 30} ${y1} A 30 30 0 0 0 ${x1 + 30 * Math.cos(rad)} ${y1 - 30 * Math.sin(rad)}`} fill="none" stroke="#F0D878" strokeWidth="1.5" />
-          <text x={x1 + 35} y={y1 - 8} fill="#F0D878" className="text-xs font-mono">{theta}°</text>
-          <g transform={`translate(${midX}, ${midY}) rotate(${-theta})`}>
-            <rect x={-boxWidth / 2} y={-boxHeight} width={boxWidth} height={boxHeight} fill="#0d0d0d" stroke="#F0D878" strokeWidth="2" rx="1" />
-            <line x1={0} y1={-boxHeight / 2} x2={0} y2={30 + m} stroke="#FF7777" strokeWidth="1.5" markerEnd="url(#arrow)" />
-            <text x={5} y={20 + m} fill="#FF7777" className="text-[10px] font-mono">mg</text>
-          </g>
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF7777" />
-            </marker>
-          </defs>
-        </svg>
-      </div>
-    );
-  }
-
-  // 2) 数学: 二次関数パラメーターが存在する場合の描画 (y = a*(x-p)^2 + q)
-  if (params?.a !== undefined) {
-    const { a = 0.5, p = 0, q = 0 } = params;
-
-    const scaleX = 20; 
-    const scaleY = 15;
-    const originX = 160;
-    const originY = 100;
-
-    const points: string[] = [];
-    for (let sx = -6; sx <= 6; sx += 0.25) {
-      const sy = a * Math.pow(sx - p, 2) + q;
-      const svgX = originX + sx * scaleX;
-      const svgY = originY - sy * scaleY;
-      if (svgX >= 0 && svgX <= width && svgY >= 0 && svgY <= height) {
-        points.push(`${svgX},${svgY}`);
-      }
-    }
-    const polylinePath = points.join(" ");
-
-    return (
-      <div className="flex flex-col items-center p-4 bg-black/40 rounded-xl border border-amber-500/20 shadow-inner">
-        <span className="text-[10px] text-amber-500/60 mb-2 font-mono tracking-widest">
-          DYNAMIC FUNCTION VISUALIZER (y = {a}(x - {p})² + {q})
-        </span>
-        <svg width={width} height={height} className="overflow-visible">
-          <line x1={0} y1={originY} x2={width} y2={originY} stroke="#333" strokeWidth="1" />
-          <line x1={originX} y1={0} x2={originX} y2={height} stroke="#333" strokeWidth="1" />
-          <text x={width - 15} y={originY - 5} fill="#666" className="text-[10px] font-mono">x</text>
-          <text x={originX + 5} y={15} fill="#666" className="text-[10px] font-mono">y</text>
-
-          <circle cx={originX + p * scaleX} cy={originY - q * scaleY} r="4" fill="#F0D878" />
-          <text x={originX + p * scaleX + 6} y={originY - q * scaleY - 6} fill="#F0D878" className="text-[10px] font-mono">
-            ({p}, {q})
-          </text>
-
-          {points.length > 1 && (
-            <polyline points={polylinePath} fill="none" stroke="#C9A84C" strokeWidth="2.5" />
-          )}
-        </svg>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center p-4 h-[180px] bg-black/40 rounded-xl border border-dashed border-amber-500/10">
-      <span className="text-[10px] text-slate-600 font-mono">MATH LAB LABELS VISUALIZER READY</span>
-    </div>
-  );
-};
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SETTINGS PANEL
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function SettingsPanel({ open, onClose, lang, setLang, themeName, setTheme, userName, setUserName, t, TH, user }: any) {
-  const [name, setName] = useState(userName);
-  useEffect(() => { setName(userName); }, [userName]);
-  const save = () => {
-    setUserName(name);
-    localStorage.setItem("apx7_uname", name);
-    onClose();
-  };
-
-  return (
-    <>
-      {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", backdropFilter: "blur(4px)", zIndex: 1500 }} />}
-      <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: "min(400px,95vw)",
-        background: TH.surface, borderLeft: `1px solid ${TH.goldDark}55`, zIndex: 1600,
-        transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform .38s",
-        display: "flex", flexDirection: "column", overflowY: "auto"
-      }}>
-        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${TH.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ fontSize: 12, color: TH.gold, textTransform: "uppercase" }}>{t.settings}</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: TH.textMuted, fontSize: 20, cursor: "pointer" }}>×</button>
-        </div>
-        <div style={{ padding: "22px", display: "flex", flexDirection: "column", gap: 22 }}>
-          <div>
-            <label style={{ fontSize: 11, color: TH.textMuted, textTransform: "uppercase", display: "block", marginBottom: 10 }}>Account</label>
-            {user ? (
-              <div style={{ padding: 12, background: `${TH.gold}0a`, border: `1px solid ${TH.goldDark}55`, borderRadius: 3 }}>
-                <p style={{ fontSize: 13, color: TH.text }}>{user.email}</p>
-                <button onClick={() => getSupabase().auth.signOut()} style={{ marginTop: 8, fontSize: 10, background: "transparent", border: `1px solid ${TH.border}`, color: TH.textMuted, cursor: "pointer", padding: "4px 8px" }}>Sign Out</button>
-              </div>
-            ) : (
-              <button onClick={signInWithGoogle} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: 12, background: "#fff", border: `1px solid ${TH.border}`, color: "#333", borderRadius: 4, cursor: "pointer" }}>
-                <img src="https://www.google.com/favicon.ico" style={{ width: 16 }} alt="" /> Continue with Google
-              </button>
-            )}
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: TH.textMuted, textTransform: "uppercase", display: "block", marginBottom: 10 }}>{t.username_label}</label>
-            <input value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", background: TH.inputBg, border: `1px solid ${TH.border}`, color: TH.text, padding: 10 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: TH.textMuted, textTransform: "uppercase", display: "block", marginBottom: 10 }}>{t.lang_label}</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["en", "ja"].map(l => (
-                <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: 8, background: lang === l ? `${TH.gold}22` : "transparent", border: `1px solid ${lang === l ? TH.gold : TH.border}`, color: lang === l ? TH.gold : TH.textDim, cursor: "pointer" }}>
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: TH.textMuted, textTransform: "uppercase", display: "block", marginBottom: 10 }}>{t.theme_label}</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {(Object.keys(THEMES) as Array<keyof typeof THEMES>).map((th) => (
-                <button key={th} onClick={() => setTheme(th)} style={{ flex: 1, padding: 8, background: themeName === th ? `${THEMES[th].gold}22` : "transparent", border: `1px solid ${themeName === th ? THEMES[th].gold : THEMES[th].border}`, color: themeName === th ? THEMES[th].gold : THEMES[th].textDim, cursor: "pointer" }}>
-                  {THEMES[th].name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button onClick={save} style={{ background: TH.goldDark, color: TH.goldLight, padding: 13, border: "none", borderRadius: 2, cursor: "pointer", letterSpacing: 4 }}>
-            {t.save_settings}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN WORKSPACE COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export default function Dashboard() {
@@ -410,7 +184,7 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Hydration protection
+  // ハイドレーション制御用のマウント検知
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -467,12 +241,10 @@ export default function Dashboard() {
   const [problems, setProblems] = useState<Problem[]>(() => LS.get("math_problems", []));
   const [currentIndex, setCurrentIndex] = useState(() => LS.get("math_current_index", 0));
   
-  // 計算過程は textarea で一括管理
   const [solutionText, setSolutionText] = useState("");
   const [userAnswer, setUserAnswer] = useState("");
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   
-  // 学習実績用簡易統計
   const [totalSolved, setTotalSolved] = useState(() => LS.get("math_total_solved", 0));
   const [accuracy, setAccuracy] = useState(() => LS.get("math_accuracy", 100));
 
@@ -482,7 +254,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date());
   const [quoteIdx, setQI] = useState(0);
 
-  // Local Storage & Cloud Syncs
+  // Sync state to LocalStorage and Cloud
   useEffect(() => {
     if (!isOnline) LS.set("math_problems", problems);
     cloudSave("math_problems", problems);
@@ -566,7 +338,6 @@ export default function Dashboard() {
     if (!currentProblem) return;
     setEvaluating(true);
     
-    // 改行で分割して空行を除外したステップ配列を作成
     const parsedSteps = solutionText.split("\n").filter(line => line.trim() !== "");
 
     try {
@@ -583,7 +354,7 @@ export default function Dashboard() {
       const result: EvaluationResult = await response.json();
       setEvaluation(result);
 
-      // 統計のリアルタイムアップデート
+      // 統計のアップデート
       const newTotal = totalSolved + 1;
       setTotalSolved(newTotal);
       if (result.is_fully_correct) {
@@ -592,7 +363,7 @@ export default function Dashboard() {
         setAccuracy(Math.round(((totalSolved * (accuracy / 100)) / newTotal) * 100));
       }
 
-      // Supabase への永続学習履歴書き込み
+      // Supabase への保存
       if (isOnline) {
         const sb = getSupabase();
         if (sb) {
@@ -744,7 +515,6 @@ export default function Dashboard() {
         padding: "24px 20px"
       }} className="hidden lg:flex shrink-0">
         <div className="space-y-8">
-          {/* Logo & Subtitle */}
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="glow-dot" />
@@ -763,7 +533,7 @@ export default function Dashboard() {
               {[
                 { name: "斜面の物理力学", query: "物理（斜面上の物体の運動）" },
                 { name: "二次関数の極値", query: "数学（二次関数の最大・最小）" },
-                { name: "単振動の物理", query: "物理（単振動のエネルギー）" },
+                { name: "単振動の物理", query: "物理（単振動 of エネルギー）" },
                 { name: "三角関数の合成", query: "数学（三角関数の合成）" },
               ].map((p) => (
                 <button
@@ -799,7 +569,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Info panel at bottom */}
         <div className="text-[10px] text-slate-600 font-mono border-t border-slate-900 pt-4">
           SYSTEM_OS: NEXT_FULLSTACK<br />
           GEMINI: 1.5_PRO_SECURE
@@ -897,7 +666,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* MATH LAB MAIN INTERACTIVE WORKSPACE */}
+          {/* MAIN INTERACTIVE WORKSPACE */}
           {currentProblem ? (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
