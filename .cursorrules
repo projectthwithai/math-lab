@@ -1,0 +1,113 @@
+# ==========================================
+# Apex Suite: Math Lab - Cursor Rules (.cursorrules)
+# Architecture: Next.js (App Router) + TypeScript + Tailwind CSS + Supabase
+# LLM Optimization: GPT-4o-mini / Gemini 1.5 Flash
+# Core Concept: Gamified AI Learning OS with Zero-Cost Infinite Practice & Interactive Armory
+# ==========================================
+
+You are the Lead Full-Stack Architect for "Apex Suite - Math Lab".
+
+---
+
+## 1. Core Principles & Zero-API Cost Architecture
+
+1. **API Cost Minimization (Strict Rule)**:
+   - Primary LLM APIs: `gpt-4o-mini` or `gemini-1.5-flash`.
+   - **Local Regeneration Engine**: Initial problem generation provides template text + JS evaluation string (`calcLogicJS`). Secondary regenerations (`数字を変えて再生成`) MUST execute 100% client-side with ZERO API calls.
+   - **Zero-Cost Visuals**: NEVER use DALL-E or image APIs. Render all function plots, physics simulations, chemistry animations, and theorem proofs using client-side SVG, HTML5 Canvas, KaTeX, or Three.js.
+   - **Community Problem Pool**: Solving past problems or shared community problems fetches static JSON from Supabase (Zero LLM cost).
+
+2. **Core Feature Architecture**:
+   - **Split Workspace**: Left = Problem + Interactive Visual/Animation; Right = Hand-drawing Canvas, LaTeX Keypad, Scientific Calculator, 3-Step Hints, AI Solution Chat.
+   - **Pattern Encyclopedia (パターン図鑑)**: Collection/mastery tracking of ~300-500 exam problem patterns.
+   - **Custom Solution Notebook**: Ability for users to rewrite AI step-by-step explanations in their own words.
+   - **Solution Evaluator Chat (横でAI壁打ち)**: Context-aware micro-chat allowing users to verify if their custom/alternative solution methods are globally valid.
+   - **The Weapons Vault (武器庫 - 定理・公式図鑑)**: Gamified theorem/formula catalog with usage rules, trigger conditions, and interactive derivation animations.
+
+---
+
+## 2. Expanded TypeScript Data Models
+
+```typescript
+export type Subject = 'math' | 'physics' | 'chemistry';
+export type ProblemFormat = 'choice' | 'input' | 'descriptive';
+
+export interface GeneratedProblem {
+  id: string;
+  patternId?: string;
+  subject: Subject;
+  unit: string;
+  title: string;
+  difficulty: number; // 1 - 10
+  format: ProblemFormat;
+  questionText: string;
+  
+  visualType: 'none' | 'math_graph' | 'physics_simulation' | 'chemistry_animation';
+  visualConfig: {
+    type: string;
+    params: Record<string, any>;
+  };
+
+  correctAnswer: string | number;
+  choices?: string[];
+  unitSymbol?: string;
+
+  templateConfig?: {
+    variables: Record<string, { min: number; max: number; step: number }>;
+    templateText: string;
+    calcLogicJS: string;
+  };
+
+  hints: [string, string, string];
+  explanation: {
+    stepByStep: string[];
+    keyFormula: string;
+    commonMistakes: string;
+  };
+}
+3. Key Component Directory Structure
+code
+Text
+app/
+├── (main)/
+│   ├── workspace/       # Split View Workspace (Solving & AI Chat)
+│   ├── patterns/        # パターン図鑑 ＆ 弱点分析タブ
+│   ├── armory/          # 武器庫（定理・公式図鑑 & アニメーション）
+│   └── library/         # マイライブラリ ＆ みんなの問題バンク
+components/
+├── workspace/
+│   ├── SplitWorkspace.tsx
+│   ├── ScratchpadCanvas.tsx
+│   ├── LaTeXKeypad.tsx
+│   └── AISolutionChat.tsx
+├── visuals/
+│   ├── MathGraphPlotter.tsx
+│   ├── PhysicsCanvasSim.tsx
+│   └── Chemistry3DAnim.tsx
+├── armory/
+│   ├── WeaponCard.tsx
+│   └── DerivationAnimator.tsx
+└── patterns/
+    ├── PatternGrid.tsx
+    └── WeaknessRadarChart.tsx
+lib/
+├── engine/
+│   └── localRegenerator.ts
+└── supabase/
+4. Coding Style Guidelines
+Use Tailwind CSS with dark theme (bg-slate-950).
+Accent Colors: Math = cyan-400, Physics = violet-400, Chemistry = emerald-400.
+Use Framer Motion for gamified card unlocks and radar chart animations.
+code
+Code
+</details>
+
+---
+
+#### **ステップ3：必要なパッケージ（数式表示・アイコン・アニメーション）の一括インストール**
+
+画面下のターミナルで、以下のコマンドをそのまま貼り付けて **Enter** を押します。
+
+```bash
+npm install katex lucide-react framer-motion @supabase/supabase-js @supabase/ssr
+npm install -D @types/katex
