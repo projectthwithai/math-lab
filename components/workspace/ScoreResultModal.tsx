@@ -4,9 +4,10 @@
 // Apex Suite: Math Lab - Score Result Modal（採点結果モーダル）
 // ==========================================
 // 解答送信後に必ず表示される採点結果モーダル。
-// - 正誤判定 + XP獲得のネオン発光アニメーション（レベルアップ時は紙吹雪）
-// - AIのステップバイステップ解説・鍵となる公式・よくあるミス
-// - 「✍️ 自分の言葉で解説を書き換えてノートに保存」テキストエリア
+// 表示順序（優先度順）:
+//   ① 正誤判定 + XP獲得（コンパクトなヘッダー行）
+//   ② 🤖 AIによる公式解説ステップ + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
+//   ③ ✍️ 自分流のメモとして上書き保存する（②の直下）
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -94,74 +95,78 @@ export default function ScoreResultModal({
           <X className="h-5 w-5" />
         </button>
 
-        {/* ① 正誤判定 */}
-        <div className="mb-4 flex items-center gap-3">
-          {isCorrect ? (
-            <CheckCircle2 className="h-9 w-9 text-emerald-400" />
-          ) : (
-            <XCircle className="h-9 w-9 text-red-400" />
-          )}
-          <div>
-            <h2 className={`text-xl font-black ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>
-              {isCorrect ? '正解！' : '不正解...'}
-            </h2>
-            <p className="text-xs text-slate-500">
-              正解: <KaTeXText text={String(problem.correctAnswer)} />
-            </p>
+        {/* ① 正誤判定 + XP獲得（コンパクトなヘッダー行） */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+          <div className="flex items-center gap-2.5">
+            {isCorrect ? (
+              <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-400" />
+            ) : (
+              <XCircle className="h-7 w-7 shrink-0 text-red-400" />
+            )}
+            <div>
+              <h2 className={`text-base font-black leading-tight ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>
+                {isCorrect ? '正解！' : '不正解...'}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                正解: <KaTeXText text={String(problem.correctAnswer)} />
+              </p>
+            </div>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex min-w-[160px] flex-col gap-1"
+          >
+            <div className="flex items-center justify-end gap-1.5">
+              <span className="flex items-center gap-1 text-xs font-black text-amber-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                🎉 +{xpResult.xpEarned} XP
+              </span>
+              {xpResult.leveledUp && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', bounce: 0.5 }}
+                  className="rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300"
+                >
+                  🆙 Lv.{xpResult.previousLevel}→{xpResult.newLevel}
+                </motion.span>
+              )}
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-200"
+                initial={{ width: 0 }}
+                animate={{
+                  width: `${
+                    xpResult.xpRequiredForNextLevel > 0
+                      ? Math.min(100, (xpResult.xpIntoCurrentLevel / xpResult.xpRequiredForNextLevel) * 100)
+                      : 0
+                  }%`,
+                }}
+                transition={{ duration: 0.8 }}
+              />
+            </div>
+          </motion.div>
         </div>
 
-        {/* XP獲得パネル（常時表示） */}
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4"
-        >
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm font-black text-amber-200">
-              <Sparkles className="h-4 w-4" />
-              🎉 +{xpResult.xpEarned} XP 獲得！
-            </span>
-            {xpResult.leveledUp && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', bounce: 0.5 }}
-                className="rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-300"
-              >
-                🆙 LEVEL UP! Lv.{xpResult.previousLevel} → Lv.{xpResult.newLevel}
-              </motion.span>
-            )}
-          </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-200"
-              initial={{ width: 0 }}
-              animate={{
-                width: `${
-                  xpResult.xpRequiredForNextLevel > 0
-                    ? Math.min(100, (xpResult.xpIntoCurrentLevel / xpResult.xpRequiredForNextLevel) * 100)
-                    : 0
-                }%`,
-              }}
-              transition={{ duration: 0.8 }}
-            />
-          </div>
-        </motion.div>
-
-        {/* ② AI解説 */}
-        <div className="mb-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="mb-2 text-sm font-bold text-cyan-300">AIによるステップ解説</h3>
-          <ol className="mb-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
+        {/* ② 🤖 AIによる公式解説ステップ + 🔑 鍵となる公式（最も大きく強調表示） */}
+        <div className="mb-5 rounded-2xl border-2 border-cyan-400/40 bg-gradient-to-b from-cyan-400/10 via-slate-900/80 to-slate-900/60 p-5 shadow-[0_0_30px_-10px_rgba(34,211,238,0.5)]">
+          <h3 className="mb-3 flex items-center justify-center gap-2 text-center text-lg font-black tracking-wide text-cyan-200">
+            <Sparkles className="h-5 w-5 text-cyan-300" />
+            🤖 AIによる公式解説ステップ
+          </h3>
+          <ol className="mb-4 list-decimal space-y-2.5 pl-6 text-[15px] leading-relaxed text-slate-200">
             {problem.explanation.stepByStep.map((step, index) => (
-              <li key={index}>
+              <li key={index} className="marker:font-bold marker:text-cyan-400">
                 <KaTeXText text={step} />
               </li>
             ))}
           </ol>
-          <div className="mb-2 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-3">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-cyan-400">鍵となる公式</p>
-            <KaTeXBlock content={problem.explanation.keyFormula} className="text-sm text-slate-200" />
+          <div className="mb-3 rounded-xl border-2 border-cyan-400/40 bg-cyan-400/10 p-4 text-center">
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-cyan-300">🔑 鍵となる公式</p>
+            <KaTeXBlock content={problem.explanation.keyFormula} className="text-lg font-semibold text-white" />
           </div>
           <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-red-400">よくあるミス</p>
@@ -169,11 +174,11 @@ export default function ScoreResultModal({
           </div>
         </div>
 
-        {/* ③ 自分の言葉でノート化 */}
+        {/* ③ ✍️ 自分流のメモとして上書き保存する */}
         <div className="mb-5 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
           <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
             <BookOpenCheck className="h-4 w-4" />
-            ✍️ 自分の言葉で解説を書き換えてノートに保存
+            ✍️ 自分流のメモとして上書き保存する
           </h3>
           <textarea
             value={noteContent}

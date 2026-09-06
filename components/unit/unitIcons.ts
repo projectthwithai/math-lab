@@ -26,6 +26,15 @@ import {
   TestTube,
   Sparkles,
   Shapes,
+  Compass,
+  Hash,
+  GitBranch,
+  Ruler,
+  PieChart,
+  Spline,
+  Atom,
+  Magnet,
+  Beaker,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -49,6 +58,15 @@ export const UNIT_ICON_MAP: Record<string, LucideIcon> = {
   FlaskConical,
   TestTube,
   Sparkles,
+  Compass,
+  Hash,
+  GitBranch,
+  Ruler,
+  PieChart,
+  Spline,
+  Atom,
+  Magnet,
+  Beaker,
 };
 
 /** マップに存在しないキーが来た場合はデフォルトアイコン(Shapes)を返す */
