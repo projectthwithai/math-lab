@@ -14,6 +14,8 @@ import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle } from 'l
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
+import { checkAnswer } from '@/lib/engine/answerChecker';
+import { addSolvedProblemRecord } from '@/lib/storage/solvedProblemsStore';
 import { useUserStore } from '@/lib/store/userStore';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 
@@ -31,20 +33,6 @@ const TABS: { id: WorkspaceTab; label: string; icon: typeof PenLine }[] = [
   { id: 'hints', label: '3段階ヒント', icon: Lightbulb },
   { id: 'chat', label: 'AI解法壁打ち', icon: MessageCircle },
 ];
-
-function checkAnswer(userInput: string, correctAnswer: string | number): boolean {
-  const trimmed = userInput.trim();
-  if (trimmed.length === 0) return false;
-
-  if (typeof correctAnswer === 'number') {
-    const parsed = Number(trimmed.replace(/,/g, ''));
-    if (Number.isNaN(parsed)) return false;
-    return Math.abs(parsed - correctAnswer) < 0.05;
-  }
-
-  const normalize = (value: string) => value.replace(/[\s、。，,]/g, '').toLowerCase();
-  return normalize(trimmed) === normalize(String(correctAnswer));
-}
 
 interface WorkspaceViewProps {
   unitId?: string;
@@ -127,6 +115,8 @@ export default function WorkspaceView({ unitId, patternId }: WorkspaceViewProps)
       patternId: problem.patternId ?? patternId,
     });
     setSubmission({ isCorrect, xpResult });
+    // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
+    addSolvedProblemRecord(problem, isCorrect);
   };
 
   const formattedTime = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(
