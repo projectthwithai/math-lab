@@ -86,6 +86,8 @@ interface UserStoreState {
   recordAnswer: (params: RecordAnswerParams) => XpGainResult;
   /** 明示的にパターンを攻略済みにする（recordAnswerを経由しないケース用） */
   markPatternCleared: (patternId: string) => void;
+  /** パターン図鑑からの手動トグル（攻略済み⇔未攻略を切り替える） */
+  toggleClearedPattern: (patternId: string) => void;
   /** Energyが足りるか確認しつつ消費する。消費できた場合はtrueを返す */
   consumeEnergy: (amount?: number) => boolean;
 }
@@ -179,6 +181,14 @@ export const useUserStore = create<UserStoreState>()(
         set((state) =>
           state.clearedPatternIds.includes(patternId)
             ? state
+            : { clearedPatternIds: [...state.clearedPatternIds, patternId] }
+        );
+      },
+
+      toggleClearedPattern: (patternId) => {
+        set((state) =>
+          state.clearedPatternIds.includes(patternId)
+            ? { clearedPatternIds: state.clearedPatternIds.filter((id) => id !== patternId) }
             : { clearedPatternIds: [...state.clearedPatternIds, patternId] }
         );
       },
