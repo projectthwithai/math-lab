@@ -72,7 +72,7 @@ export default function ScoreResultModal({
   }, [problem.id]);
 
   const handleSaveNote = () => {
-    saveCustomSolutionNote(problem.id, noteContent);
+    saveCustomSolutionNote(problem.id, noteContent, problem.patternId);
     setSaveNotice('ローカルストレージに保存しました（ログイン後は自動同期されます）');
     window.setTimeout(() => setSaveNotice(null), 3000);
   };

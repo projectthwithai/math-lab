@@ -7,6 +7,7 @@
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
+import { attachGeometryVisual } from '@/lib/engine/geometryVisual';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -73,7 +74,9 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
   }
 
   const questionText = fillTemplate(templateConfig.templateText, result.vars);
-  const visual = attachMathGraphVisual(problem, result.vars);
+  const geometry = attachGeometryVisual(problem, result.vars);
+  const visual =
+    geometry.visualType === 'geometry_svg' ? geometry : attachMathGraphVisual(problem, result.vars);
 
   return {
     ...problem,

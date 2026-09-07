@@ -17,6 +17,7 @@ import { pickPracticePattern } from '@/lib/engine/patternPool';
 import { stampCatalogProblem, stampDiscoveredProblem } from '@/lib/mock/stampDiscoveredProblem';
 import { getPatternDefaultDifficulty } from '@/data/patternsData';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
+import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -69,6 +70,7 @@ interface LlmTemplatePayload {
   keyFormula: string;
   commonMistakes: string;
   choices?: string[];
+  geometryScene?: unknown;
 }
 
 function isValidLlmTemplatePayload(value: unknown): value is LlmTemplatePayload {
@@ -101,7 +103,15 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       ? '★1-3 基礎: 公式へ数値を直接代入する基本計算。場合分けや文字定数は使わない。解説は代入の手順を3ステップ程度で。'
       : tier === 'standard'
         ? '★4-7 標準・応用: 文字定数 a や定義域との場合分けを含む、標準的な入試問題。解説は場合分けの根拠を明示する。'
-        : '★8-10 難関: 難関大二次試験・共通テスト難問レベルの融合・思考問題。解説 stepByStep は途中の論理展開を5ステップ以上で極めて詳細に書く。';
+        : [
+            '★8-10 難関・激ムズ: 基本計算（公式へ数値を代入するだけ）は禁止。',
+            '必ず次をすべて満たすこと:',
+            '(1) 文字定数 a,k,t などを残したまま議論する高度な関数・図形・ベクトル問題。',
+            '(2) 場合分けが3パターン以上（軸と定義域、パラメータの符号、交点個数、鋭角/直角/鈍角 など）。',
+            '(3) 初見の論理展開が必要な融合問題（2つ以上の定理の接続、条件の言い換え、存在条件）。',
+            '(4) 答えは単なる代入値ではなく、個数・範囲の端点・場合分け後の値のいずれか。',
+            '(5) 解説 stepByStep は論理の根拠を6ステップ以上で極めて詳細に書く。',
+          ].join(' ');
 
   const systemPrompt =
     'あなたは高校生向けの数学・物理・化学の問題作成AIです。' +
@@ -111,9 +121,13 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     '{ vars: object, correctAnswer: string | number, explanationSteps?: string[] } を返してください。' +
     '2次関数・一次関数・三角関数のグラフ問題では、クライアント側SVG描画のため vars に係数を必ず含める。' +
     'quadratic は a,b,c または a,p,q。linear は m,b。sine は amplitude,frequency。画像生成は使わない。' +
+    '三角形・円・接線・ベクトル・点と直線の問題では geometryScene を必ず付ける。' +
+    'geometryScene は { points:[{id,x,y,label}], segments:[{from,to,dashed?,label?}], circles:[{cx,cy,r,dashed?,label?}], ' +
+    'angles:[{vertex,from,to,label}], vectors:[{from,to,label}], tangents:[{from,to}], caption }。座標は -10〜10 程度。' +
     'LaTeXのバックスラッシュ記法は使わず、Unicode数学記号（θ, π, °, ², √ 等）と' +
     'ASCII表記（^, /, ()）のみで数式を表現してください。' +
     '難易度指定に従い、問題の構造そのものを劇的に分岐させてください。' +
+    '★8以上では「計算するだけ」の問題を出してはいけない。' +
     (params.prompt ? 'ユーザーの作問リクエスト（userRequest）の単元・難易度・出題形式を最優先で反映してください。' : '') +
     tierGuide;
 
@@ -136,6 +150,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       hints: '[string, string, string]',
       keyFormula: 'string',
       commonMistakes: 'string',
+      geometryScene: 'optional object for triangle/circle/tangent/vector figures',
     },
   });
 
@@ -165,6 +180,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     const parsed = JSON.parse(content);
     if (!isValidLlmTemplatePayload(parsed)) return null;
 
+    const geometryScene = parseGeometryScene(parsed.geometryScene);
     const base: GeneratedProblem = {
       id: `llm-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
       patternId: params.patternId ?? params.unitId,
@@ -174,8 +190,10 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       difficulty,
       format: parsed.format ?? 'input',
       questionText: parsed.templateText,
-      visualType: 'none',
-      visualConfig: { type: 'none', params: {} },
+      visualType: geometryScene ? 'geometry_svg' : 'none',
+      visualConfig: geometryScene
+        ? { type: 'geometry', params: { ...geometryScene, scene: geometryScene } }
+        : { type: 'none', params: {} },
       correctAnswer: '',
       choices: parsed.choices,
       hints: parsed.hints,
@@ -205,9 +223,25 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
       unitId: params.unitId ?? intent.unitId,
       difficulty: params.difficulty ?? intent.difficulty,
       prompt: params.prompt,
+      patternId: params.patternId,
     };
+    const picked = pickPracticePattern({
+      unitId: generationParams.unitId,
+      patternId: generationParams.patternId,
+      discoveredPatterns: params.discoveredPatterns ?? [],
+    });
+    if (picked.pattern) {
+      generationParams.patternId = picked.pattern.id;
+    }
     const viaPrompt = await generateViaLlm(generationParams);
-    return { ...(viaPrompt ?? generateMockProblem(generationParams)), fromDiscoveredPattern: false };
+    const base = viaPrompt ?? generateMockProblem(generationParams);
+    if (picked.pattern && picked.fromDiscovered) {
+      return stampDiscoveredProblem(base, picked.pattern);
+    }
+    if (picked.pattern) {
+      return stampCatalogProblem(base, picked.pattern);
+    }
+    return { ...base, fromDiscoveredPattern: false };
   }
 
   const picked = pickPracticePattern({

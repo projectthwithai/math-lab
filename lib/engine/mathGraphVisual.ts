@@ -168,6 +168,7 @@ function parseExplicitType(
 
 function inferFromBag(problem: GeneratedProblem, bag: Record<string, unknown>): MathGraphModel | null {
   if (problem.subject !== 'math') return null;
+  if (problem.visualType === 'geometry_svg') return null;
 
   const text = contextText(problem);
   const a = pickNumber(bag, ['a']);

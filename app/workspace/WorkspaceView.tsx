@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers } from 'lucide-react';
+import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -17,6 +17,7 @@ import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { checkAnswer } from '@/lib/engine/answerChecker';
 import { addSolvedProblemRecord } from '@/lib/storage/solvedProblemsStore';
 import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
+import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
 import { useUserStore } from '@/lib/store/userStore';
 import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import { isQuadraticDailyQuestUnit } from '@/data/dailyQuests';
@@ -28,7 +29,9 @@ import {
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 
 import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
+import GeometrySvgPlotter from '@/components/visuals/GeometrySvgPlotter';
 import { resolveMathGraphModel } from '@/lib/engine/mathGraphVisual';
+import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
@@ -77,9 +80,19 @@ export default function WorkspaceView({
     null
   );
   const [energyError, setEnergyError] = useState<string | null>(null);
+  const [isMemoOpen, setIsMemoOpen] = useState(false);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
-  const graphModel = useMemo(() => (problem ? resolveMathGraphModel(problem) : null), [problem]);
+  const geometryScene = useMemo(() => (problem ? resolveGeometryScene(problem) : null), [problem]);
+  const graphModel = useMemo(
+    () => (problem && !geometryScene ? resolveMathGraphModel(problem) : null),
+    [problem, geometryScene]
+  );
+  const patternMemo = useMemo(
+    () => (problem?.patternId ? findPatternLinkedMemo(problem.patternId) : null),
+    [problem?.id, problem?.patternId]
+  );
+  const patternName = getPatternDisplayName(problem?.patternId);
 
   const fetchProblem = useCallback(async (opts?: { useInitialDifficulty?: boolean }) => {
     try {
@@ -141,6 +154,7 @@ export default function WorkspaceView({
       setRevealedHintCount(0);
       setElapsedSeconds(0);
       setSubmission(null);
+      setIsMemoOpen(false);
     }
   }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source]);
 
@@ -169,6 +183,7 @@ export default function WorkspaceView({
     setRevealedHintCount(0);
     setElapsedSeconds(0);
     setSubmission(null);
+    setIsMemoOpen(false);
   };
 
   const handleSubmitAnswer = () => {
@@ -254,6 +269,18 @@ export default function WorkspaceView({
           <KaTeXText text={problem.questionText} />
         </div>
 
+        {patternMemo && (
+          <button
+            type="button"
+            onClick={() => setIsMemoOpen(true)}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
+          >
+            💡 このパターンの自分メモを参照
+          </button>
+        )}
+
+        {geometryScene && <GeometrySvgPlotter problem={problem} scene={geometryScene} className="mt-0" />}
+
         {graphModel && (
           <MathGraphPlotter problem={problem} className="mt-0" />
         )}
@@ -293,7 +320,7 @@ export default function WorkspaceView({
         </div>
 
         <div className="min-h-[340px] flex-1">
-          {activeTab === 'memo' && <ScratchpadCanvas />}
+          {activeTab === 'memo' && <ScratchpadCanvas problem={problem} />}
 
           {activeTab === 'input' && (
             <div className="flex flex-col gap-3">
@@ -348,6 +375,37 @@ export default function WorkspaceView({
           解答を送信する
         </button>
       </div>
+
+      {isMemoOpen && patternMemo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-amber-400/30 bg-white/95 p-5 shadow-xl dark:bg-slate-950/95">
+            <button
+              type="button"
+              onClick={() => setIsMemoOpen(false)}
+              className="absolute right-3 top-3 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="閉じる"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Pattern Memo</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">このパターンの自分メモ</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {patternMemo.label}
+              {patternName ? ` · ${patternName}` : ''}
+            </p>
+            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+              <KaTeXText text={patternMemo.content} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMemoOpen(false)}
+              className="mt-4 w-full rounded-lg border border-amber-400/40 py-2 text-xs font-semibold text-amber-700 dark:text-amber-200"
+            >
+              閉じて問題に戻る
+            </button>
+          </div>
+        </div>
+      )}
 
       {submission && (
         <ScoreResultModal

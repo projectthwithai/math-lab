@@ -20,6 +20,9 @@ export const ENERGY_COST_ANALYZE_IMAGE = 15;
 /** 解法ロジック検証（/api/verify-custom-solution） */
 export const ENERGY_COST_VERIFY_LOGIC = 5;
 
+/** 手書き途中式のAI赤ペン添削（/api/correct-scratchpad） */
+export const ENERGY_COST_CORRECT_SCRATCHPAD = 5;
+
 /** デイリークエスト経由の問題生成・解答。常に 0 Energy */
 export const ENERGY_COST_DAILY_QUEST = 0;
 

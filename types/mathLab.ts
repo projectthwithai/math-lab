@@ -21,7 +21,7 @@ export interface GeneratedProblem {
   format: ProblemFormat;
   questionText: string;
 
-  visualType: 'none' | 'math_graph' | 'physics_simulation' | 'chemistry_animation';
+  visualType: 'none' | 'math_graph' | 'physics_simulation' | 'chemistry_animation' | 'geometry_svg';
   visualConfig: {
     type: string;
     params: Record<string, unknown>;
@@ -124,8 +124,100 @@ export interface WeaponItem {
 
 export interface CustomSolutionNote {
   problemId: string;
+  /** 同じパターンの問題画面で自動紐付けするために保存する */
+  patternId?: string;
   content: string;
   updatedAt: string;
+}
+
+// ------------------------------------------
+// PatternLinkedMemo（単元演習時にポップアップ表示する自分流メモ）
+// ------------------------------------------
+
+export type PatternMemoSource = 'strategy' | 'note';
+
+export interface PatternLinkedMemo {
+  patternId: string;
+  content: string;
+  updatedAt: string;
+  source: PatternMemoSource;
+  label: string;
+}
+
+// ------------------------------------------
+// ScratchpadCorrection（手書き途中式のAI赤ペン添削）
+// ------------------------------------------
+
+export type ScratchpadCorrectionOverall = 'good' | 'needs_fix' | 'empty';
+export type ScratchpadCommentSeverity = 'error' | 'warning' | 'ok';
+
+export interface ScratchpadCorrectionComment {
+  /** 1始まり。特定できない場合は省略 */
+  line?: number;
+  severity: ScratchpadCommentSeverity;
+  text: string;
+}
+
+export interface ScratchpadCorrectionResult {
+  overall: ScratchpadCorrectionOverall;
+  summary: string;
+  comments: ScratchpadCorrectionComment[];
+  source: 'llm' | 'local';
+}
+
+// ------------------------------------------
+// GeometryScene（コスト0円SVG図形描画用データ）
+// ------------------------------------------
+
+export interface GeometryPoint {
+  id: string;
+  x: number;
+  y: number;
+  label?: string;
+}
+
+export interface GeometryCircle {
+  id?: string;
+  cx: number;
+  cy: number;
+  r: number;
+  dashed?: boolean;
+  label?: string;
+}
+
+export interface GeometrySegment {
+  from: string;
+  to: string;
+  dashed?: boolean;
+  label?: string;
+}
+
+export interface GeometryAngle {
+  vertex: string;
+  from: string;
+  to: string;
+  label: string;
+}
+
+export interface GeometryVector {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface GeometryPolygon {
+  pointIds: string[];
+}
+
+export interface GeometryScene {
+  points: GeometryPoint[];
+  circles?: GeometryCircle[];
+  segments?: GeometrySegment[];
+  polygons?: GeometryPolygon[];
+  angles?: GeometryAngle[];
+  vectors?: GeometryVector[];
+  tangents?: GeometrySegment[];
+  caption?: string;
 }
 
 // ------------------------------------------

@@ -47,11 +47,17 @@ export function getCustomSolutionNote(problemId: string): CustomSolutionNote | n
   return notes[problemId] ?? null;
 }
 
-export function saveCustomSolutionNote(problemId: string, content: string): CustomSolutionNote {
+export function saveCustomSolutionNote(
+  problemId: string,
+  content: string,
+  patternId?: string
+): CustomSolutionNote {
   const notes = readAllNotes();
+  const existing = notes[problemId];
   const note: CustomSolutionNote = {
     problemId,
     content,
+    patternId: patternId ?? existing?.patternId,
     updatedAt: new Date().toISOString(),
   };
   notes[problemId] = note;

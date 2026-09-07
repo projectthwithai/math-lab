@@ -1528,8 +1528,11 @@ export function generateMockProblem({
 
   const unitTitle = unit?.title ?? '数学';
   const primary = buildBlueprint(patternKey, finalDifficulty, unitTitle);
-  // 同じ単元でも毎回シード抽選。図鑑の patternId 指定時も数値は localRegenerator で変わる。
-  const extras = getExtraBlueprints(resolvedUnitId, finalDifficulty, unitTitle);
+  // ★8-10 では基本計算の extra バリアントを混ぜず、難関テンプレートだけを出す。
+  const extras =
+    getDifficultyTier(finalDifficulty) === 'hard'
+      ? []
+      : getExtraBlueprints(resolvedUnitId, finalDifficulty, unitTitle);
   // 図鑑から patternId 指定時は主テンプレートを維持。単元指定のみのときは複数パターンから抽選。
   const pool = patternId ? [primary] : [primary, ...extras];
   const seed = createVariantSeed();

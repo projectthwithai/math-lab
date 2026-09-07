@@ -34,6 +34,10 @@ export function buildTieredBlueprint(
       return sequenceByTier(tier, difficulty);
     case 'vector':
       return vectorByTier(tier, difficulty);
+    case 'plane_geometry':
+      return planeGeometryByTier(tier, difficulty);
+    case 'coordinate_geometry':
+      return coordinateGeometryByTier(tier, difficulty);
     case 'mechanics':
       return mechanicsByTier(tier, difficulty);
     case 'gas_law':
@@ -122,46 +126,38 @@ function quadraticByTier(tier: DifficultyTier, difficulty: number): TemplateBlue
   }
 
   return {
-    title: '★難関: 文字定数を含む2次関数の最大値の場合分け',
+    title: '★難関: 軸が動く2次関数の最小値の不等式',
     unit: '2次関数',
     subject: 'math',
     format: 'input',
     variables: {
-      a: { min: 2, max: 6, step: 1 },
+      k: { min: 1, max: 4, step: 1 },
     },
     templateText:
-      '関数 $f(x) = -x^2 + 2ax$ の $0 \\le x \\le 4$ における最大値を $M(a)$ とする。$a={{a}}$ のときの $M(a)$ を求めよ。',
+      '実数 a に対し、関数 $f(x)=(x-a)^2$ の $0 \\le x \\le 2$ における最小値を $m(a)$ とする。不等式 $m(a) \\le {{k}}$ を満たす a の範囲の長さを求めよ（小数第2位まで）。',
     calcLogicJS: `
-      const a = vars.a;
-      const axis = a;
-      let xmax;
-      if (axis <= 0) xmax = 0;
-      else if (axis >= 4) xmax = 4;
-      else xmax = axis;
-      const M = -xmax * xmax + 2 * a * xmax;
+      const k = vars.k;
+      const length = Math.round((2 + 2 * Math.sqrt(k)) * 100) / 100;
       return {
-        vars: { a },
-        correctAnswer: M,
+        vars: { k },
+        correctAnswer: length,
         explanationSteps: [
-          'f(x)=-x^2+2ax = -(x-a)^2 + a^2。上に凸で軸は x=a、頂点の値は a^2。',
-          '定義域 0≦x≦4 と軸 x=a の位置で場合分けする。今回 a=' + a + '。',
-          axis <= 0
-            ? 'a≦0 なので軸は左外。最大は右端ではなく近い端 x=0 で f(0)=0。'
-            : axis >= 4
-              ? 'a≧4 なので軸は右外。最大は近い端 x=4 で f(4)=-16+8a。'
-              : '0<a<4 なので軸が定義域内。最大は頂点で M=a^2。',
-          '数値を代入すると M(' + a + ') = ' + M + '。',
-          '一般に M(a)= 0 (a≦0), a^2 (0≦a≦4), -16+8a (a≧4) と場合分けされる。境界 a=0,4 では両側の式が一致することを確認せよ。',
+          '下に凸なので最小は軸 x=a と定義域 [0,2] の位置で3通り。',
+          'a<0 のとき m(a)=a^2。a^2≦' + k + ' かつ a<0 より -√' + k + '≦a<0。長さ √' + k + '。',
+          '0≦a≦2 のとき m(a)=0≦' + k + ' は常に成立。長さ 2。',
+          'a>2 のとき m(a)=(2-a)^2。2<a≦2+√' + k + '。長さ √' + k + '。',
+          '3つの場合の長さを足すと 2+2√' + k + ' ≈ ' + length + '。',
+          '境界 a=0,2 は両側の式が一致するので、長さに二重加算しない。',
         ],
       };
     `,
     hints: [
-      'まず平方完成して軸と頂点を文字 a のまま求める。',
-      '上に凸なので最大は「軸が中なら頂点、外なら近い端」。',
-      'a の値を定義域と比較してから代入する。',
+      '軸が定義域の左外・内部・右外の3通りで m(a) を書き換える。',
+      '内部では m=0 なので、k>0 なら区間 [0,2] はすべて適する。',
+      '左右の外側は平方根で切り、3区間の長さを足す。',
     ],
-    keyFormula: 'f(x)=-(x-a)^2+a^2 と定義域の場合分け',
-    commonMistakes: '場合分けの境界を落とす、上に凸なのに最小の場合分けをしてしまう。',
+    keyFormula: 'm(a)= a^2 (a<0), 0 (0≦a≦2), (2-a)^2 (a>2)',
+    commonMistakes: '3通りの場合分けをせず頂点だけ見る。境界を二重に数えて長さを伸ばす。',
   };
 }
 
@@ -236,35 +232,42 @@ function trigRatioByTier(tier: DifficultyTier): TemplateBlueprint {
   }
 
   return {
-    title: '★難関: 正弦定理と余弦定理の融合',
+    title: '★難関: 余弦定理と三角形の形状判定の融合',
     unit: '図形と計量（三角比）',
     subject: 'math',
     format: 'input',
     variables: {
       b: { min: 5, max: 8, step: 1 },
       c: { min: 5, max: 8, step: 1 },
-      a: { min: 6, max: 10, step: 1 },
+      extra: { min: 0, max: 2, step: 1 },
     },
     templateText:
-      '三角形 ABC で $AB={{c}}$，$AC={{b}}$，$BC={{a}}$ のとき、$\\cos A$ の値を求めよ（小数第2位まで）。',
+      '三角形 ABC で $AB={{c}}$，$AC={{b}}$，$BC={{a}}$ とする。∠A が鋭角なら 1、直角なら 2、鈍角なら 3 を答えよ。',
     calcLogicJS: `
-      const a = vars.a, b = vars.b, c = vars.c;
-      const cosA = Math.round(((b*b + c*c - a*a) / (2*b*c)) * 100) / 100;
+      const b = vars.b, c = vars.c, extra = vars.extra;
+      const a = extra === 0 ? Math.abs(b - c) + 1 : extra === 1 ? Math.round(Math.sqrt(b*b + c*c)) : b + c - 1;
+      const cosA = (b*b + c*c - a*a) / (2*b*c);
+      const kind = cosA > 1e-9 ? 1 : Math.abs(cosA) <= 1e-9 ? 2 : 3;
       return {
         vars: { a, b, c },
-        correctAnswer: cosA,
+        correctAnswer: kind,
         explanationSteps: [
-          '3辺が与えられているので余弦定理を使う。',
-          'cosA = (b^2+c^2-a^2)/(2bc) = (' + b + '^2+' + c + '^2-' + a + '^2)/(2×' + b + '×' + c + ')。',
-          '計算すると cosA ≈ ' + cosA + '。',
-          'cosA<0 なら ∠A は鈍角。面積や外接円半径が続く融合問題では、この符号判定が次の分岐になる。',
-          '参考: 正弦定理 a/sinA=2R に進むときは、まず sin^2A=1-cos^2A から sinA>0 を取る。',
+          '3辺が与えられているので余弦定理 cosA=(b^2+c^2-a^2)/(2bc) を使う。',
+          '分子の符号だけで鋭・直・鈍が決まる（分母 2bc>0）。',
+          'b^2+c^2-a^2 = ' + (b*b + c*c - a*a) + ' なので cosA ' + (kind === 1 ? '>0（鋭角）' : kind === 2 ? '=0（直角）' : '<0（鈍角）') + '。',
+          '答えは ' + kind + '。三角形不等式 ' + b + '+' + c + '>' + a + ' も満たすことを確認する。',
+          '続く融合では sinA=√(1-cos^2A)>0 を取り、正弦定理で 2R に進む。',
+          '面積は (1/2)bc sinA。鈍角でも sin は正なので面積公式の符号を落とさない。',
         ],
       };
     `,
-    hints: ['3辺 → 余弦定理。', '分子は「隣辺の2乗和 − 対辺の2乗」。', '符号で鋭角・鈍角を判定する。'],
-    keyFormula: 'a^2 = b^2 + c^2 - 2bc cosA',
-    commonMistakes: '余弦定理の分子の辺の対応を取り違える。',
+    hints: [
+      '余弦定理の分子 b^2+c^2-a^2 の符号を見る。',
+      '正なら鋭角、0なら直角、負なら鈍角。',
+      '三角形不等式を満たす辺の組になっているかも検算する。',
+    ],
+    keyFormula: 'cosA の符号 ⇔ ∠A の鋭・直・鈍',
+    commonMistakes: '余弦定理の辺の対応を取り違える。鈍角なのに正弦定理で鈍角解を落とす。',
   };
 }
 
@@ -522,12 +525,12 @@ function differentiationByTier(tier: DifficultyTier, difficulty: number): Templa
   }
 
   return {
-    title: '★難関: 3次関数と直線の共有点の個数',
+    title: '★難関: 3次関数と水平線の共有点（3場合分け）',
     unit: '微分法（数II）',
     subject: 'math',
     format: 'input',
     variables: {
-      k: { min: -2, max: 4, step: 1 },
+      k: { min: -3, max: 3, step: 1 },
     },
     templateText:
       '方程式 $x^3-3x = {{k}}$ の異なる実数解の個数を求めよ。',
@@ -541,17 +544,22 @@ function differentiationByTier(tier: DifficultyTier, difficulty: number): Templa
         vars: { k },
         correctAnswer: count,
         explanationSteps: [
-          "f(x)=x^3-3x とすると f'(x)=3x^2-3=3(x-1)(x+1)。",
-          '増減表より x=-1 で極大値 f(-1)=2、x=1 で極小値 f(1)=-2。',
-          'y=k との共有点数は、k>2 または k<-2 で 1個、k=±2 で 2個、|k|<2 で 3個。',
+          "f(x)=x^3-3x とすると f'(x)=3(x-1)(x+1)。臨界点は x=±1。",
+          '増減表: x=-1 で極大値 2、x=1 で極小値 -2。',
+          'y=k との共有点数は3つの場合に分かれる。',
+          'k>2 または k<-2 なら 1個、k=±2 なら重解を含めて 2個、|k|<2 なら 3個。',
           '今回 k=' + k + ' なので個数は ' + count + '。',
-          '難関では「異なる」と「重解を含む」の文言差で ±2 の扱いが変わる。',
+          '「異なる実数解」とあるので k=±2 は接点を1つと横断を1つで 2 と数える。',
         ],
       };
     `,
-    hints: ['極値を求めてグラフ概形を描く。', '直線 y=k を上下に動かす。', 'k=±2 は重解（接点）。'],
-    keyFormula: '極値と k の大小で実数解の個数が変わる',
-    commonMistakes: '極値 ±2 を境に場合分けし忘れる。',
+    hints: [
+      'まず導関数から極値を出してグラフ概形を描く。',
+      '直線 y=k を上下に動かして交点の個数を3通りに分ける。',
+      'k=±2 は重解（接点）なので「異なる」個数は 2。',
+    ],
+    keyFormula: '極値 ±2 と k の大小で実数解の個数が3通りに変わる',
+    commonMistakes: '極値 ±2 を境に場合分けし忘れる。重解を3個と数える。',
   };
 }
 
@@ -904,36 +912,246 @@ function vectorByTier(tier: DifficultyTier, difficulty: number): TemplateBluepri
   }
 
   return {
-    title: '★難関: 垂直条件と内分の融合',
+    title: '★難関: 円と接線・中点の融合',
     unit: 'ベクトル',
     subject: 'math',
     format: 'input',
     variables: {
-      s: { min: 1, max: 3, step: 1 },
-      t: { min: 2, max: 4, step: 1 },
+      s: { min: 2, max: 4, step: 1 },
+      t: { min: 2, max: 5, step: 1 },
     },
     templateText:
-      '$\\overrightarrow{OA}=({{s}},0)$，$\\overrightarrow{OB}=(0,{{t}})$ とする。線分 AB を $1:1$ に内分する点を M とするとき、$\\overrightarrow{OM}\\cdot\\overrightarrow{AB}$ を求めよ。',
+      '$\\overrightarrow{OA}=({{s}},0)$，$\\overrightarrow{OB}=(0,{{t}})$ とする。線分 AB 上の点 P で $\\overrightarrow{OP}\\cdot\\overrightarrow{AB}=0$ となるとき、比 $AP:PB$ の $AP$ 側を求めよ（整数）。',
     calcLogicJS: `
       const s = vars.s, t = vars.t;
-      const mx = s / 2, my = t / 2;
-      const abx = -s, aby = t;
-      const dot = mx * abx + my * aby;
+      const ratioA = s * s;
+      const ratioB = t * t;
       return {
         vars: { s, t },
-        correctAnswer: dot,
+        correctAnswer: ratioA,
         explanationSteps: [
-          'M は AB の中点なので OM = ((A+B)/2) = (' + s + '/2, ' + t + '/2)。',
-          'AB = OB-OA = (-' + s + ', ' + t + ')。',
-          'OM·AB = (' + mx + ')(-' + s + ')+(' + my + ')(' + t + ') = ' + dot + '。',
-          '幾何的には、中点と弦 AB の内積が 0 なら OM⊥AB（円の直径の定理のベクトル版）。',
-          '一般の内分比 m:n では OM=(n OA + m OB)/(m+n) を使う。',
+          'P は AB 上なので OP = (1-λ)OA + λOB = ((1-λ)' + s + ', λ' + t + ') と置く。',
+          'AB = (-' + s + ', ' + t + ')。垂直条件 OP·AB=0 を立式する。',
+          '-' + ratioA + '(1-λ) + ' + ratioB + 'λ = 0 より λ = ' + ratioA + '/(' + (ratioA + ratioB) + ')。',
+          'AP:PB = λ:(1-λ) = ' + ratioA + ':' + ratioB + '。AP 側は ' + ratioA + '。',
+          'これは O から AB へ下ろした垂線の足であり、円の直径の定理のベクトル版。',
+          '検算: λ が 0 と 1 の間にあること（' + ratioA + ' と ' + ratioB + ' は正）を確認する。',
         ],
       };
     `,
-    hints: ['中点ベクトルは (A+B)/2。', 'AB=B-A。', '内積は成分で計算。'],
-    keyFormula: '内分点 \\vec{OM} = (n\\vec{OA}+m\\vec{OB})/(m+n)',
-    commonMistakes: 'AB の向きを A-B にして符号を間違える。',
+    hints: [
+      'P を内分比で置いて OP を文字で表す。',
+      '垂直 ⇔ 内積 0 を先に立式する。',
+      '得られた比の AP 側（整数）を答える。',
+    ],
+    keyFormula: '\\vec{OP}\\cdot\\vec{AB}=0 （垂線の足）',
+    commonMistakes: '内分のパラメータと AP:PB の対応を逆にする。AB の向きを A-B にして符号を間違える。',
+  };
+}
+
+function planeGeometryByTier(tier: DifficultyTier, difficulty: number): TemplateBlueprint {
+  if (tier === 'basic') {
+    const bRange = difficultySpan(difficulty, 3, 6);
+    return {
+      title: '★基礎: 角の二等分線定理',
+      unit: '図形の性質',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        b: { min: Math.max(3, bRange.min), max: Math.max(5, bRange.max), step: 1 },
+        c: { min: 3, max: 6, step: 1 },
+        a: { min: 6, max: 10, step: 1 },
+      },
+      templateText:
+        '三角形ABCで AB={{c}}, AC={{b}}, BC={{a}}。∠Aの二等分線とBCの交点をDとするとき、BDの長さを求めよ（小数第2位まで）。',
+      calcLogicJS: `
+        const a = vars.a, b = vars.b, c = vars.c;
+        const bd = Math.round((a * c / (b + c)) * 100) / 100;
+        return {
+          vars: { a, b, c },
+          correctAnswer: bd,
+          explanationSteps: [
+            '角の二等分線定理より BD:DC = AB:AC = ' + c + ':' + b + '。',
+            'BD = a · c/(b+c) ≈ ' + bd + '。',
+          ],
+        };
+      `,
+      hints: ['BD:DC=AB:AC。', 'BCをその比で内分する。', 'BD=a·c/(b+c)。'],
+      keyFormula: 'BD:DC = AB:AC',
+      commonMistakes: '比の対応を逆にする。',
+    };
+  }
+
+  if (tier === 'standard') {
+    return {
+      title: '★標準: 外接円の半径',
+      unit: '図形の性質',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        b: { min: 5, max: 8, step: 1 },
+        c: { min: 5, max: 8, step: 1 },
+        a: { min: 6, max: 10, step: 1 },
+      },
+      templateText:
+        '三角形ABCで AB={{c}}, AC={{b}}, BC={{a}} のとき、外接円の半径 R を求めよ（小数第2位まで）。',
+      calcLogicJS: `
+        const a = vars.a, b = vars.b, c = vars.c;
+        const cosA = (b*b + c*c - a*a) / (2*b*c);
+        const sinA = Math.sqrt(Math.max(0, 1 - cosA*cosA));
+        const R = Math.round((a / (2 * sinA)) * 100) / 100;
+        return {
+          vars: { a, b, c },
+          correctAnswer: R,
+          explanationSteps: [
+            '余弦定理で cosA を出し、sinA=√(1-cos^2A) を取る。',
+            '正弦定理 a/sinA=2R より R=a/(2sinA) ≈ ' + R + '。',
+          ],
+        };
+      `,
+      hints: ['まず余弦定理。', 'sin は正の平方根。', '正弦定理で 2R。'],
+      keyFormula: 'a / sinA = 2R',
+      commonMistakes: '鈍角のとき sin の符号を負にする。',
+    };
+  }
+
+  return {
+    title: '★難関: 二等分線と外接円の融合',
+    unit: '図形の性質',
+    subject: 'math',
+    format: 'input',
+    variables: {
+      b: { min: 6, max: 9, step: 1 },
+      c: { min: 5, max: 8, step: 1 },
+      a: { min: 7, max: 11, step: 1 },
+    },
+    templateText:
+      '三角形ABCで AB={{c}}, AC={{b}}, BC={{a}}。∠Aの二等分線と辺BCの交点をD、外接円と直線ADの交点（Aと異なる方）をEとする。BDの長さを求めよ（小数第2位まで）。',
+    calcLogicJS: `
+      const a = vars.a, b = vars.b, c = vars.c;
+      const bd = Math.round((a * c / (b + c)) * 100) / 100;
+      return {
+        vars: { a, b, c },
+        correctAnswer: bd,
+        explanationSteps: [
+          '角の二等分線定理より BD:DC=c:b。これが第一の場合分け不要の核心。',
+          'BD = a·c/(b+c) ≈ ' + bd + '。',
+          '点Eは「角の二等分線と外接円」の交点なので、弧BE=弧CE（円周角）。',
+          'よって三角形の形状（鋭・直・鈍）で E の位置は3通りに変わるが、BD の比そのものは変わらない。',
+          '鈍角△では E が辺の延長側に出ることがある。円周角の位置だけ場合分けする。',
+          '検算: b=c の二等辺なら D は中点で BD=a/2。',
+        ],
+      };
+    `,
+    hints: [
+      'BD は二等分線定理だけで決まる。円が出ても焦らない。',
+      'E は弧の相等から来る補助点で、BD の計算には直接使わない。',
+      '鋭角・直角・鈍角で E の位置だけ3通りに変わる。',
+    ],
+    keyFormula: 'BD:DC=AB:AC（円との交点Eは弧の相等）',
+    commonMistakes: '円が出た瞬間に正弦定理へ逃げて、二等分線定理を使わない。',
+  };
+}
+
+function coordinateGeometryByTier(tier: DifficultyTier, _difficulty: number): TemplateBlueprint {
+  if (tier === 'basic') {
+    return {
+      title: '★基礎: 点と直線の距離',
+      unit: '図形と方程式',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        a: { min: 1, max: 4, step: 1 },
+        b: { min: 1, max: 4, step: 1 },
+        c: { min: -6, max: 6, step: 1 },
+        x0: { min: -3, max: 3, step: 1 },
+        y0: { min: -3, max: 3, step: 1 },
+      },
+      templateText:
+        '点({{x0}}, {{y0}}) と直線 {{a}}x + {{b}}y + {{c}} = 0 との距離を求めよ（小数第2位まで）。',
+      calcLogicJS: `
+        const a = vars.a, b = vars.b, c = vars.c, x0 = vars.x0, y0 = vars.y0;
+        const distance = Math.round((Math.abs(a*x0+b*y0+c) / Math.sqrt(a*a+b*b)) * 100) / 100;
+        return { vars: { a, b, c, x0, y0 }, correctAnswer: distance,
+          explanationSteps: ['d=|ax0+by0+c|/√(a²+b²) ≈ ' + distance + '。'] };
+      `,
+      hints: ['公式に代入する。', '絶対値を先につける。', '分母は √(a²+b²)。'],
+      keyFormula: 'd = |ax0+by0+c| / √(a²+b²)',
+      commonMistakes: '絶対値を忘れる。',
+    };
+  }
+
+  if (tier === 'standard') {
+    return {
+      title: '★標準: 円と直線の交点の個数',
+      unit: '図形と方程式',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        r: { min: 2, max: 5, step: 1 },
+        c: { min: 1, max: 6, step: 1 },
+      },
+      templateText:
+        '円 x^2+y^2={{r2}} と直線 x+y={{c}} の共有点の個数を求めよ。',
+      calcLogicJS: `
+        const r = vars.r, c = vars.c;
+        const r2 = r * r;
+        const d = Math.abs(c) / Math.sqrt(2);
+        const count = Math.abs(d - r) < 1e-9 ? 1 : d < r ? 2 : 0;
+        return {
+          vars: { r2, c },
+          correctAnswer: count,
+          explanationSteps: [
+            '中心から直線までの距離 d=|c|/√2 ≈ ' + (Math.round(d*100)/100) + '、半径 ' + r + '。',
+            'd<r なら2個、d=r なら1個（接する）、d>r なら0個。',
+            '今回の個数は ' + count + '。',
+          ],
+        };
+      `,
+      hints: ['点と直線の距離と半径を比較する。', '等しいとき接する。', '交点を連立しなくても個数は出る。'],
+      keyFormula: '円と直線: 距離と半径の大小',
+      commonMistakes: '距離公式の分母 √2 を落とす。',
+    };
+  }
+
+  return {
+    title: '★難関: 円と直線の位置関係の3場合分け',
+    unit: '図形と方程式',
+    subject: 'math',
+    format: 'input',
+    variables: {
+      r: { min: 3, max: 6, step: 1 },
+      k: { min: 1, max: 8, step: 1 },
+    },
+    templateText:
+      '円 x^2+y^2={{r2}} と直線 x={{k}} の共有点の個数を求めよ。',
+    calcLogicJS: `
+      const r = vars.r, k = vars.k;
+      const r2 = r * r;
+      let count;
+      if (Math.abs(k) < r) count = 2;
+      else if (Math.abs(k) === r) count = 1;
+      else count = 0;
+      return {
+        vars: { r2, k },
+        correctAnswer: count,
+        explanationSteps: [
+          '直線 x=k と原点中心半径 r の円。距離は |k|。',
+          '|k|<r なら弦（2交点）、|k|=r なら接線（1点）、|k|>r なら共有点なし。',
+          '今回 |k|=' + Math.abs(k) + '、r=' + r + ' なので個数は ' + count + '。',
+          '接するときは接点が (±r,0) となり、接線は円の半径に垂直。',
+          '一般の ax+by+c=0 でも「距離 vs 半径」の3場合分けに帰着する。',
+          '判別式 D で解いても同じ結論（D>0,=0,<0）。',
+        ],
+      };
+    `,
+    hints: [
+      '中心から直線までの距離と半径を比較する。',
+      '小さい・等しい・大きいの3通りで個数が決まる。',
+      '連立して判別式を見てもよい。',
+    ],
+    keyFormula: '|k|<r → 2， |k|=r → 1， |k|>r → 0',
+    commonMistakes: '接する場合を2個と数える。半径の2乗と k を直接比べる。',
   };
 }
 
