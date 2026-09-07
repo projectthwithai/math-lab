@@ -5,7 +5,7 @@
 // 生成結果は `discovered: true` を付けて返し、クライアントが
 // `userStore.discoveredPatterns`（単元演習の出題プール）へ自動保存する。
 // .cursorrules の API Cost Minimization:
-// - OPENAI_API_KEY があれば gpt-4o-mini
+// - GEMINI_API_KEY があれば gemini-1.5-flash、なければ gpt-4o-mini
 // - 未設定・失敗時はローカル発掘エンジン（ゼロコスト）
 
 import { NextResponse } from 'next/server';
@@ -13,6 +13,7 @@ import type { PatternLevel, SolutionPattern, Subject } from '@/types/mathLab';
 import { getUnitById } from '@/data/unitsData';
 import { SOLUTION_PATTERNS } from '@/data/patternsData';
 import { generateMockPatterns } from '@/lib/mock/generateMockPatterns';
+import { completeLlmJson } from '@/lib/llm/completeJson';
 
 interface GeneratePatternsBody {
   unitId?: unknown;
@@ -70,9 +71,6 @@ async function generateViaLlm(params: {
   existingNames: string[];
   count: number;
 }): Promise<SolutionPattern[] | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
   const subject: Subject = unit?.subject ?? params.subject ?? 'math';
   const unitTitle = unit?.title ?? '総合';
@@ -94,28 +92,9 @@ async function generateViaLlm(params: {
   });
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-
-    const parsed = JSON.parse(content) as { patterns?: unknown };
+    const parsedRaw = await completeLlmJson({ systemPrompt, userPrompt });
+    const parsed = parsedRaw as { patterns?: unknown } | null;
+    if (!parsed) return null;
     const rawList = Array.isArray(parsed.patterns) ? parsed.patterns : Array.isArray(parsed) ? parsed : [];
     const stamp = Date.now();
     const patterns = rawList

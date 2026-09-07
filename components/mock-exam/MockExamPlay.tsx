@@ -6,11 +6,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, ChevronRight } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import KaTeXText from '@/components/workspace/KaTeXText';
-import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
+import ScratchpadCanvas, { type ScratchpadCanvasHandle } from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
 import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
 import GeometrySvgPlotter from '@/components/visuals/GeometrySvgPlotter';
@@ -43,8 +43,10 @@ export default function MockExamPlay() {
   const [limit, setLimit] = useState(0);
   const [report, setReport] = useState<MockExamReport | null>(null);
   const [visualOpen, setVisualOpen] = useState(false);
+  const [scratchpads, setScratchpads] = useState<string[]>([]);
   const answersRef = useRef(answers);
   answersRef.current = answers;
+  const scratchpadRef = useRef<ScratchpadCanvasHandle>(null);
 
   useEffect(() => {
     const config = loadMockExamConfig();
@@ -56,6 +58,7 @@ export default function MockExamPlay() {
     const timeLimit = config.minutes * 60;
     setProblems(generated);
     setAnswers(Array.from({ length: generated.length }, () => ''));
+    setScratchpads(Array.from({ length: generated.length }, () => ''));
     setRemaining(timeLimit);
     setLimit(timeLimit);
     setElapsed(0);
@@ -134,25 +137,70 @@ export default function MockExamPlay() {
   const isLast = index === problems.length - 1;
   const currentAnswer = answers[index] ?? '';
 
+  const persistCurrentScratchpad = () => {
+    const snapshot = scratchpadRef.current?.exportSnapshot();
+    if (snapshot == null) return;
+    setScratchpads((prev) => {
+      const next = [...prev];
+      next[index] = snapshot;
+      return next;
+    });
+  };
+
+  const goToQuestion = (nextIndex: number) => {
+    if (!problems || nextIndex < 0 || nextIndex >= problems.length || nextIndex === index) return;
+    persistCurrentScratchpad();
+    setIndex(nextIndex);
+    setVisualOpen(false);
+  };
+
+  const goPrev = () => goToQuestion(index - 1);
+
   const goNext = () => {
     if (isLast) {
+      persistCurrentScratchpad();
       finishExam(answers, elapsed);
       return;
     }
-    setIndex((value) => value + 1);
-    setVisualOpen(false);
+    goToQuestion(index + 1);
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60">
-        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-          第{index + 1}問 / {problems.length}問
-        </p>
-        <span className={`inline-flex items-center gap-1.5 text-sm font-bold ${remaining <= 60 ? 'text-rose-400' : 'text-cyan-300'}`}>
-          <Clock className="h-4 w-4" />
-          残り {formatExamClock(remaining)}
-        </span>
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            第{index + 1}問 / {problems.length}問
+          </p>
+          <span className={`inline-flex items-center gap-1.5 text-sm font-bold ${remaining <= 60 ? 'text-rose-400' : 'text-cyan-300'}`}>
+            <Clock className="h-4 w-4" />
+            残り {formatExamClock(remaining)}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="問題ジャンプ">
+          {problems.map((item, questionIndex) => {
+            const answered = Boolean(answers[questionIndex]?.trim());
+            const current = questionIndex === index;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={current}
+                onClick={() => goToQuestion(questionIndex)}
+                className={`min-w-[2.75rem] rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors ${
+                  current
+                    ? 'border-cyan-400 bg-cyan-400/15 text-cyan-700 ring-1 ring-cyan-400/60 dark:text-cyan-200'
+                    : answered
+                      ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
+                      : 'border-slate-300 text-slate-500 hover:border-cyan-400/40 dark:border-slate-700 dark:text-slate-400'
+                }`}
+              >
+                Q{questionIndex + 1}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -242,17 +290,53 @@ export default function MockExamPlay() {
             </>
           )}
           <div className="min-h-[180px]">
-            <ScratchpadCanvas key={problem.id} problem={problem} />
+            <ScratchpadCanvas
+              ref={scratchpadRef}
+              key={problem.id}
+              problem={problem}
+              snapshot={scratchpads[index] || null}
+              onSnapshotChange={(dataUrl) => {
+                setScratchpads((prev) => {
+                  const next = [...prev];
+                  next[index] = dataUrl;
+                  return next;
+                });
+              }}
+            />
           </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {index > 0 && (
+          <button
+            type="button"
+            onClick={goPrev}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-cyan-400/50 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:text-cyan-200"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            ⬅️ 前の問題へ
+          </button>
+        )}
+        {isLast ? (
           <button
             type="button"
             onClick={goNext}
-            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
+            className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-400/10 py-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
           >
-            {isLast ? '採点する' : '次の問題へ'}
+            <Flag className="h-4 w-4" />
+            🏁 模試を完了して採点する
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={goNext}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
+          >
+            ➡️ 次の問題へ
             <ChevronRight className="h-4 w-4" />
           </button>
-        </div>
+        )}
       </div>
 
       {report && (

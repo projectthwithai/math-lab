@@ -6,7 +6,7 @@
 // - 類似問題全体に汎用できるか
 // - 反例・落ちやすい罠はないか
 // を検証する。
-// .cursorrules: gpt-4o-mini 優先、未設定・失敗時はローカル検証。
+// .cursorrules: Gemini 1.5 Flash 優先、未設定・失敗時はローカル検証。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -15,6 +15,7 @@ import type {
   CustomSolutionVerifyStatus,
 } from '@/types/mathLab';
 import { verifyCustomSolutionMock } from '@/lib/mock/verifyCustomSolution';
+import { completeLlmJson } from '@/lib/llm/completeJson';
 
 interface VerifyRequestBody {
   customText?: unknown;
@@ -79,9 +80,6 @@ async function verifyViaLlm(
   customText: string,
   context: CustomSolutionVerifyContext
 ): Promise<CustomSolutionVerifyResult | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const systemPrompt =
     'あなたは高校生に寄り添う数学・物理・化学の解法コーチです。' +
     'ユーザーが書いた自分流の解法メモ（またはパターン方針）を検証し、JSONのみで返す。' +
@@ -104,28 +102,7 @@ async function verifyViaLlm(
   });
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-
-    const parsed = JSON.parse(content) as unknown;
+    const parsed = await completeLlmJson({ systemPrompt, userPrompt });
     if (!isVerifyResult(parsed)) return null;
 
     return {

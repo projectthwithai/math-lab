@@ -6,7 +6,7 @@
 // 手書きで途中式を書き込めるHTML5 Canvas。
 // 下部の「途中式をAI添削」で画像を Vision に送り、赤ペン指導ダイアログを出す。
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Eraser, Loader2, Trash2, X } from 'lucide-react';
 
@@ -20,7 +20,15 @@ const CANVAS_BG = '#0b1120';
 
 interface ScratchpadCanvasProps {
   problem?: GeneratedProblem | null;
+  /** 問題を行き来したときに復元するキャンバス画像（data URL） */
+  snapshot?: string | null;
+  onSnapshotChange?: (dataUrl: string) => void;
+  ref?: Ref<ScratchpadCanvasHandle>;
 }
+
+export type ScratchpadCanvasHandle = {
+  exportSnapshot: () => string | null;
+};
 
 function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d');
@@ -44,10 +52,19 @@ function commentTone(severity: ScratchpadCorrectionResult['comments'][number]['s
   return 'border-amber-400/40 bg-amber-400/10 text-amber-100';
 }
 
-export default function ScratchpadCanvas({ problem = null }: ScratchpadCanvasProps) {
+export default function ScratchpadCanvas({
+  problem = null,
+  snapshot = null,
+  onSnapshotChange,
+  ref,
+}: ScratchpadCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+  const onSnapshotChangeRef = useRef(onSnapshotChange);
+  onSnapshotChangeRef.current = onSnapshotChange;
 
   const [color, setColor] = useState(PEN_COLORS[0]);
   const [isEraser, setIsEraser] = useState(false);
@@ -55,31 +72,55 @@ export default function ScratchpadCanvas({ problem = null }: ScratchpadCanvasPro
   const [correction, setCorrection] = useState<ScratchpadCorrectionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const emitSnapshot = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !onSnapshotChangeRef.current) return;
+    onSnapshotChangeRef.current(canvas.toDataURL('image/png'));
+  };
+
+  useImperativeHandle(ref, () => ({
+    exportSnapshot: () => canvasRef.current?.toDataURL('image/png') ?? null,
+  }));
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const resizeCanvas = () => {
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const previous = document.createElement('canvas');
-      previous.width = canvas.width;
-      previous.height = canvas.height;
-      previous.getContext('2d')?.drawImage(canvas, 0, 0);
-
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      canvas.width = rect ? Math.max(1, Math.floor(rect.width)) : canvas.width;
-      canvas.height = 320;
-
+    const paintBackground = (ctx: CanvasRenderingContext2D) => {
       ctx.fillStyle = CANVAS_BG;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(previous, 0, 0);
     };
 
-    resizeCanvas();
+    const applySize = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      canvas.width = rect ? Math.max(1, Math.floor(rect.width)) : Math.max(1, canvas.width);
+      canvas.height = 320;
+      paintBackground(ctx);
+      return ctx;
+    };
+
+    const restoreFrom = (src: string | null | undefined) => {
+      const ctx = applySize();
+      if (!ctx || !src) return;
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = src;
+    };
+
+    restoreFrom(snapshotRef.current);
+
+    const resizeCanvas = () => {
+      const current = canvas.toDataURL('image/png');
+      restoreFrom(current);
+    };
+
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
+  }, [problem?.id]);
 
   const getPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -114,6 +155,7 @@ export default function ScratchpadCanvas({ problem = null }: ScratchpadCanvasPro
   const handlePointerUp = () => {
     isDrawingRef.current = false;
     lastPointRef.current = null;
+    emitSnapshot();
   };
 
   const handleClear = () => {
@@ -122,6 +164,7 @@ export default function ScratchpadCanvas({ problem = null }: ScratchpadCanvasPro
     if (!canvas || !ctx) return;
     ctx.fillStyle = CANVAS_BG;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    emitSnapshot();
   };
 
   const handleCorrect = async () => {

@@ -3,7 +3,7 @@
 // ==========================================
 // 手書きキャンバス画像（base64）を Vision で解析し、
 // 「◯行目の展開で符号ミス」「条件の見落とし」型の赤ペン指導を返す。
-// .cursorrules: gpt-4o-mini 優先。未設定・失敗時はローカル mock。
+// .cursorrules: Gemini 1.5 Flash 優先。未設定・失敗時はローカル mock。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -13,6 +13,7 @@ import type {
   ScratchpadCorrectionResult,
 } from '@/types/mathLab';
 import { correctScratchpadMock } from '@/lib/mock/correctScratchpadMock';
+import { completeLlmJson } from '@/lib/llm/completeJson';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 const OVERALLS: ScratchpadCorrectionOverall[] = ['good', 'needs_fix', 'empty'];
@@ -112,9 +113,6 @@ async function correctViaVision(
   image: ParsedImage,
   context: CorrectionContext
 ): Promise<ScratchpadCorrectionResult | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const systemPrompt =
     'あなたは高校生の途中式を赤ペンで添削する数学教師です。' +
     '出力はJSONのみ。キーは overall, summary, comments。' +
@@ -144,37 +142,11 @@ async function correctViaVision(
   });
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: userText },
-              {
-                type: 'image_url',
-                image_url: { url: `data:${image.mimeType};base64,${image.base64}` },
-              },
-            ],
-          },
-        ],
-      }),
+    const parsed = await completeLlmJson({
+      systemPrompt,
+      userPrompt: userText,
+      image: { mimeType: image.mimeType, base64: image.base64 },
     });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-
-    const parsed = JSON.parse(content) as unknown;
     if (!isCorrectionResult(parsed)) return null;
 
     const comments = normalizeComments((parsed as ScratchpadCorrectionResult).comments);

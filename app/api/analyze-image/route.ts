@@ -5,13 +5,14 @@
 // - 画像内の原問テキスト・設定・数値を出力・保存しない。
 // - 解法構造（単元・手法・条件の種類）だけを抽出し、
 //   100%オリジナルの新規創作問題とパターンカードだけを返す。
-// .cursorrules: gpt-4o-mini (Vision) 優先。未設定・失敗時はローカル mock。
+// .cursorrules: Gemini 1.5 Flash (Vision) 優先。未設定・失敗時はローカル mock。
 
 import { NextResponse } from 'next/server';
 import type { ImageAnalysisResult, ImageLogicSummary, SolutionPattern, Subject } from '@/types/mathLab';
 import { analyzeImageMock } from '@/lib/mock/analyzeImageMock';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
+import { completeLlmJson } from '@/lib/llm/completeJson';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 
@@ -112,9 +113,6 @@ function sanitizeOriginalCopy(result: ImageAnalysisResult): ImageAnalysisResult 
 }
 
 async function analyzeViaVision(image: ParsedImage): Promise<ImageAnalysisResult | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const systemPrompt =
     'あなたは高校の数学・物理・化学の「解法構造」だけを抽出する教師です。' +
     '著作権遵守が最優先。画像内の問題文・文章・固有の設定・数値・図表の文言を' +
@@ -131,41 +129,14 @@ async function analyzeViaVision(image: ParsedImage): Promise<ImageAnalysisResult
     '{ vars, correctAnswer, explanationSteps } を返す関数本体。';
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text:
-                  '画像から解法構造だけを抽出し、原問は書き写さず、完全オリジナルの類題とパターンをJSONで返してください。',
-              },
-              {
-                type: 'image_url',
-                image_url: { url: `data:${image.mimeType};base64,${image.base64}` },
-              },
-            ],
-          },
-        ],
-      }),
+    const parsedRaw = await completeLlmJson({
+      systemPrompt,
+      userPrompt:
+        '画像から解法構造だけを抽出し、原問は書き写さず、完全オリジナルの類題とパターンをJSONで返してください。',
+      image: { mimeType: image.mimeType, base64: image.base64 },
     });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-
-    const parsed = JSON.parse(content) as Record<string, unknown>;
+    if (!parsedRaw || typeof parsedRaw !== 'object') return null;
+    const parsed = parsedRaw as Record<string, unknown>;
     const fallback = analyzeImageMock(Date.now());
     const logic = logicFromPayload(parsed.logic, fallback.logic);
     const intent = resolvePromptIntent(`${logic.unit} ${logic.techniques.join(' ')}`);

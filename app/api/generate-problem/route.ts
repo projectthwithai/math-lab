@@ -2,7 +2,8 @@
 // Apex Suite: Math Lab - Problem Generation API Route
 // ==========================================
 // .cursorrules の「API Cost Minimization」方針に従い:
-// - `OPENAI_API_KEY` が設定されていれば gpt-4o-mini でテンプレートを生成。
+// - `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` があれば gemini-1.5-flash（互換 Flash へ自動フォールバック）。
+// - なければ `OPENAI_API_KEY` の gpt-4o-mini。
 // - 未設定、またはLLM呼び出しが失敗した場合は、100%ローカルの
 //   モック生成エンジン (`lib/mock/generateMockProblem.ts`) にフォールバックする。
 // 生成された問題は必ず `templateConfig` を持ち、クライアント側で
@@ -19,6 +20,7 @@ import { getPatternDefaultDifficulty } from '@/data/patternsData';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType, VISUAL_TYPE_PROMPT_RULES } from '@/lib/engine/visualNeed';
+import { completeLlmJson } from '@/lib/llm/completeJson';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -92,9 +94,6 @@ function isValidLlmTemplatePayload(value: unknown): value is LlmTemplatePayload 
 }
 
 async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedProblem | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
   const difficulty = params.difficulty ?? 5;
 
@@ -160,29 +159,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
   });
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-
-    const parsed = JSON.parse(content);
+    const parsed = await completeLlmJson({ systemPrompt, userPrompt });
     if (!isValidLlmTemplatePayload(parsed)) return null;
 
     const geometryScene = parseGeometryScene(parsed.geometryScene);
