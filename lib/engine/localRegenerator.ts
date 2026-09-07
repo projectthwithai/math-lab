@@ -8,6 +8,7 @@
 import type { GeneratedProblem } from '@/types/mathLab';
 import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
 import { attachGeometryVisual } from '@/lib/engine/geometryVisual';
+import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -74,9 +75,17 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
   }
 
   const questionText = fillTemplate(templateConfig.templateText, result.vars);
-  const geometry = attachGeometryVisual(problem, result.vars);
   const visual =
-    geometry.visualType === 'geometry_svg' ? geometry : attachMathGraphVisual(problem, result.vars);
+    problem.subject === 'physics'
+      ? attachPhysicsVisual(problem, result.vars)
+      : problem.subject === 'chemistry'
+        ? attachChemistryVisual(problem, result.vars)
+        : (() => {
+            const geometry = attachGeometryVisual(problem, result.vars);
+            return geometry.visualType === 'geometry_svg'
+              ? geometry
+              : attachMathGraphVisual(problem, result.vars);
+          })();
 
   return {
     ...problem,

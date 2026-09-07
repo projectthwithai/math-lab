@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
@@ -30,8 +31,11 @@ import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 
 import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
 import GeometrySvgPlotter from '@/components/visuals/GeometrySvgPlotter';
+import PhysicsCanvasSim from '@/components/visuals/PhysicsCanvasSim';
+import ChemistryCanvasSim from '@/components/visuals/ChemistryCanvasSim';
 import { resolveMathGraphModel } from '@/lib/engine/mathGraphVisual';
 import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
+import { resolveChemistryScene, resolvePhysicsScene } from '@/lib/engine/scienceVisual';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
@@ -82,6 +86,7 @@ export default function WorkspaceView({
   const [energyError, setEnergyError] = useState<string | null>(null);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isSolved, setIsSolved] = useState(false);
+  const [isVisualOpen, setIsVisualOpen] = useState(false);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
   const geometryScene = useMemo(() => (problem ? resolveGeometryScene(problem) : null), [problem]);
@@ -89,6 +94,9 @@ export default function WorkspaceView({
     () => (problem && !geometryScene ? resolveMathGraphModel(problem) : null),
     [problem, geometryScene]
   );
+  const physicsScene = useMemo(() => (problem ? resolvePhysicsScene(problem) : null), [problem]);
+  const chemistryScene = useMemo(() => (problem ? resolveChemistryScene(problem) : null), [problem]);
+  const hasVisual = Boolean(geometryScene || graphModel || physicsScene || chemistryScene);
   const patternMemo = useMemo(
     () => (problem?.patternId ? findPatternLinkedMemo(problem.patternId) : null),
     [problem?.id, problem?.patternId]
@@ -157,6 +165,7 @@ export default function WorkspaceView({
       setSubmission(null);
       setIsMemoOpen(false);
       setIsSolved(false);
+      setIsVisualOpen(false);
     }
   }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source]);
 
@@ -187,6 +196,7 @@ export default function WorkspaceView({
     setSubmission(null);
     setIsMemoOpen(false);
     setIsSolved(false);
+    setIsVisualOpen(false);
   };
 
   const handleSubmitAnswer = () => {
@@ -283,10 +293,44 @@ export default function WorkspaceView({
           </button>
         )}
 
-        {geometryScene && <GeometrySvgPlotter problem={problem} scene={geometryScene} className="mt-0" />}
-
-        {graphModel && (
-          <MathGraphPlotter problem={problem} isSolved={isSolved} className="mt-0" />
+        {hasVisual && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setIsVisualOpen((open) => !open)}
+              aria-expanded={isVisualOpen}
+              className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-900"
+            >
+              📈 グラフ・図形を表示する (タップで展開)
+            </button>
+            <AnimatePresence initial={false}>
+              {isVisualOpen && (
+                <motion.div
+                  key="workspace-visual"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="border-t border-slate-200 p-2 dark:border-slate-800">
+                    {geometryScene && (
+                      <GeometrySvgPlotter problem={problem} scene={geometryScene} className="mt-0" />
+                    )}
+                    {graphModel && (
+                      <MathGraphPlotter problem={problem} isSolved={isSolved} className="mt-0" />
+                    )}
+                    {physicsScene && (
+                      <PhysicsCanvasSim problem={problem} scene={physicsScene} className="mt-0" />
+                    )}
+                    {chemistryScene && (
+                      <ChemistryCanvasSim problem={problem} scene={chemistryScene} className="mt-0" />
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
         <button

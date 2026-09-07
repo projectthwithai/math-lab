@@ -3,14 +3,25 @@
 // ==========================================
 
 import { createBrowserClient } from '@supabase/ssr';
-import { getSupabasePublicEnv, isSupabaseConfigured } from '@/lib/supabase/config';
+import {
+  SUPABASE_URL_HINT,
+  getSupabasePublicEnv,
+  inspectSupabaseEnv,
+  isSafeOAuthAuthorizeUrl,
+  isSupabaseConfigured,
+} from '@/lib/supabase/config';
 
 export const SUPABASE_ENV_HINT = '.env.local に Supabase の環境変数を設定してください';
 
 export function getSupabaseBrowserClient() {
   const env = getSupabasePublicEnv();
   if (!env) return null;
-  return createBrowserClient(env.url, env.anonKey);
+  try {
+    return createBrowserClient(env.url, env.anonKey);
+  } catch (error) {
+    console.error('[supabase/client] ブラウザクライアントの生成に失敗しました', error);
+    return null;
+  }
 }
 
 export type GoogleSignInResult =
@@ -18,35 +29,58 @@ export type GoogleSignInResult =
   | { ok: false; missingEnv: true; error: string }
   | { ok: false; missingEnv: false; error: string };
 
+function envFailure(): GoogleSignInResult {
+  return { ok: false, missingEnv: true, error: SUPABASE_URL_HINT };
+}
+
 /**
  * Google OAuth を開始する。
- * 環境変数が無い場合は throw せず、呼び出し側でトースト案内できるように返す。
+ * URL が壊れている場合はリダイレクトせず、呼び出し側でアラートできるように返す。
  */
 export async function signInWithGoogleOAuth(): Promise<GoogleSignInResult> {
   if (typeof window === 'undefined') {
     return { ok: false, missingEnv: false, error: 'ブラウザでのみログインできます。' };
   }
 
-  if (!isSupabaseConfigured()) {
-    return { ok: false, missingEnv: true, error: SUPABASE_ENV_HINT };
+  const inspected = inspectSupabaseEnv();
+  if (!inspected.ok) {
+    return envFailure();
   }
 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    return { ok: false, missingEnv: true, error: SUPABASE_ENV_HINT };
+    return envFailure();
   }
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: `${window.location.origin}` },
-  });
+  const redirectTo = window.location.origin || 'http://localhost:3000';
 
-  if (error) {
-    console.error('[supabase/client] Google ログインに失敗しました', error);
-    return { ok: false, missingEnv: false, error: error.message };
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) {
+      console.error('[supabase/client] Google ログインに失敗しました', error);
+      if (/invalid|url|redirect|failed to fetch|fetch/i.test(error.message)) {
+        return envFailure();
+      }
+      return { ok: false, missingEnv: false, error: error.message };
+    }
+
+    if (!data.url || !isSafeOAuthAuthorizeUrl(data.url, inspected.url)) {
+      return envFailure();
+    }
+
+    window.location.assign(data.url);
+    return { ok: true };
+  } catch (error) {
+    console.error('[supabase/client] Google ログインで例外が発生しました', error);
+    return envFailure();
   }
-
-  return { ok: true };
 }
 
 /** `redirectTo` がオリジン直下のとき、URL の code をセッションに交換する */
@@ -71,3 +105,5 @@ export async function completeOAuthRedirectIfNeeded(): Promise<void> {
   const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
   window.history.replaceState({}, '', next || '/');
 }
+
+export { isSupabaseConfigured, SUPABASE_URL_HINT };

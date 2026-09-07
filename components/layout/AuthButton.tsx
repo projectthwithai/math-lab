@@ -59,12 +59,15 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
     try {
       const result = await signInWithGoogleOAuth();
       if (!result.ok) {
+        if (result.missingEnv && !onNotice) {
+          window.alert(result.error);
+        }
         showNotice(result.error);
         setBusy(false);
       }
     } catch (error) {
       console.error('[AuthButton] Google ログインに失敗しました', error);
-      showNotice('.env.local に Supabase の環境変数を設定してください');
+      showNotice('.env.localのSupabaseURLを確認してください');
       setBusy(false);
     }
   };

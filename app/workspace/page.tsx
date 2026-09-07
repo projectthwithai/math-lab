@@ -3,6 +3,7 @@
 // ==========================================
 // `searchParams`（Next.js 16ではPromise）から`unitId`/`patternId`を取得し、
 // それらが変わるたびに`WorkspaceView`を強制的に再マウントする（key prop）。
+// グラフ・図形は WorkspaceView 内で初期折りたたみ（アコーディオン）表示する。
 // 出題プールは WorkspaceView が userStore.discoveredPatterns を
 // /api/generate-problem に渡し、固定図鑑＋発掘パターンから抽選する。
 

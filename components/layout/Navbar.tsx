@@ -13,6 +13,7 @@ import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinit
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
+import { SUPABASE_URL_HINT } from '@/lib/supabase/config';
 
 interface NavTab {
   href: string;
@@ -86,7 +87,20 @@ export default function Navbar() {
               )}
             </span>
             <ThemeToggle />
-            <AuthButton onNotice={setAuthNotice} />
+            <AuthButton
+              onNotice={(message) => {
+                const isEnvHint =
+                  message.includes('SupabaseURL') ||
+                  message.includes('Supabase URL') ||
+                  message === SUPABASE_URL_HINT;
+                if (isEnvHint) {
+                  window.alert(SUPABASE_URL_HINT);
+                  setAuthNotice(SUPABASE_URL_HINT);
+                  return;
+                }
+                setAuthNotice(message);
+              }}
+            />
           </div>
         </div>
 

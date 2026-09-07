@@ -5,6 +5,7 @@
 
 import type { GeneratedProblem, ProblemFormat, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
+import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
 
 function isSubject(value: unknown): value is Subject {
   return value === 'math' || value === 'physics' || value === 'chemistry';
@@ -92,7 +93,11 @@ export function problemFromPayload(
         : undefined,
   };
 
-  if (!base.templateConfig) return base;
+  if (!base.templateConfig) {
+    if (base.subject === 'physics') return { ...base, ...attachPhysicsVisual(base) };
+    if (base.subject === 'chemistry') return { ...base, ...attachChemistryVisual(base) };
+    return base;
+  }
   try {
     return regenerateProblemLocally(base);
   } catch {
