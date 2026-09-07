@@ -19,11 +19,42 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 }
 
 let verifiedDeveloperSession = false;
+let localNetworkFallback = false;
 
 /** Auth セッションから開発者ゲートを更新する。許可されたとき true。 */
 export function syncDeveloperSession(email: string | null | undefined): boolean {
-  verifiedDeveloperSession = isAdminEmail(email);
-  return verifiedDeveloperSession;
+  if (isAdminEmail(email)) {
+    localNetworkFallback = false;
+    verifiedDeveloperSession = true;
+    return true;
+  }
+  if (email) {
+    localNetworkFallback = false;
+    verifiedDeveloperSession = false;
+    return false;
+  }
+  if (localNetworkFallback && getAdminEmail().length > 0) {
+    verifiedDeveloperSession = true;
+    return true;
+  }
+  verifiedDeveloperSession = false;
+  return false;
+}
+
+/**
+ * Supabase が DNS 未反映などで届かないとき、
+ * NEXT_PUBLIC_ADMIN_EMAIL が設定されていればローカル開発者セッションを確立する。
+ */
+export function activateLocalDeveloperFallback(): boolean {
+  if (!getAdminEmail()) return false;
+  localNetworkFallback = true;
+  verifiedDeveloperSession = true;
+  if (typeof window !== 'undefined') {
+    void import('@/lib/store/userStore').then(({ useUserStore }) => {
+      useUserStore.setState({ isDeveloper: true });
+    });
+  }
+  return true;
 }
 
 /** Energy 免除などに使う。ストアの isDeveloper フラグ単体では判定しない。 */

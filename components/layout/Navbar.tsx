@@ -13,7 +13,7 @@ import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinit
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
-import { SUPABASE_URL_HINT } from '@/lib/supabase/config';
+import { SUPABASE_BOOTING_HINT, SUPABASE_URL_HINT } from '@/lib/supabase/config';
 
 interface NavTab {
   href: string;
@@ -43,7 +43,8 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!authNotice) return;
-    const timer = window.setTimeout(() => setAuthNotice(null), 5200);
+    const linger = authNotice === SUPABASE_BOOTING_HINT ? 9000 : 5200;
+    const timer = window.setTimeout(() => setAuthNotice(null), linger);
     return () => window.clearTimeout(timer);
   }, [authNotice]);
 
@@ -90,10 +91,12 @@ export default function Navbar() {
             <ThemeToggle />
             <AuthButton
               onNotice={(message) => {
+                const isBootingHint = message === SUPABASE_BOOTING_HINT || message.includes('起動準備中');
                 const isEnvHint =
-                  message.includes('SupabaseURL') ||
-                  message.includes('Supabase URL') ||
-                  message === SUPABASE_URL_HINT;
+                  !isBootingHint &&
+                  (message.includes('SupabaseURL') ||
+                    message.includes('Supabase URL') ||
+                    message === SUPABASE_URL_HINT);
                 if (isEnvHint) {
                   window.alert(SUPABASE_URL_HINT);
                   setAuthNotice(SUPABASE_URL_HINT);

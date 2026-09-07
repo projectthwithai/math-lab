@@ -8,7 +8,7 @@
 import type { User } from '@supabase/supabase-js';
 
 import { getSupabaseBrowserClient, completeOAuthRedirectIfNeeded, signInWithGoogleOAuth } from '@/lib/supabase/client';
-import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { isSupabaseConfigured, isSupabaseNetworkError } from '@/lib/supabase/config';
 import { onProgressDirty } from '@/lib/supabase/progressDirty';
 import {
   USER_PROGRESS_TABLE,
@@ -22,7 +22,7 @@ import {
 import { getAllCustomSolutionNotes, replaceAllCustomSolutionNotes } from '@/lib/storage/customSolutionNotesStore';
 import { getAllPatternOverrides, replaceAllPatternOverrides } from '@/lib/storage/patternStrategyStore';
 import { useUserStore } from '@/lib/store/userStore';
-import { syncDeveloperSession } from '@/lib/auth/developerAccess';
+import { activateLocalDeveloperFallback, syncDeveloperSession } from '@/lib/auth/developerAccess';
 
 const PUSH_DEBOUNCE_MS = 800;
 
@@ -32,6 +32,12 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let unsubscribeStore: (() => void) | null = null;
 let unsubscribeDirty: (() => void) | null = null;
 let unsubscribeAuth: { data: { subscription: { unsubscribe: () => void } } } | null = null;
+
+function applyLocalDeveloperFallback(): void {
+  if (activateLocalDeveloperFallback()) {
+    useUserStore.setState({ isDeveloper: true });
+  }
+}
 
 function applyDeveloperFromUser(user: User | null | undefined): void {
   const allowed = syncDeveloperSession(user?.email);
@@ -89,12 +95,16 @@ async function pushSnapshot(user: User, snapshot: UserProgressSnapshot): Promise
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return;
 
-  const { error } = await supabase.from(USER_PROGRESS_TABLE).upsert(snapshotToRow(user.id, snapshot), {
-    onConflict: 'user_id',
-  });
+  try {
+    const { error } = await supabase.from(USER_PROGRESS_TABLE).upsert(snapshotToRow(user.id, snapshot), {
+      onConflict: 'user_id',
+    });
 
-  if (error) {
-    console.error('[authSync] 進捗の保存に失敗しました', error);
+    if (error) {
+      console.error('[authSync] 進捗の保存に失敗しました', error);
+    }
+  } catch (error) {
+    console.warn('[authSync] 進捗の保存をスキップしました（DNS/ネットワーク）', error);
   }
 }
 
@@ -102,28 +112,50 @@ async function pullMergeAndPush(user: User): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return;
 
-  const { data, error } = await supabase
-    .from(USER_PROGRESS_TABLE)
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from(USER_PROGRESS_TABLE)
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-  if (error) {
-    console.error('[authSync] 進捗の取得に失敗しました', error);
-    return;
+    if (error) {
+      console.error('[authSync] 進捗の取得に失敗しました', error);
+      if (isSupabaseNetworkError(error)) {
+        applyLocalDeveloperFallback();
+      }
+      return;
+    }
+
+    const local = collectLocalSnapshot();
+    const merged = data ? mergeProgress(local, rowToSnapshot(data as UserProgressRow)) : local;
+    applySnapshot(merged);
+    await pushSnapshot(user, merged);
+  } catch (error) {
+    console.warn('[authSync] 進捗同期をスキップしました（DNS/ネットワーク）', error);
+    if (isSupabaseNetworkError(error)) {
+      applyLocalDeveloperFallback();
+    }
   }
-
-  const local = collectLocalSnapshot();
-  const merged = data ? mergeProgress(local, rowToSnapshot(data as UserProgressRow)) : local;
-  applySnapshot(merged);
-  await pushSnapshot(user, merged);
 }
 
 async function getCurrentUser(): Promise<User | null> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error && isSupabaseNetworkError(error)) {
+      applyLocalDeveloperFallback();
+      return null;
+    }
+    return data.user ?? null;
+  } catch (error) {
+    console.warn('[authSync] ユーザー取得をスキップしました（DNS/ネットワーク）', error);
+    if (isSupabaseNetworkError(error)) {
+      applyLocalDeveloperFallback();
+    }
+    return null;
+  }
 }
 
 async function flushPush(): Promise<void> {
@@ -151,9 +183,13 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
 export async function signOut(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.error('[authSync] ログアウトに失敗しました', error);
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('[authSync] ログアウトに失敗しました', error);
+    }
+  } catch (error) {
+    console.warn('[authSync] ログアウトをスキップしました（DNS/ネットワーク）', error);
   }
   applyDeveloperFromUser(null);
 }
@@ -180,19 +216,39 @@ export function startAuthSync(): void {
     scheduleAuthProgressPush();
   });
 
-  void completeOAuthRedirectIfNeeded().then(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      applyDeveloperFromUser(data.user ?? null);
+  void completeOAuthRedirectIfNeeded()
+    .then(() =>
+      supabase.auth.getUser().then(({ data, error }) => {
+        if (error && isSupabaseNetworkError(error)) {
+          applyLocalDeveloperFallback();
+          return;
+        }
+        applyDeveloperFromUser(data.user ?? null);
+      })
+    )
+    .catch((error) => {
+      console.warn('[authSync] 初期セッション確認をスキップしました（DNS/ネットワーク）', error);
+      if (isSupabaseNetworkError(error)) {
+        applyLocalDeveloperFallback();
+      }
     });
-  });
 
-  unsubscribeAuth = supabase.auth.onAuthStateChange((event, session) => {
-    applyDeveloperFromUser(session?.user ?? null);
-    if (!session?.user) return;
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      void pullMergeAndPush(session.user);
+  try {
+    unsubscribeAuth = supabase.auth.onAuthStateChange((event, session) => {
+      applyDeveloperFromUser(session?.user ?? null);
+      if (!session?.user) return;
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        void pullMergeAndPush(session.user).catch((error) => {
+          console.warn('[authSync] 進捗同期をスキップしました', error);
+        });
+      }
+    });
+  } catch (error) {
+    console.warn('[authSync] Auth 購読をスキップしました', error);
+    if (isSupabaseNetworkError(error)) {
+      applyLocalDeveloperFallback();
     }
-  });
+  }
 }
 
 export function stopAuthSync(): void {

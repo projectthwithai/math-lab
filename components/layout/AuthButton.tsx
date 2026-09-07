@@ -4,12 +4,14 @@
 // Apex Suite: Math Lab - Google Auth Button
 // ==========================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LogIn, LogOut, UserRound, X } from 'lucide-react';
 
 import { getSupabaseBrowserClient, signInWithGoogleOAuth } from '@/lib/supabase/client';
+import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
+import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 import { signOut } from '@/lib/supabase/authSync';
 
 interface AuthButtonProps {
@@ -20,23 +22,59 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const onNoticeRef = useRef(onNotice);
+  onNoticeRef.current = onNotice;
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (active) setUser(data.user ?? null);
-    });
+    const notify = (message: string) => {
+      if (onNoticeRef.current) {
+        onNoticeRef.current(message);
+        return;
+      }
+      setToast(message);
+    };
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    void supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error && isSupabaseNetworkError(error)) {
+          activateLocalDeveloperFallback();
+          notify(SUPABASE_BOOTING_HINT);
+          return;
+        }
+        setUser(data.user ?? null);
+      })
+      .catch((error) => {
+        console.warn('[AuthButton] セッション確認をスキップしました（DNS/ネットワーク）', error);
+        if (!active) return;
+        if (isSupabaseNetworkError(error)) {
+          activateLocalDeveloperFallback();
+          notify(SUPABASE_BOOTING_HINT);
+        }
+      });
+
+    let subscription: { unsubscribe: () => void } | null = null;
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
+      subscription = data.subscription;
+    } catch (error) {
+      console.warn('[AuthButton] Auth 購読をスキップしました', error);
+      if (isSupabaseNetworkError(error)) {
+        activateLocalDeveloperFallback();
+        notify(SUPABASE_BOOTING_HINT);
+      }
+    }
 
     return () => {
       active = false;
-      data.subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
@@ -67,7 +105,12 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
       }
     } catch (error) {
       console.error('[AuthButton] Google ログインに失敗しました', error);
-      showNotice('.env.localのSupabaseURLを確認してください');
+      if (isSupabaseNetworkError(error)) {
+        activateLocalDeveloperFallback();
+        showNotice(SUPABASE_BOOTING_HINT);
+      } else {
+        showNotice('.env.localのSupabaseURLを確認してください');
+      }
       setBusy(false);
     }
   };

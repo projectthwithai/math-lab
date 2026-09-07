@@ -28,6 +28,13 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  try {
+    const { error } = await supabase.auth.getUser();
+    if (error) {
+      console.warn('[supabase/middleware] セッション確認をスキップしました', error.message);
+    }
+  } catch (error) {
+    console.warn('[supabase/middleware] セッション確認をスキップしました（DNS/ネットワーク）', error);
+  }
   return supabaseResponse;
 }

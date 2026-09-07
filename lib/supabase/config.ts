@@ -3,6 +3,8 @@
 // ==========================================
 
 export const SUPABASE_URL_HINT = '.env.localのSupabaseURLを確認してください';
+export const SUPABASE_BOOTING_HINT =
+  'Supabaseプロジェクトが起動準備中です。数分待つかSupabaseでProject Restartを押してください';
 
 function isValidSupabaseUrl(raw: string): boolean {
   try {
@@ -55,4 +57,42 @@ export function isSafeOAuthAuthorizeUrl(oauthUrl: string, supabaseUrl: string): 
   } catch {
     return false;
   }
+}
+
+function collectErrorText(error: unknown, depth = 0): string {
+  if (depth > 4 || error == null) return '';
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) {
+    const cause =
+      'cause' in error && error.cause !== undefined ? collectErrorText(error.cause, depth + 1) : '';
+    return `${error.name} ${error.message} ${cause}`;
+  }
+  if (typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    return [record.message, record.code, record.details, record.error]
+      .filter((value) => typeof value === 'string')
+      .join(' ');
+  }
+  return String(error);
+}
+
+/** DNS未反映 (NXDOMAIN) / Failed to fetch など、プロジェクト未起動相当のネットワーク障害 */
+export function isSupabaseNetworkError(error: unknown): boolean {
+  const text = collectErrorText(error).toLowerCase();
+  if (!text.trim()) return false;
+  return (
+    text.includes('failed to fetch') ||
+    text.includes('fetch failed') ||
+    text.includes('load failed') ||
+    text.includes('networkerror') ||
+    text.includes('network request failed') ||
+    text.includes('err_name_not_resolved') ||
+    text.includes('err_connection') ||
+    text.includes('err_internet_disconnected') ||
+    text.includes('nxdomain') ||
+    text.includes('enotfound') ||
+    text.includes('eai_again') ||
+    text.includes('name_not_resolved') ||
+    (text.includes('dns') && text.includes('not resolved'))
+  );
 }

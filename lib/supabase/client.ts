@@ -4,12 +4,15 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import {
+  SUPABASE_BOOTING_HINT,
   SUPABASE_URL_HINT,
   getSupabasePublicEnv,
   inspectSupabaseEnv,
   isSafeOAuthAuthorizeUrl,
   isSupabaseConfigured,
+  isSupabaseNetworkError,
 } from '@/lib/supabase/config';
+import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 
 export const SUPABASE_ENV_HINT = '.env.local に Supabase の環境変数を設定してください';
 
@@ -26,11 +29,22 @@ export function getSupabaseBrowserClient() {
 
 export type GoogleSignInResult =
   | { ok: true }
-  | { ok: false; missingEnv: true; error: string }
-  | { ok: false; missingEnv: false; error: string };
+  | { ok: false; missingEnv: true; dnsUnavailable?: false; error: string }
+  | { ok: false; missingEnv: false; dnsUnavailable?: boolean; developerFallback?: boolean; error: string };
 
 function envFailure(): GoogleSignInResult {
   return { ok: false, missingEnv: true, error: SUPABASE_URL_HINT };
+}
+
+function dnsFailure(): GoogleSignInResult {
+  const developerFallback = activateLocalDeveloperFallback();
+  return {
+    ok: false,
+    missingEnv: false,
+    dnsUnavailable: true,
+    developerFallback,
+    error: SUPABASE_BOOTING_HINT,
+  };
 }
 
 /**
@@ -65,7 +79,10 @@ export async function signInWithGoogleOAuth(): Promise<GoogleSignInResult> {
 
     if (error) {
       console.error('[supabase/client] Google ログインに失敗しました', error);
-      if (/invalid|url|redirect|failed to fetch|fetch/i.test(error.message)) {
+      if (isSupabaseNetworkError(error) || isSupabaseNetworkError(error.message)) {
+        return dnsFailure();
+      }
+      if (/invalid|url|redirect/i.test(error.message) && !/fetch/i.test(error.message)) {
         return envFailure();
       }
       return { ok: false, missingEnv: false, error: error.message };
@@ -79,6 +96,9 @@ export async function signInWithGoogleOAuth(): Promise<GoogleSignInResult> {
     return { ok: true };
   } catch (error) {
     console.error('[supabase/client] Google ログインで例外が発生しました', error);
+    if (isSupabaseNetworkError(error)) {
+      return dnsFailure();
+    }
     return envFailure();
   }
 }
@@ -93,9 +113,20 @@ export async function completeOAuthRedirectIfNeeded(): Promise<void> {
   const code = params.get('code');
   if (!code) return;
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    console.error('[supabase/client] OAuth code の交換に失敗しました', error);
+  try {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error('[supabase/client] OAuth code の交換に失敗しました', error);
+      if (isSupabaseNetworkError(error)) {
+        activateLocalDeveloperFallback();
+      }
+      return;
+    }
+  } catch (error) {
+    console.error('[supabase/client] OAuth code 交換で例外が発生しました', error);
+    if (isSupabaseNetworkError(error)) {
+      activateLocalDeveloperFallback();
+    }
     return;
   }
 
@@ -106,4 +137,4 @@ export async function completeOAuthRedirectIfNeeded(): Promise<void> {
   window.history.replaceState({}, '', next || '/');
 }
 
-export { isSupabaseConfigured, SUPABASE_URL_HINT };
+export { isSupabaseConfigured, SUPABASE_URL_HINT, SUPABASE_BOOTING_HINT, isSupabaseNetworkError };
