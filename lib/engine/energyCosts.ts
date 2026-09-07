@@ -45,3 +45,17 @@ export function formatEnergyShortage(cost: number, remaining: number): string {
     `デイリークエスト達成で +${DAILY_QUEST_ENERGY_REWARD} Energy 回復できます。`
   );
 }
+
+/** デイリークエスト等の報酬。maxEnergy を超えるオーバーキャップを許可する */
+export function applyEnergyReward(energy: number, amount: number): number {
+  return Math.max(0, energy + Math.max(0, amount));
+}
+
+/**
+ * 日次リセット。
+ * Energy が通常上限未満なら上限まで回復し、上限以上（限界突破）は維持する。
+ */
+export function applyDailyEnergyRefill(energy: number, maxEnergy = DEFAULT_MAX_ENERGY): number {
+  const current = Number.isFinite(energy) ? energy : 0;
+  return current < maxEnergy ? maxEnergy : current;
+}

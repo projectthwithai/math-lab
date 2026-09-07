@@ -23,7 +23,12 @@ import {
   computeXpReward,
   type XpGainResult,
 } from '@/lib/engine/adaptiveEngine';
-import { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD } from '@/lib/engine/energyCosts';
+import {
+  DEFAULT_MAX_ENERGY,
+  DAILY_QUEST_ENERGY_REWARD,
+  applyDailyEnergyRefill,
+  applyEnergyReward,
+} from '@/lib/engine/energyCosts';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 
 export { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD };
@@ -169,7 +174,7 @@ interface UserStoreState {
   refundEnergy: (amount?: number) => void;
   /** デイリークエスト等から XP を直接付与する */
   grantXp: (amount: number) => XpGainResult;
-  /** デイリークエスト等から Energy を回復する（上限は maxEnergy） */
+  /** デイリークエスト等から Energy を回復する（maxEnergy を超える限界突破を許可） */
   restoreEnergy: (amount?: number) => void;
   /** デイリークエスト達成時の標準 Energy 回復（+30） */
   restoreDailyQuestEnergy: () => void;
@@ -229,12 +234,8 @@ export const useUserStore = create<UserStoreState>()(
           let energy = state.energy;
           let lastEnergyRefillDateISO = state.lastEnergyRefillDateISO;
           if (lastEnergyRefillDateISO !== today) {
-            energy = maxEnergy;
+            energy = applyDailyEnergyRefill(state.energy, maxEnergy);
             lastEnergyRefillDateISO = today;
-          } else if (state.maxEnergy !== maxEnergy && state.energy >= state.maxEnergy) {
-            energy = maxEnergy;
-          } else {
-            energy = Math.min(maxEnergy, state.energy);
           }
 
           return {
@@ -334,7 +335,7 @@ export const useUserStore = create<UserStoreState>()(
 
       restoreEnergy: (amount = 1) => {
         set((state) => ({
-          energy: Math.min(state.maxEnergy, state.energy + Math.max(0, amount)),
+          energy: applyEnergyReward(state.energy, amount),
           progressUpdatedAt: stampProgress(),
         }));
       },
@@ -391,17 +392,12 @@ export const useUserStore = create<UserStoreState>()(
       merge: (persisted, current) => {
         const incoming =
           typeof persisted === 'object' && persisted ? (persisted as Partial<UserStoreState>) : {};
-        const oldMax =
-          typeof incoming.maxEnergy === 'number' ? incoming.maxEnergy : current.maxEnergy;
-        let energy = typeof incoming.energy === 'number' ? incoming.energy : current.energy;
-        if (oldMax !== DEFAULT_MAX_ENERGY && energy >= oldMax) {
-          energy = DEFAULT_MAX_ENERGY;
-        }
+        const energy = typeof incoming.energy === 'number' ? incoming.energy : current.energy;
         return {
           ...current,
           ...incoming,
           maxEnergy: DEFAULT_MAX_ENERGY,
-          energy: Math.min(DEFAULT_MAX_ENERGY, energy),
+          energy,
           // 開発者フラグは Auth メール判定のみ。localStorage 改ざんは無効化する。
           isDeveloper: false,
           unlockedWeaponIds: Array.isArray(incoming.unlockedWeaponIds)

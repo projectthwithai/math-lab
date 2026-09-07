@@ -4,10 +4,11 @@
 // Apex Suite: Math Lab - Global Navbar
 // ==========================================
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X } from 'lucide-react';
 
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
@@ -34,6 +35,15 @@ export default function Navbar() {
   const energy = useUserStore((state) => state.energy);
   const maxEnergy = useUserStore((state) => state.maxEnergy);
   const isDeveloper = useUserStore((state) => state.isDeveloper);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const energyCap = maxEnergy ?? DEFAULT_MAX_ENERGY;
+  const isOvercapped = !isDeveloper && energy > energyCap;
+
+  useEffect(() => {
+    if (!authNotice) return;
+    const timer = window.setTimeout(() => setAuthNotice(null), 5200);
+    return () => window.clearTimeout(timer);
+  }, [authNotice]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-slate-800 dark:bg-slate-950/80">
@@ -59,9 +69,11 @@ export default function Navbar() {
               className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
                 isDeveloper
                   ? 'border-amber-400/50 bg-amber-400/10 text-amber-600 dark:border-amber-400/40 dark:bg-slate-900/60 dark:text-amber-300'
-                  : 'border-slate-200 bg-white text-amber-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-amber-400'
+                  : isOvercapped
+                    ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-600 dark:border-cyan-400/40 dark:bg-slate-900/60 dark:text-cyan-300'
+                    : 'border-slate-200 bg-white text-amber-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-amber-400'
               }`}
-              title={isDeveloper ? '無限スタミナ (Dev Mode)' : 'Energy'}
+              title={isDeveloper ? '無限スタミナ (Dev Mode)' : isOvercapped ? 'Energy 限界突破' : 'Energy'}
             >
               <Zap className="h-3.5 w-3.5" />
               {isDeveloper ? (
@@ -70,11 +82,11 @@ export default function Navbar() {
                   (Dev)
                 </span>
               ) : (
-                `${energy}/${maxEnergy ?? DEFAULT_MAX_ENERGY}`
+                `${energy}/${energyCap}`
               )}
             </span>
             <ThemeToggle />
-            <AuthButton />
+            <AuthButton onNotice={setAuthNotice} />
           </div>
         </div>
 
@@ -109,6 +121,30 @@ export default function Navbar() {
           })}
         </nav>
       </div>
+
+      <AnimatePresence>
+        {authNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="fixed bottom-5 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-slate-950/95 px-4 py-3 shadow-xl"
+            role="status"
+          >
+            <div className="flex items-start gap-2">
+              <p className="flex-1 text-sm leading-relaxed text-amber-100">{authNotice}</p>
+              <button
+                type="button"
+                onClick={() => setAuthNotice(null)}
+                className="rounded-full p-0.5 text-amber-300/70 hover:text-white"
+                aria-label="閉じる"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

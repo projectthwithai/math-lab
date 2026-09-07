@@ -6,19 +6,22 @@
 
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { LogIn, LogOut, UserRound } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { LogIn, LogOut, UserRound, X } from 'lucide-react';
 
-import { isSupabaseConfigured } from '@/lib/supabase/config';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { signInWithGoogle, signOut } from '@/lib/supabase/authSync';
+import { getSupabaseBrowserClient, signInWithGoogleOAuth } from '@/lib/supabase/client';
+import { signOut } from '@/lib/supabase/authSync';
 
-export default function AuthButton() {
-  const configured = isSupabaseConfigured();
+interface AuthButtonProps {
+  onNotice?: (message: string) => void;
+}
+
+export default function AuthButton({ onNotice }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!configured) return;
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
@@ -35,13 +38,33 @@ export default function AuthButton() {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, [configured]);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 5200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const showNotice = (message: string) => {
+    if (onNotice) {
+      onNotice(message);
+      return;
+    }
+    setToast(message);
+  };
 
   const handleLogin = async () => {
     setBusy(true);
-    const result = await signInWithGoogle();
-    if (result.error) {
-      window.alert(result.error);
+    try {
+      const result = await signInWithGoogleOAuth();
+      if (!result.ok) {
+        showNotice(result.error);
+        setBusy(false);
+      }
+    } catch (error) {
+      console.error('[AuthButton] Google ログインに失敗しました', error);
+      showNotice('.env.local に Supabase の環境変数を設定してください');
       setBusy(false);
     }
   };
@@ -52,20 +75,31 @@ export default function AuthButton() {
     setBusy(false);
   };
 
-  if (!configured) {
-    return (
-      <button
-        type="button"
-        disabled
-        title="Supabase の環境変数が未設定です"
-        className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-400 sm:text-xs dark:border-slate-700 dark:bg-slate-900"
-      >
-        <LogIn className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Googleでログイン</span>
-        <span className="sm:hidden">ログイン</span>
-      </button>
-    );
-  }
+  const toastNode = (
+    <AnimatePresence>
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          className="fixed bottom-5 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-slate-950/95 px-4 py-3 shadow-xl"
+          role="status"
+        >
+          <div className="flex items-start gap-2">
+            <p className="flex-1 text-sm leading-relaxed text-amber-100">{toast}</p>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="rounded-full p-0.5 text-amber-300/70 hover:text-white"
+              aria-label="閉じる"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   if (user) {
     const name =
@@ -76,46 +110,52 @@ export default function AuthButton() {
     const avatar = typeof user.user_metadata?.avatar_url === 'string' ? user.user_metadata.avatar_url : null;
 
     return (
-      <div className="flex items-center gap-1.5">
-        <span
-          className="flex max-w-[9.5rem] items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-800 dark:text-cyan-200 sm:max-w-[14rem] sm:text-xs"
-          title={name}
-        >
-          {avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt="" className="h-4 w-4 rounded-full" />
-          ) : (
-            <UserRound className="h-3.5 w-3.5" />
-          )}
-          <span className="truncate">{name}</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            void handleLogout();
-          }}
-          disabled={busy}
-          className="flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition-colors hover:border-cyan-400/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:text-xs"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">ログアウト</span>
-        </button>
-      </div>
+      <>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="flex max-w-[9.5rem] items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-800 dark:text-cyan-200 sm:max-w-[14rem] sm:text-xs"
+            title={name}
+          >
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt="" className="h-4 w-4 rounded-full" />
+            ) : (
+              <UserRound className="h-3.5 w-3.5" />
+            )}
+            <span className="truncate">{name}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              void handleLogout();
+            }}
+            disabled={busy}
+            className="flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition-colors hover:border-cyan-400/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:text-xs"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">ログアウト</span>
+          </button>
+        </div>
+        {toastNode}
+      </>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void handleLogin();
-      }}
-      disabled={busy}
-      className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium tracking-tight text-cyan-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-cyan-300 dark:hover:border-slate-700 sm:text-xs"
-    >
-      <LogIn className="h-3.5 w-3.5" />
-      <span className="hidden sm:inline">Googleでログイン</span>
-      <span className="sm:hidden">ログイン</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          void handleLogin();
+        }}
+        disabled={busy}
+        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium tracking-tight text-cyan-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-cyan-300 dark:hover:border-slate-700 sm:text-xs"
+      >
+        <LogIn className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Googleでログイン</span>
+        <span className="sm:hidden">ログイン</span>
+      </button>
+      {toastNode}
+    </>
   );
 }

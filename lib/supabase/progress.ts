@@ -142,7 +142,7 @@ export function mergeProgress(
   const totalXp = Math.max(local.totalXp, remote.totalXp);
   const maxEnergy = DEFAULT_MAX_ENERGY;
   const localIsNewer = (local.progressUpdatedAt ?? '') >= (remote.progressUpdatedAt ?? '');
-  const energy = Math.min(maxEnergy, localIsNewer ? local.energy : remote.energy);
+  const energy = localIsNewer ? local.energy : remote.energy;
   const progressUpdatedAt = pickLaterDate(local.progressUpdatedAt, remote.progressUpdatedAt);
 
   return {

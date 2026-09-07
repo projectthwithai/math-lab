@@ -16,6 +16,8 @@ interface MathGraphPlotterProps {
   visualConfig?: GeneratedProblem['visualConfig'];
   problem?: GeneratedProblem;
   className?: string;
+  /** false の間は座標・頂点を隠す概形モード。解答後に true で全公開 */
+  isSolved?: boolean;
 }
 
 interface GraphDomain {
@@ -228,7 +230,7 @@ function toolbarButtonClass(active = false): string {
   }`;
 }
 
-export default function MathGraphPlotter({ visualConfig, problem, className }: MathGraphPlotterProps) {
+export default function MathGraphPlotter({ visualConfig, problem, className, isSolved = false }: MathGraphPlotterProps) {
   const reactId = useId().replace(/:/g, '');
   const glowId = `graph-glow-${reactId}`;
   const clipId = `graph-clip-${reactId}`;
@@ -591,37 +593,84 @@ export default function MathGraphPlotter({ visualConfig, problem, className }: M
             />
           </g>
 
-          {geometry.xTicks.map((tick) => {
-            const x = geometry.mapX(tick);
-            if (x < PAD.left - 2 || x > SVG_W - PAD.right + 2) return null;
-            return (
-              <text
-                key={`xl-${tick}`}
-                x={x}
-                y={SVG_H - 16}
-                textAnchor="middle"
-                className="fill-slate-500 text-[11px] dark:fill-slate-400"
-              >
-                {formatTick(tick)}
-              </text>
-            );
-          })}
+          {isSolved && (
+            <g className="graph-neon-reveal">
+              {geometry.xTicks.map((tick) => {
+                const x = geometry.mapX(tick);
+                if (x < PAD.left - 2 || x > SVG_W - PAD.right + 2) return null;
+                return (
+                  <text
+                    key={`xl-${tick}`}
+                    x={x}
+                    y={SVG_H - 16}
+                    textAnchor="middle"
+                    className="fill-cyan-600 text-[11px] dark:fill-cyan-300"
+                  >
+                    {formatTick(tick)}
+                  </text>
+                );
+              })}
 
-          {geometry.yTicks.map((tick) => {
-            const y = geometry.mapY(tick);
-            if (y < PAD.top - 2 || y > SVG_H - PAD.bottom + 2) return null;
-            return (
-              <text
-                key={`yl-${tick}`}
-                x={PAD.left - 8}
-                y={y + 4}
-                textAnchor="end"
-                className="fill-slate-500 text-[11px] dark:fill-slate-400"
-              >
-                {formatTick(tick)}
-              </text>
-            );
-          })}
+              {geometry.yTicks.map((tick) => {
+                const y = geometry.mapY(tick);
+                if (y < PAD.top - 2 || y > SVG_H - PAD.bottom + 2) return null;
+                return (
+                  <text
+                    key={`yl-${tick}`}
+                    x={PAD.left - 8}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="fill-cyan-600 text-[11px] dark:fill-cyan-300"
+                  >
+                    {formatTick(tick)}
+                  </text>
+                );
+              })}
+
+              {model.markers.map((item) => {
+                const cx = geometry.mapX(item.x);
+                const cy = geometry.mapY(item.y);
+                if (cx < PAD.left - 8 || cx > SVG_W - PAD.right + 8 || cy < PAD.top - 8 || cy > SVG_H - PAD.bottom + 8) {
+                  return null;
+                }
+                const labelWidth = Math.min(156, 14 + item.label.length * 6.4);
+                const placeLeft = cx + 12 + labelWidth > SVG_W - 8;
+                const flip = cy < 56;
+                const labelX = placeLeft ? cx - 12 - labelWidth : cx + 8;
+                const textX = labelX + 6;
+                return (
+                  <g key={`${item.label}-${item.x}-${item.y}`}>
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r="5"
+                      className={
+                        model.kind === 'sine'
+                          ? 'fill-white stroke-violet-400 dark:fill-slate-950'
+                          : 'fill-white stroke-cyan-400 dark:fill-slate-950'
+                      }
+                      strokeWidth="2"
+                    />
+                    <rect
+                      x={labelX}
+                      y={flip ? cy + 6 : cy - 22}
+                      width={labelWidth}
+                      height="18"
+                      rx="4"
+                      className="fill-white/90 stroke-cyan-300/60 dark:fill-slate-900/90 dark:stroke-cyan-400/50"
+                    />
+                    <text
+                      x={textX}
+                      y={flip ? cy + 19 : cy - 9}
+                      className="fill-slate-700 text-[11px] font-medium dark:fill-slate-200"
+                    >
+                      {item.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          )}
 
           {originOnY && (
             <polygon
@@ -641,53 +690,10 @@ export default function MathGraphPlotter({ visualConfig, problem, className }: M
           <text x={(originOnX ? geometry.axisY : PAD.left) + 8} y={PAD.top + 12} className="fill-slate-500 text-[11px] dark:fill-slate-400">
             y
           </text>
-
-          {model.markers.map((item) => {
-            const cx = geometry.mapX(item.x);
-            const cy = geometry.mapY(item.y);
-            if (cx < PAD.left - 8 || cx > SVG_W - PAD.right + 8 || cy < PAD.top - 8 || cy > SVG_H - PAD.bottom + 8) {
-              return null;
-            }
-            const labelWidth = Math.min(156, 14 + item.label.length * 6.4);
-            const placeLeft = cx + 12 + labelWidth > SVG_W - 8;
-            const flip = cy < 56;
-            const labelX = placeLeft ? cx - 12 - labelWidth : cx + 8;
-            const textX = labelX + 6;
-            return (
-              <g key={`${item.label}-${item.x}-${item.y}`}>
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r="5"
-                  className={
-                    model.kind === 'sine'
-                      ? 'fill-white stroke-violet-500 dark:fill-slate-950 dark:stroke-violet-400'
-                      : 'fill-white stroke-cyan-500 dark:fill-slate-950 dark:stroke-cyan-400'
-                  }
-                  strokeWidth="2"
-                />
-                <rect
-                  x={labelX}
-                  y={flip ? cy + 6 : cy - 22}
-                  width={labelWidth}
-                  height="18"
-                  rx="4"
-                  className="fill-white/90 stroke-slate-200 dark:fill-slate-900/90 dark:stroke-slate-700"
-                />
-                <text
-                  x={textX}
-                  y={flip ? cy + 19 : cy - 9}
-                  className="fill-slate-700 text-[11px] font-medium dark:fill-slate-200"
-                >
-                  {item.label}
-                </text>
-              </g>
-            );
-          })}
         </svg>
       </div>
       <figcaption className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 font-mono text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        <span>{model.formula}</span>
+        <span>{isSolved ? model.formula : '概形モード（解答後に座標・頂点を公開）'}</span>
         <span className="shrink-0 text-[10px] tracking-tight">
           {isEqualAspect ? '1:1' : 'Fit'} · ×{zoomLevel.toFixed(2)}
         </span>

@@ -81,6 +81,7 @@ export default function WorkspaceView({
   );
   const [energyError, setEnergyError] = useState<string | null>(null);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [isSolved, setIsSolved] = useState(false);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
   const geometryScene = useMemo(() => (problem ? resolveGeometryScene(problem) : null), [problem]);
@@ -155,6 +156,7 @@ export default function WorkspaceView({
       setElapsedSeconds(0);
       setSubmission(null);
       setIsMemoOpen(false);
+      setIsSolved(false);
     }
   }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source]);
 
@@ -184,6 +186,7 @@ export default function WorkspaceView({
     setElapsedSeconds(0);
     setSubmission(null);
     setIsMemoOpen(false);
+    setIsSolved(false);
   };
 
   const handleSubmitAnswer = () => {
@@ -196,6 +199,7 @@ export default function WorkspaceView({
       patternId: problem.patternId ?? patternId,
     });
     setSubmission({ isCorrect, xpResult });
+    setIsSolved(true);
     // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
     addSolvedProblemRecord(problem, isCorrect);
     if (isQuadraticDailyQuestUnit(unitId, problem.unit)) {
@@ -282,7 +286,7 @@ export default function WorkspaceView({
         {geometryScene && <GeometrySvgPlotter problem={problem} scene={geometryScene} className="mt-0" />}
 
         {graphModel && (
-          <MathGraphPlotter problem={problem} className="mt-0" />
+          <MathGraphPlotter problem={problem} isSolved={isSolved} className="mt-0" />
         )}
 
         <button

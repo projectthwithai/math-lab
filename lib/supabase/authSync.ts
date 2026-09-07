@@ -7,7 +7,7 @@
 
 import type { User } from '@supabase/supabase-js';
 
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getSupabaseBrowserClient, completeOAuthRedirectIfNeeded, signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { onProgressDirty } from '@/lib/supabase/progressDirty';
 import {
@@ -143,22 +143,9 @@ export function scheduleAuthProgressPush(): void {
 }
 
 export async function signInWithGoogle(): Promise<{ error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { error: 'Supabase が未設定です。.env.local に URL と anon key を追加してください。' };
-  }
-
-  const redirectTo = `${window.location.origin}/auth/callback`;
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo },
-  });
-
-  if (error) {
-    console.error('[authSync] Google ログインに失敗しました', error);
-    return { error: error.message };
-  }
-  return {};
+  const result = await signInWithGoogleOAuth();
+  if (result.ok) return {};
+  return { error: result.error };
 }
 
 export async function signOut(): Promise<void> {
@@ -193,8 +180,10 @@ export function startAuthSync(): void {
     scheduleAuthProgressPush();
   });
 
-  void supabase.auth.getUser().then(({ data }) => {
-    applyDeveloperFromUser(data.user ?? null);
+  void completeOAuthRedirectIfNeeded().then(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      applyDeveloperFromUser(data.user ?? null);
+    });
   });
 
   unsubscribeAuth = supabase.auth.onAuthStateChange((event, session) => {

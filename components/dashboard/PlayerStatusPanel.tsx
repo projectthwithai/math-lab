@@ -78,9 +78,12 @@ export default function PlayerStatusPanel() {
                   `${energy} / ${maxEnergy}`
                 )}
               </p>
+              {!isDeveloper && energy > maxEnergy && (
+                <p className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-300">限界突破</p>
+              )}
               <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-amber-400/20">
                 <div
-                  className="h-full rounded-full bg-amber-400"
+                  className={`h-full rounded-full ${energy > maxEnergy ? 'bg-cyan-400' : 'bg-amber-400'}`}
                   style={{
                     width: isDeveloper
                       ? '100%'
