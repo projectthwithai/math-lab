@@ -28,13 +28,13 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
           <span
             key={index}
             className={`h-1.5 flex-1 rounded-full transition-colors ${
-              index <= currentStep ? 'bg-cyan-400' : 'bg-slate-800'
+              index <= currentStep ? 'bg-cyan-400' : 'bg-slate-200 dark:bg-slate-800'
             }`}
           />
         ))}
       </div>
 
-      <div className="relative min-h-[100px] overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+      <div className="relative min-h-[100px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -46,7 +46,7 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-cyan-400">
               STEP {currentStep + 1} / {steps.length}
             </p>
-            <p className="text-sm leading-relaxed text-slate-200">
+            <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-200">
               <KaTeXText text={steps[currentStep]} />
             </p>
           </motion.div>
@@ -58,7 +58,7 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
           type="button"
           onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
           disabled={isFirst}
-          className="flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 disabled:opacity-30"
+          className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 disabled:opacity-30"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           前へ
@@ -66,7 +66,7 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
         <button
           type="button"
           onClick={() => setCurrentStep(0)}
-          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:text-slate-300"
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-300"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           最初から

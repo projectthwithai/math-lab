@@ -7,6 +7,7 @@
 // クリックで詳細モーダル（使いどころ・発動条件・成り立ち）を表示する。
 
 import { useMemo, useState } from 'react';
+import { Shield } from 'lucide-react';
 import type { Subject, WeaponItem } from '@/types/mathLab';
 import { WEAPONS_DATA } from '@/data/weaponsData';
 import WeaponCard from '@/components/armory/WeaponCard';
@@ -42,7 +43,10 @@ export default function ArmoryPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
-      <h1 className="mb-1 text-xl font-bold text-white">🗡️ 武器庫</h1>
+      <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+        <Shield className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+        武器庫
+      </h1>
       <p className="mb-6 text-sm text-slate-500">
         収録数: {WEAPONS_DATA.length}種類（全て解放済み）。クリックすると使いどころ・発動条件・成り立ちが見られます。
       </p>
@@ -59,7 +63,7 @@ export default function ArmoryPage() {
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
               subjectFilter === subject
                 ? 'border-violet-400/60 bg-violet-400/10 text-violet-300'
-                : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-slate-500'
             }`}
           >
             {subject === 'all' ? '全科目' : SUBJECT_LABEL[subject]}
@@ -75,7 +79,7 @@ export default function ArmoryPage() {
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
               categoryFilter === 'all'
                 ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-300'
-                : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-slate-500'
             }`}
           >
             すべての分野
@@ -88,7 +92,7 @@ export default function ArmoryPage() {
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 categoryFilter === category
                   ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-300'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
             >
               {category}
@@ -100,7 +104,7 @@ export default function ArmoryPage() {
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="公式名で検索..."
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-violet-400/60 focus:outline-none sm:w-64"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-violet-400/60 focus:outline-none sm:w-64"
         />
       </div>
 

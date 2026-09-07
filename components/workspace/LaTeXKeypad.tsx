@@ -36,7 +36,7 @@ export default function LaTeXKeypad({ onInsert }: LaTeXKeypadProps) {
           key={symbol.label}
           type="button"
           onClick={() => onInsert(symbol.insert)}
-          className="rounded-lg border border-slate-700 bg-slate-900 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-cyan-400/60 hover:text-cyan-300"
+        className="rounded-lg border border-slate-200 bg-white py-2 font-mono text-sm font-medium text-slate-800 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-700"
         >
           {symbol.label}
         </button>

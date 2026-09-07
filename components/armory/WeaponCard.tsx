@@ -29,7 +29,7 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col gap-2 rounded-xl border ${accent.border} bg-slate-900/70 p-4 text-left transition-all ${accent.borderHover} ${accent.shadowBase} ${accent.shadowHover}`}
+      className={`flex flex-col gap-2 rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-slate-900/60 ${accent.borderHover}`}
     >
       <div className="flex items-center justify-between">
         <span className={`rounded-full border ${accent.border} px-2 py-0.5 text-[10px] font-bold ${accent.text}`}>
@@ -39,8 +39,8 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
           {rarity.label}
         </span>
       </div>
-      <h3 className="text-sm font-bold text-white">{weapon.name}</h3>
-      <KaTeXBlock content={weapon.formulaLaTeX} className="text-sm text-slate-300" />
+      <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h3>
+      <KaTeXBlock content={weapon.formulaLaTeX} className="text-sm text-slate-700 dark:text-slate-300" />
     </button>
   );
 }

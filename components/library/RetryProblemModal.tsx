@@ -17,6 +17,7 @@ import { checkAnswer } from '@/lib/engine/answerChecker';
 import { markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
 import { getReviewStageLabel } from '@/lib/engine/forgettingCurve';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
+import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
 
 interface RetryProblemModalProps {
@@ -47,6 +48,7 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
     if (updated) {
       setResult({ isCorrect, updated });
       onReviewed(updated);
+      completeDailyQuest('review-library');
     }
   };
 
@@ -56,23 +58,24 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label="閉じる"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <span className={`rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-bold ${accent.text}`}>
-          🔄 数字を変えて即挑戦（APIコスト0）
+        <span className={`inline-flex items-center gap-1.5 rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-medium ${accent.text}`}>
+          <RefreshCw className="h-3 w-3" />
+          数字を変えて即挑戦（0 Energy）
         </span>
-        <h2 className="mt-2 text-lg font-bold text-white">{problem.title}</h2>
+        <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">{problem.title}</h2>
 
-        <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm leading-relaxed text-slate-200">
+        <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
           <KaTeXText text={problem.questionText} />
         </div>
 
@@ -94,7 +97,7 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
             onChange={(event) => setAnswerInput(event.target.value)}
             disabled={Boolean(result)}
             placeholder="ここに解答を入力..."
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-base text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-3 text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50"
           />
         </div>
 
@@ -129,7 +132,7 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
           <button
             type="button"
             onClick={handleSubmit}
-            className="mt-4 w-full rounded-xl bg-cyan-400 py-3 text-sm font-bold text-slate-950 transition-opacity hover:opacity-90"
+            className="mt-4 w-full rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:border-slate-200 dark:bg-white dark:text-slate-950"
           >
             解答を送信する
           </button>
@@ -139,7 +142,7 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 w-full rounded-lg border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+            className="mt-4 w-full rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             閉じる
           </button>

@@ -15,5 +15,5 @@ interface KaTeXTextProps {
 
 export default function KaTeXText({ text, className }: KaTeXTextProps) {
   const html = renderMixedMathToHtml(text, false);
-  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <span className={`formula-surface ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: html }} />;
 }

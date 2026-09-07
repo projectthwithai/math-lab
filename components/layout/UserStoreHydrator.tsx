@@ -11,12 +11,25 @@
 
 import { useEffect } from 'react';
 import { useUserStore } from '@/lib/store/userStore';
+import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
+import { startAuthSync } from '@/lib/supabase/authSync';
 
 export default function UserStoreHydrator() {
   useEffect(() => {
-    useUserStore.persist.rehydrate();
-    useUserStore.getState().setHasHydrated(true);
-    useUserStore.getState().touchDailyStreakAndEnergy();
+    const hydrate = async () => {
+      await useUserStore.persist.rehydrate();
+      useUserStore.getState().importLegacyDiscoveredPatterns();
+      useUserStore.getState().touchDailyStreakAndEnergy();
+      useUserStore.getState().setHasHydrated(true);
+
+      await useDailyQuestStore.persist.rehydrate();
+      useDailyQuestStore.getState().setHasHydrated(true);
+      useDailyQuestStore.getState().ensureToday();
+
+      startAuthSync();
+    };
+
+    void hydrate();
   }, []);
 
   return null;

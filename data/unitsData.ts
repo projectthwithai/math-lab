@@ -36,7 +36,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '展開・因数分解、絶対値、1次不等式など数と式の基本操作。',
     iconName: 'Radical',
     recommendedGrade: '高1',
-    patternCount: 6,
+    patternCount: 4,
   },
   {
     id: 'math-1a-quadratic-functions',
@@ -56,7 +56,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '三角比の定義、正弦定理・余弦定理、図形への応用。',
     iconName: 'Triangle',
     recommendedGrade: '高1',
-    patternCount: 4,
+    patternCount: 3,
   },
   {
     id: 'math-1a-data-analysis',
@@ -90,7 +90,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '角の二等分線定理、方べきの定理、円周角の定理などの平面図形の性質。',
     iconName: 'Compass',
     recommendedGrade: '高1',
-    patternCount: 3,
+    patternCount: 4,
   },
   {
     id: 'mathA-integers',
@@ -114,7 +114,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '剰余の定理・因数定理、二項定理、複素数と2次方程式の解。',
     iconName: 'GitBranch',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 4,
   },
   {
     id: 'math2-coordinate-geometry',
@@ -124,7 +124,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '点と直線の距離、円の方程式、軌跡と領域。',
     iconName: 'Ruler',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 4,
   },
   {
     id: 'math-2bc-trigonometric-functions',
@@ -134,7 +134,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '加法定理・三角関数の合成、グラフと方程式・不等式。',
     iconName: 'Waves',
     recommendedGrade: '高2',
-    patternCount: 4,
+    patternCount: 5,
   },
   {
     id: 'math-2bc-exponential-logarithmic',
@@ -144,7 +144,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '指数・対数の性質、方程式・不等式、常用対数の応用。',
     iconName: 'TrendingUp',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 5,
   },
   {
     id: 'math-2bc-differentiation',
@@ -154,7 +154,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '導関数・接線・極値、グラフの応用。',
     iconName: 'LineChart',
     recommendedGrade: '高2',
-    patternCount: 4,
+    patternCount: 5,
   },
   {
     id: 'math-2bc-integration',
@@ -164,7 +164,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '不定積分・定積分、面積の計算。',
     iconName: 'Layers',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 4,
   },
 
   // ============================================================
@@ -178,7 +178,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '等差・等比数列、漸化式、数学的帰納法。',
     iconName: 'Binary',
     recommendedGrade: '高2',
-    patternCount: 4,
+    patternCount: 5,
   },
   {
     id: 'mathB-statistics',
@@ -188,7 +188,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '二項分布、正規分布、期待値と分散、区間推定。',
     iconName: 'PieChart',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 4,
   },
 
   // ============================================================
@@ -202,7 +202,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '数列・関数の極限、無限級数。',
     iconName: 'Infinity',
     recommendedGrade: '高3',
-    patternCount: 2,
+    patternCount: 3,
   },
   {
     id: 'math-3-differentiation',
@@ -232,7 +232,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '媒介変数表示された曲線の微分、極座標と極方程式。',
     iconName: 'Spline',
     recommendedGrade: '高3',
-    patternCount: 2,
+    patternCount: 3,
   },
 
   // ============================================================
@@ -246,7 +246,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '平面・空間ベクトルの演算と図形への応用。',
     iconName: 'Move3d',
     recommendedGrade: '高2',
-    patternCount: 4,
+    patternCount: 5,
   },
   {
     id: 'mathC-complex-plane-conics',
@@ -256,7 +256,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '複素数の極形式・ド・モアブルの定理、楕円・双曲線・放物線。',
     iconName: 'Atom',
     recommendedGrade: '高3',
-    patternCount: 3,
+    patternCount: 4,
   },
 
   // ============================================================
@@ -270,7 +270,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '運動の法則、仕事とエネルギー、運動量保存。',
     iconName: 'Orbit',
     recommendedGrade: '高2',
-    patternCount: 6,
+    patternCount: 5,
   },
   {
     id: 'physics-thermodynamics',
@@ -310,7 +310,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '放射性崩壊、半減期、光電効果、原子核反応。',
     iconName: 'Magnet',
     recommendedGrade: '高3',
-    patternCount: 2,
+    patternCount: 3,
   },
 
   // ============================================================
@@ -324,7 +324,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '原子の構造、化学結合、物質量（モル計算）。',
     iconName: 'CircleDot',
     recommendedGrade: '高1',
-    patternCount: 4,
+    patternCount: 3,
   },
   {
     id: 'chemistry-reactions',
@@ -344,7 +344,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '酸・塩基の定義、pH、中和滴定の量的関係。',
     iconName: 'TestTube',
     recommendedGrade: '高2',
-    patternCount: 3,
+    patternCount: 4,
   },
   {
     id: 'chemistry-redox',
@@ -364,7 +364,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '可逆反応と平衡定数、ルシャトリエの原理、電離平衡。',
     iconName: 'FlaskConical',
     recommendedGrade: '高3',
-    patternCount: 3,
+    patternCount: 4,
   },
   {
     id: 'chemistry-inorganic',
@@ -394,7 +394,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '合成高分子と天然高分子、重合度と分子量の計算。',
     iconName: 'Shapes',
     recommendedGrade: '高3',
-    patternCount: 2,
+    patternCount: 3,
   },
 ];
 

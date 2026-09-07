@@ -3,11 +3,10 @@
 // ==========================================
 // Apex Suite: Math Lab - Quick Launch Grid
 // ==========================================
-// 「🚀 Quick Launch」: 4つのメイン機能へのサイバーパンク風ナビゲーションカード。
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Compass, BookOpen, Swords, Library, type LucideIcon } from 'lucide-react';
+import { Compass, BookOpen, Shield, Library, type LucideIcon } from 'lucide-react';
 
 interface QuickLaunchItem {
   href: string;
@@ -15,59 +14,36 @@ interface QuickLaunchItem {
   description: string;
   icon: LucideIcon;
   accentText: string;
-  accentGroupHoverText: string;
-  accentBorder: string;
-  accentShadow: string;
-  accentGlow: string;
 }
 
-// NOTE: Tailwindは各クラス文字列を完全な形でソース上に静的に書く必要があるため、
-// `group-hover:${accentText}` のような実行時文字列結合はしない
-// （テンプレートリテラルだとクラスが検出されずCSSが生成されない）。
 const QUICK_LAUNCH_ITEMS: QuickLaunchItem[] = [
   {
     href: '/units',
     title: '単元から選ぶ',
     description: '数学・物理・化学の全単元から、解きたいテーマを選んで出題する。',
     icon: Compass,
-    accentText: 'text-cyan-300',
-    accentGroupHoverText: 'group-hover:text-cyan-300',
-    accentBorder: 'border-cyan-400/30 hover:border-cyan-400/70',
-    accentShadow: 'hover:shadow-[0_0_28px_rgba(34,211,238,0.4)]',
-    accentGlow: 'bg-cyan-400/10',
+    accentText: 'text-cyan-500 dark:text-cyan-400',
   },
   {
     href: '/patterns',
     title: '解法パターン図鑑を見る',
-    description: '入試お決まりパターンをAI解説つきで攻略。自分流の解き方も書き込める。',
+    description: '入試お決まりパターンを解法の真髄つきで攻略。自分流の解き方も書き込める。',
     icon: BookOpen,
-    accentText: 'text-fuchsia-300',
-    accentGroupHoverText: 'group-hover:text-fuchsia-300',
-    accentBorder: 'border-fuchsia-400/30 hover:border-fuchsia-400/70',
-    accentShadow: 'hover:shadow-[0_0_28px_rgba(232,121,249,0.4)]',
-    accentGlow: 'bg-fuchsia-400/10',
+    accentText: 'text-fuchsia-500 dark:text-fuchsia-400',
   },
   {
     href: '/armory',
     title: '武器庫を開く',
     description: '定理・公式図鑑。使いどころ・発動条件・成り立ちアニメーションを確認。',
-    icon: Swords,
-    accentText: 'text-violet-300',
-    accentGroupHoverText: 'group-hover:text-violet-300',
-    accentBorder: 'border-violet-400/30 hover:border-violet-400/70',
-    accentShadow: 'hover:shadow-[0_0_28px_rgba(167,139,250,0.4)]',
-    accentGlow: 'bg-violet-400/10',
+    icon: Shield,
+    accentText: 'text-violet-500 dark:text-violet-400',
   },
   {
     href: '/library',
     title: 'マイライブラリで復習',
     description: '忘却曲線に基づき、今日復習すべき過去問を優先的にリストアップ。',
     icon: Library,
-    accentText: 'text-emerald-300',
-    accentGroupHoverText: 'group-hover:text-emerald-300',
-    accentBorder: 'border-emerald-400/30 hover:border-emerald-400/70',
-    accentShadow: 'hover:shadow-[0_0_28px_rgba(52,211,153,0.4)]',
-    accentGlow: 'bg-emerald-400/10',
+    accentText: 'text-emerald-500 dark:text-emerald-400',
   },
 ];
 
@@ -85,16 +61,12 @@ export default function QuickLaunchGrid() {
           >
             <Link
               href={item.href}
-              className={`group flex h-full flex-col justify-between rounded-xl border ${item.accentBorder} bg-slate-900/70 p-4 transition-all ${item.accentShadow}`}
+              className="group flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700"
             >
-              <div
-                className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg ${item.accentGlow} ${item.accentText}`}
-              >
-                <Icon className="h-5 w-5" />
+              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 ${item.accentText}`}>
+                <Icon className="h-4 w-4" />
               </div>
-              <h3
-                className={`text-sm font-bold text-white transition-colors ${item.accentGroupHoverText}`}
-              >
+              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
                 {item.title}
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.description}</p>

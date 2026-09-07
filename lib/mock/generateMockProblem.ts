@@ -13,59 +13,22 @@
 // バックスラッシュ系LaTeXコマンド（\sin, \frac 等）を使わず、Unicode数学記号
 // （θ, π, °, ², √, ・ 等）とASCII表記（^, /, ()）のみで数式を表現する。
 
-import type { GeneratedProblem, ProblemFormat, Subject } from '@/types/mathLab';
+import type { GeneratedProblem, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { getUnitById } from '@/data/unitsData';
 import { SOLUTION_PATTERNS } from '@/data/patternsData';
 import { clampDifficulty } from '@/lib/engine/adaptiveEngine';
+import {
+  difficultySpan,
+  getDifficultyTier,
+  type PatternKey,
+  type TemplateBlueprint,
+} from '@/lib/mock/blueprintTypes';
+import { buildTieredBlueprint } from '@/lib/mock/tieredBlueprints';
+import { createVariantSeed, pickBlueprint } from '@/lib/mock/variantPools';
+import { getExtraBlueprints } from '@/lib/mock/extraUnitVariants';
 
-export type PatternKey =
-  // 数I
-  | 'numbers'
-  | 'quadratic'
-  | 'trigonometry'
-  | 'data_analysis'
-  // 数A
-  | 'combinatorics'
-  | 'plane_geometry'
-  | 'integers'
-  // 数II
-  | 'remainder_theorem'
-  | 'coordinate_geometry'
-  | 'trig_composition'
-  | 'logarithm'
-  | 'differentiation'
-  | 'integration'
-  // 数B
-  | 'sequence'
-  | 'statistics'
-  // 数III
-  | 'limits'
-  | 'differentiation_advanced'
-  | 'integration_advanced'
-  | 'parametric'
-  // 数C
-  | 'vector'
-  | 'complex_plane'
-  // 物理
-  | 'mechanics'
-  | 'gas_law_physics'
-  | 'wave_speed'
-  | 'ohms_law'
-  | 'half_life'
-  // 化学
-  | 'mole_calculation'
-  | 'gas_law'
-  | 'neutralization'
-  | 'redox'
-  | 'equilibrium'
-  | 'inorganic_stoichiometry'
-  | 'organic_ihd'
-  | 'polymer'
-  // フォールバック（未知のunitIdでも本物の公式を使う安全網）
-  | 'generic_math'
-  | 'generic_physics'
-  | 'generic_chemistry';
+export type { PatternKey };
 
 const UNIT_ID_PATTERN_MAP: Partial<Record<string, PatternKey>> = {
   // 数I
@@ -118,28 +81,10 @@ function genericKeyForSubject(subject: Subject): PatternKey {
   return 'generic_math';
 }
 
-interface TemplateBlueprint {
-  title: string;
-  unit: string;
-  subject: Subject;
-  format: ProblemFormat;
-  variables: Record<string, { min: number; max: number; step: number }>;
-  templateText: string;
-  calcLogicJS: string;
-  hints: [string, string, string];
-  keyFormula: string;
-  commonMistakes: string;
-}
-
-/** 難易度(1-10)を3段階の緩やかなスケール係数に変換する（1→0.6倍 〜 10→1.6倍） */
-function difficultySpan(difficulty: number, baseMin: number, baseMax: number): { min: number; max: number } {
-  const factor = 0.6 + (clampDifficulty(difficulty) - 1) * (1.0 / 9);
-  const center = (baseMin + baseMax) / 2;
-  const halfSpan = ((baseMax - baseMin) / 2) * factor;
-  return { min: Math.round(center - halfSpan), max: Math.round(center + halfSpan) };
-}
-
 function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: string): TemplateBlueprint {
+  const tiered = buildTieredBlueprint(patternKey, getDifficultyTier(difficulty), difficulty, unitTitle);
+  if (tiered) return tiered;
+
   switch (patternKey) {
     // ============================================================
     // 数I
@@ -173,7 +118,7 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
           }
           const poly = '-' + a + 'x^2' + term(b, 'x') + term(c, '');
           return {
-            vars: { poly },
+            vars: { poly, a: -a, b, c, p, q },
             correctAnswer: q,
             explanationSteps: [
               'y = ' + poly + ' を平方完成する。',
@@ -1581,10 +1526,17 @@ export function generateMockProblem({
   const patternKey: PatternKey =
     (resolvedUnitId ? UNIT_ID_PATTERN_MAP[resolvedUnitId] : undefined) ?? genericKeyForSubject(subject);
 
-  const blueprint = buildBlueprint(patternKey, finalDifficulty, unit?.title ?? '数学');
+  const unitTitle = unit?.title ?? '数学';
+  const primary = buildBlueprint(patternKey, finalDifficulty, unitTitle);
+  // 同じ単元でも毎回シード抽選。図鑑の patternId 指定時も数値は localRegenerator で変わる。
+  const extras = getExtraBlueprints(resolvedUnitId, finalDifficulty, unitTitle);
+  // 図鑑から patternId 指定時は主テンプレートを維持。単元指定のみのときは複数パターンから抽選。
+  const pool = patternId ? [primary] : [primary, ...extras];
+  const seed = createVariantSeed();
+  const blueprint = pickBlueprint(pool, seed);
 
   const base: GeneratedProblem = {
-    id: `mock-${patternKey}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+    id: `mock-${patternKey}-${seed}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
     patternId: patternId ?? resolvedUnitId,
     subject: blueprint.subject,
     unit: blueprint.unit,

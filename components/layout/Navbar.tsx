@@ -3,27 +3,28 @@
 // ==========================================
 // Apex Suite: Math Lab - Global Navbar
 // ==========================================
-// 全画面共通ヘッダー。ロゴ、4つの主要機能への遷移タブ、
-// Energy（スタミナ）・連続学習ストリークの表示を行う。
-// `app/layout.tsx` に1度だけ配置され、全ページで共有される。
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Sparkles, Compass, BookOpen, Swords, Library, Flame, Zap } from 'lucide-react';
+import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon } from 'lucide-react';
 
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
+import ThemeToggle from '@/components/layout/ThemeToggle';
+import AuthButton from '@/components/layout/AuthButton';
 
 interface NavTab {
   href: string;
   label: string;
   icon: typeof Compass;
+  exact?: boolean;
 }
 
 const NAV_TABS: NavTab[] = [
+  { href: '/', label: 'ホーム', icon: Home, exact: true },
   { href: '/units', label: '単元選択', icon: Compass },
   { href: '/patterns', label: 'パターン図鑑', icon: BookOpen },
-  { href: '/armory', label: '武器庫', icon: Swords },
+  { href: '/armory', label: '武器庫', icon: Shield },
   { href: '/library', label: 'ライブラリ', icon: Library },
 ];
 
@@ -32,58 +33,72 @@ export default function Navbar() {
   const streakDays = useUserStore((state) => state.streakDays);
   const energy = useUserStore((state) => state.energy);
   const maxEnergy = useUserStore((state) => state.maxEnergy);
+  const isDeveloper = useUserStore((state) => state.isDeveloper);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-2 text-sm font-bold text-white sm:text-base">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.35)]">
-              <Sparkles className="h-4.5 w-4.5" />
+          <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-white sm:text-base">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-cyan-500 dark:border-slate-800 dark:bg-slate-900 dark:text-cyan-400">
+              <Sparkles className="h-4 w-4" />
             </span>
             <span className="hidden sm:inline">Apex Suite: Math Lab</span>
             <span className="sm:hidden">Math Lab</span>
           </Link>
 
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold sm:text-xs">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px] font-medium sm:text-xs">
             <span
-              className="flex items-center gap-1 rounded-full border border-orange-400/30 bg-orange-400/10 px-2.5 py-1 text-orange-300"
+              className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-orange-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-orange-400"
               title="連続学習ストリーク"
             >
               <Flame className="h-3.5 w-3.5" />
               {streakDays}日
             </span>
             <span
-              className="flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-amber-300"
-              title="Energy（スタミナ）"
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
+                isDeveloper
+                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-600 dark:border-amber-400/40 dark:bg-slate-900/60 dark:text-amber-300'
+                  : 'border-slate-200 bg-white text-amber-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-amber-400'
+              }`}
+              title={isDeveloper ? '無限スタミナ (Dev Mode)' : 'Energy'}
             >
               <Zap className="h-3.5 w-3.5" />
-              {energy}/{maxEnergy ?? DEFAULT_MAX_ENERGY}
+              {isDeveloper ? (
+                <span className="inline-flex items-center gap-1">
+                  <InfinityIcon className="h-3.5 w-3.5" />
+                  (Dev)
+                </span>
+              ) : (
+                `${energy}/${maxEnergy ?? DEFAULT_MAX_ENERGY}`
+              )}
             </span>
+            <ThemeToggle />
+            <AuthButton />
           </div>
         </div>
 
         <nav aria-label="メインナビゲーション" className="flex flex-wrap gap-1.5">
           {NAV_TABS.map((tab) => {
-            const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+            const isActive = tab.exact ? pathname === tab.href : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             const Icon = tab.icon;
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
                 aria-current={isActive ? 'page' : undefined}
-                className="relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm"
+                className="relative rounded-lg px-3 py-1.5 text-xs font-medium tracking-tight transition-colors sm:text-sm"
               >
                 {isActive && (
                   <motion.span
                     layoutId="navbar-tab-indicator"
-                    className="absolute inset-0 rounded-lg bg-cyan-400/15 ring-1 ring-inset ring-cyan-400/50"
-                    transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
+                    className="absolute inset-0 rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900/80"
+                    transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
                   />
                 )}
                 <span
                   className={`relative z-10 flex items-center gap-1.5 ${
-                    isActive ? 'text-cyan-300' : 'text-slate-400 hover:text-white'
+                    isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />

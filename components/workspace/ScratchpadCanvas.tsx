@@ -111,7 +111,7 @@ export default function ScratchpadCanvas() {
           className={`flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
             isEraser
               ? 'border-amber-400/60 bg-amber-400/10 text-amber-300'
-              : 'border-slate-700 text-slate-400 hover:border-slate-500'
+              : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-slate-500'
           }`}
         >
           <Eraser className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export default function ScratchpadCanvas() {
         <button
           type="button"
           onClick={handleClear}
-          className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/60 hover:text-red-300"
+          className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/60 hover:text-red-300"
         >
           <Trash2 className="h-3.5 w-3.5" />
           全消去
@@ -133,7 +133,7 @@ export default function ScratchpadCanvas() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        className="w-full touch-none rounded-xl border border-slate-800"
+        className="w-full touch-none rounded-xl border border-slate-200 dark:border-slate-800"
       />
     </div>
   );

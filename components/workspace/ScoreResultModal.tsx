@@ -6,17 +6,18 @@
 // 解答送信後に必ず表示される採点結果モーダル。
 // 表示順序（優先度順）:
 //   ① 正誤判定 + XP獲得（コンパクトなヘッダー行）
-//   ② 🤖 AIによる公式解説ステップ + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
+//   ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
 //   ③ ✍️ 自分流のメモとして上書き保存する（②の直下）
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
+import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 
 interface ScoreResultModalProps {
@@ -72,7 +73,7 @@ export default function ScoreResultModal({
 
   const handleSaveNote = () => {
     saveCustomSolutionNote(problem.id, noteContent);
-    setSaveNotice('✓ ローカルストレージに保存しました（Supabase連携後は自動同期されます）');
+    setSaveNotice('ローカルストレージに保存しました（ログイン後は自動同期されます）');
     window.setTimeout(() => setSaveNotice(null), 3000);
   };
 
@@ -82,21 +83,21 @@ export default function ScoreResultModal({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
       >
         <AnimatePresence>{xpResult.leveledUp && <ConfettiBurst />}</AnimatePresence>
 
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label="閉じる"
         >
           <X className="h-5 w-5" />
         </button>
 
         {/* ① 正誤判定 + XP獲得（コンパクトなヘッダー行） */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-3">
           <div className="flex items-center gap-2.5">
             {isCorrect ? (
               <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-400" />
@@ -104,7 +105,7 @@ export default function ScoreResultModal({
               <XCircle className="h-7 w-7 shrink-0 text-red-400" />
             )}
             <div>
-              <h2 className={`text-base font-black leading-tight ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>
+              <h2 className={`text-base font-semibold leading-tight tracking-tight ${isCorrect ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-500 dark:text-red-300'}`}>
                 {isCorrect ? '正解！' : '不正解...'}
               </h2>
               <p className="text-[11px] text-slate-500">
@@ -119,22 +120,23 @@ export default function ScoreResultModal({
             className="flex min-w-[160px] flex-col gap-1"
           >
             <div className="flex items-center justify-end gap-1.5">
-              <span className="flex items-center gap-1 text-xs font-black text-amber-200">
-                <Sparkles className="h-3.5 w-3.5" />
-                🎉 +{xpResult.xpEarned} XP
+              <span className="flex items-center gap-1 text-xs font-semibold tracking-tight text-amber-600 dark:text-amber-300">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                +{xpResult.xpEarned} XP
               </span>
               {xpResult.leveledUp && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', bounce: 0.5 }}
-                  className="rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300"
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-cyan-300"
                 >
-                  🆙 Lv.{xpResult.previousLevel}→{xpResult.newLevel}
+                  <ArrowUpRight className="h-3 w-3" />
+                  Lv.{xpResult.previousLevel}→{xpResult.newLevel}
                 </motion.span>
               )}
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
               <motion.div
                 className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-200"
                 initial={{ width: 0 }}
@@ -151,26 +153,29 @@ export default function ScoreResultModal({
           </motion.div>
         </div>
 
-        {/* ② 🤖 AIによる公式解説ステップ + 🔑 鍵となる公式（最も大きく強調表示） */}
-        <div className="mb-5 rounded-2xl border-2 border-cyan-400/40 bg-gradient-to-b from-cyan-400/10 via-slate-900/80 to-slate-900/60 p-5 shadow-[0_0_30px_-10px_rgba(34,211,238,0.5)]">
-          <h3 className="mb-3 flex items-center justify-center gap-2 text-center text-lg font-black tracking-wide text-cyan-200">
-            <Sparkles className="h-5 w-5 text-cyan-300" />
-            🤖 AIによる公式解説ステップ
+        {/* ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（最も大きく強調表示） */}
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <h3 className="mb-3 flex items-center justify-center gap-2 text-center text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+            <Sparkles className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
+            解法の真髄（Apexガイド）
           </h3>
-          <ol className="mb-4 list-decimal space-y-2.5 pl-6 text-[15px] leading-relaxed text-slate-200">
+          <ol className="mb-4 list-decimal space-y-2.5 pl-6 text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">
             {problem.explanation.stepByStep.map((step, index) => (
               <li key={index} className="marker:font-bold marker:text-cyan-400">
                 <KaTeXText text={step} />
               </li>
             ))}
           </ol>
-          <div className="mb-3 rounded-xl border-2 border-cyan-400/40 bg-cyan-400/10 p-4 text-center">
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-cyan-300">🔑 鍵となる公式</p>
-            <KaTeXBlock content={problem.explanation.keyFormula} className="text-lg font-semibold text-white" />
+          <div className="mb-3 rounded-xl border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-950/50">
+            <p className="mb-1.5 flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-widest text-cyan-600 dark:text-cyan-400">
+              <KeyRound className="h-3.5 w-3.5" />
+              鍵となる公式
+            </p>
+            <KaTeXBlock content={problem.explanation.keyFormula} className="text-lg font-semibold text-slate-900 dark:text-white" />
           </div>
           <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-red-400">よくあるミス</p>
-            <p className="text-sm text-slate-300">{problem.explanation.commonMistakes}</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{problem.explanation.commonMistakes}</p>
           </div>
         </div>
 
@@ -178,15 +183,34 @@ export default function ScoreResultModal({
         <div className="mb-5 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
           <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
             <BookOpenCheck className="h-4 w-4" />
-            ✍️ 自分流のメモとして上書き保存する
+            自分流のメモとして上書き保存する
           </h3>
-          <textarea
-            value={noteContent}
-            onChange={(event) => setNoteContent(event.target.value)}
-            rows={4}
-            placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-            className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-white placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none"
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <textarea
+              value={noteContent}
+              onChange={(event) => setNoteContent(event.target.value)}
+              rows={4}
+              placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
+              className="w-full min-w-0 flex-1 resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+            <div className="sm:w-52">
+              <AiSolutionCheckPanel
+                customText={noteContent}
+                context={{
+                  mode: 'problem',
+                  title: problem.title,
+                  unit: problem.unit,
+                  questionText: problem.questionText,
+                  patternId: problem.patternId,
+                  keyFormula: problem.explanation.keyFormula,
+                  commonMistakes: problem.explanation.commonMistakes,
+                  explanationSteps: problem.explanation.stepByStep,
+                  correctAnswer: problem.correctAnswer,
+                }}
+                buttonLabel="解法ロジック検証"
+              />
+            </div>
+          </div>
           <div className="mt-2 flex items-center justify-between">
             <button
               type="button"
@@ -214,14 +238,14 @@ export default function ScoreResultModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             閉じる
           </button>
           <button
             type="button"
             onClick={onNextProblem}
-            className="flex-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 py-2.5 text-sm font-semibold text-cyan-300 transition-colors hover:bg-cyan-400/20"
+            className="flex-1 rounded-lg border border-slate-800 bg-slate-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
           >
             次の問題へ
           </button>

@@ -6,6 +6,7 @@
 // 使い、新しい乱数の組み合わせで問題を再生成する。
 
 import type { GeneratedProblem } from '@/types/mathLab';
+import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -72,6 +73,7 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
   }
 
   const questionText = fillTemplate(templateConfig.templateText, result.vars);
+  const visual = attachMathGraphVisual(problem, result.vars);
 
   return {
     ...problem,
@@ -82,5 +84,7 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
       ...problem.explanation,
       stepByStep: result.explanationSteps ?? problem.explanation.stepByStep,
     },
+    visualType: visual.visualType,
+    visualConfig: visual.visualConfig,
   };
 }

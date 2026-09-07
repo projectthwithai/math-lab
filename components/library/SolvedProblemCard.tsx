@@ -50,8 +50,8 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-xl border bg-slate-900/60 p-4 ${
-        due ? 'border-amber-400/50' : accent.border
+      className={`flex flex-col gap-3 rounded-xl border bg-white/80 p-4 backdrop-blur-md dark:bg-slate-900/60 ${
+        due ? 'border-amber-400/40' : accent.border
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -59,7 +59,7 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
           <span className={`rounded-full border ${accent.border} px-2 py-0.5 text-[10px] font-bold ${accent.text}`}>
             {problem.unit}
           </span>
-          <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
+          <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
             難易度 {problem.difficulty}/10
           </span>
           {due && (
@@ -76,7 +76,7 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
         )}
       </div>
 
-      <h3 className="text-sm font-bold text-white">{problem.title}</h3>
+      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{problem.title}</h3>
       <p className="line-clamp-2 text-xs text-slate-400">
         <KaTeXText text={problem.questionText} />
       </p>
@@ -112,7 +112,7 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
             onChange={(event) => setNoteContent(event.target.value)}
             rows={3}
             placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-            className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none"
+            className="w-full resize-none rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
             <button
@@ -123,7 +123,7 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
               <Save className="h-3 w-3" />
               保存
             </button>
-            {saveNotice && <span className="text-[11px] text-emerald-300">✓ 保存しました</span>}
+            {saveNotice && <span className="text-[11px] text-emerald-600 dark:text-emerald-300">保存しました</span>}
           </div>
         </div>
       )}

@@ -2,9 +2,10 @@
 // Apex Suite: Math Lab - Custom Solution Notes Store
 // ==========================================
 // 「✍️ 自分の言葉で解説を書き換えてノートに保存」機能のためのLocalStorage永続化。
-// Supabase連携までのゼロコストな暫定実装。
+// LocalStorage と Supabase `user_progress.solution_notes` の両方で永続化する。
 
 import type { CustomSolutionNote } from '@/types/mathLab';
+import { markProgressDirty } from '@/lib/supabase/progressDirty';
 
 const STORAGE_KEY = 'math-lab:custom-solution-notes';
 
@@ -33,6 +34,14 @@ function writeAllNotes(notes: Record<string, CustomSolutionNote>): void {
   }
 }
 
+export function getAllCustomSolutionNotes(): Record<string, CustomSolutionNote> {
+  return readAllNotes();
+}
+
+export function replaceAllCustomSolutionNotes(notes: Record<string, CustomSolutionNote>): void {
+  writeAllNotes(notes ?? {});
+}
+
 export function getCustomSolutionNote(problemId: string): CustomSolutionNote | null {
   const notes = readAllNotes();
   return notes[problemId] ?? null;
@@ -47,6 +56,7 @@ export function saveCustomSolutionNote(problemId: string, content: string): Cust
   };
   notes[problemId] = note;
   writeAllNotes(notes);
+  markProgressDirty();
   return note;
 }
 
@@ -54,4 +64,5 @@ export function deleteCustomSolutionNote(problemId: string): void {
   const notes = readAllNotes();
   delete notes[problemId];
   writeAllNotes(notes);
+  markProgressDirty();
 }

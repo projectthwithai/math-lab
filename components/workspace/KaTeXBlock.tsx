@@ -17,6 +17,6 @@ interface KaTeXBlockProps {
 export default function KaTeXBlock({ content, className }: KaTeXBlockProps) {
   const html = renderMixedMathToHtml(content, true);
   return (
-    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+    <div className={`formula-surface ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: html }} />
   );
 }

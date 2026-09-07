@@ -58,7 +58,7 @@ export default function UnitSelectionGrid() {
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
                   isActive
                     ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-300'
-                    : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+                    : 'border-slate-300 text-slate-500 hover:border-slate-500 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
                 {category}
@@ -74,7 +74,7 @@ export default function UnitSelectionGrid() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="単元名で検索..."
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none"
           />
         </div>
       </div>
@@ -92,19 +92,19 @@ export default function UnitSelectionGrid() {
           return (
             <div
               key={unit.id}
-              className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-slate-900/70 p-4 transition-all ${accent.borderHover} ${accent.shadowBase} ${accent.shadowHover}`}
+              className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-slate-900/60`}
             >
               <div>
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent.bgSoft} ${accent.text}`}>
                     <Icon className="h-4.5 w-4.5" />
                   </span>
-                  <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
+                  <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
                     {unit.recommendedGrade}
                   </span>
                 </div>
                 <p className={`text-[10px] font-bold uppercase tracking-wide ${accent.text}`}>{unit.category}</p>
-                <h3 className="mt-0.5 text-sm font-bold text-white">{unit.title}</h3>
+                <h3 className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{unit.title}</h3>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">{unit.description}</p>
               </div>
 
@@ -115,7 +115,7 @@ export default function UnitSelectionGrid() {
                     {totalCount > 0 ? `${clearedCount}/${totalCount}パターン` : `全${unit.patternCount}パターン`}
                   </span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                   <div
                     className={`h-full rounded-full ${accent.bg}`}
                     style={{ width: `${progressPercent}%` }}

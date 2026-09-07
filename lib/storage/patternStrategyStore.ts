@@ -3,7 +3,9 @@
 // ==========================================
 // パターン図鑑の「✍️ 自分流のコツ・解き方に書き換える」機能のための
 // LocalStorage永続化。ユーザーが上書きした`strategyText`のみを保存し、
-// 元のAI解説（`data/patternsData.ts`）とは分離して管理する。
+// 元の公式解説（`data/patternsData.ts`）とは分離して管理する。
+
+import { markProgressDirty } from '@/lib/supabase/progressDirty';
 
 const STORAGE_KEY = 'math-lab:pattern-strategy-overrides';
 
@@ -42,6 +44,10 @@ export function getAllPatternOverrides(): Record<string, PatternOverride> {
   return readAllOverrides();
 }
 
+export function replaceAllPatternOverrides(overrides: Record<string, PatternOverride>): void {
+  writeAllOverrides(overrides ?? {});
+}
+
 export function getPatternOverride(patternId: string): PatternOverride | null {
   return readAllOverrides()[patternId] ?? null;
 }
@@ -55,6 +61,7 @@ export function saveCustomStrategyText(patternId: string, text: string): Pattern
   };
   overrides[patternId] = override;
   writeAllOverrides(overrides);
+  markProgressDirty();
   return override;
 }
 
@@ -62,4 +69,5 @@ export function resetCustomStrategyText(patternId: string): void {
   const overrides = readAllOverrides();
   delete overrides[patternId];
   writeAllOverrides(overrides);
+  markProgressDirty();
 }

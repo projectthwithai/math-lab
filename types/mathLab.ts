@@ -45,12 +45,15 @@ export interface GeneratedProblem {
     keyFormula: string;
     commonMistakes: string;
   };
+
+  /** 図鑑でユーザーが新パターン解析したパターンから出題されたとき true */
+  fromDiscoveredPattern?: boolean;
 }
 
 // ------------------------------------------
 // SolutionPattern（本物の解法パターン図鑑）
 // ------------------------------------------
-// 単元ごとの「入試お決まりパターン」を、AIが書いた解答方針（strategyText）と
+// 単元ごとの「入試お決まりパターン」を、解答方針（strategyText）と
 // セットで管理する。パターンの攻略状態（isMastered）自体はこのファイルでは
 // 静的な初期値のみ持ち、実際のユーザーごとの攻略状況は
 // `lib/store/userStore.ts` の `clearedPatternIds` で管理する
@@ -68,8 +71,12 @@ export interface SolutionPattern {
   level: PatternLevel;
   /** 解法パターン名（例: "パターン2: 軸が動く2次関数の最大・最小"） */
   patternName: string;
-  /** AIが書いた、このパターンを見抜くコツ・解答方針 */
+  /** 📝 具体的な例題文（LaTeX数式は `$...$` で囲む。KaTeXBlock/KaTeXTextで描画） */
+  exampleQuestion: string;
+  /** Apexガイドが書いた、このパターンを見抜くコツ・解答方針 */
   strategyText: string;
+  /** 図鑑の「新パターン解析」で後から追加されたパターン */
+  discovered?: boolean;
 }
 
 // ------------------------------------------
@@ -133,4 +140,50 @@ export interface SolvedProblemRecord {
   /** エビングハウス忘却曲線に基づく復習ステージ（0=直後 → 数値が大きいほど間隔が長い） */
   reviewStage: number;
   nextReviewAt: string;
+}
+
+// ------------------------------------------
+// CustomSolutionVerification（自分流解法メモのロジック検証）
+// ------------------------------------------
+
+export type CustomSolutionVerifyStatus = 'perfect' | 'warning' | 'invalid';
+
+export interface CustomSolutionVerifyContext {
+  mode?: 'problem' | 'pattern';
+  questionText?: string;
+  title?: string;
+  unit?: string;
+  patternName?: string;
+  patternId?: string;
+  strategyText?: string;
+  keyFormula?: string;
+  correctAnswer?: string | number;
+  explanationSteps?: string[];
+  exampleQuestion?: string;
+  commonMistakes?: string;
+}
+
+export interface CustomSolutionVerifyResult {
+  status: CustomSolutionVerifyStatus;
+  feedback: string;
+  edgeCaseNote?: string;
+}
+
+// ------------------------------------------
+// ImageAnalysisResult（画像からの構造抽出。原問テキストは返さない）
+// ------------------------------------------
+
+export interface ImageLogicSummary {
+  subject: Subject;
+  unit: string;
+  techniques: string[];
+}
+
+export interface ImageAnalysisResult {
+  /** 抽象化した解法構造のみ。原問の文章・数値・設定は含めない */
+  logic: ImageLogicSummary;
+  /** 100%オリジナルの新規創作問題（類題） */
+  variantProblem: GeneratedProblem;
+  pattern: SolutionPattern;
+  source: 'llm' | 'local';
 }
