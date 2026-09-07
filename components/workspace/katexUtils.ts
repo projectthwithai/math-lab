@@ -7,6 +7,7 @@
 // そのまま安全に表示される。
 
 import katex from 'katex';
+import { cleanLatexFormula } from '@/lib/utils/mathFormatter';
 
 function escapeHtml(text: string): string {
   return text
@@ -21,7 +22,7 @@ function escapeHtml(text: string): string {
  * `dangerouslySetInnerHTML` での利用を想定。
  */
 export function renderMixedMathToHtml(text: string, displayMode: boolean): string {
-  const segments = text.split(/\$([^$]+)\$/g);
+  const segments = cleanLatexFormula(text).split(/\$([^$]+)\$/g);
 
   return segments
     .map((segment, index) => {

@@ -12,7 +12,7 @@ export type ChemistrySceneKind = 'energy' | 'pv' | 'battery';
 export interface InclineScene {
   kind: 'incline';
   thetaDeg: number;
-  massKg: number;
+  massKg: number | null;
   mu: number | null;
 }
 
@@ -39,6 +39,7 @@ export interface EnergyScene {
   reactants: number;
   products: number;
   activation: number;
+  qualitative: boolean;
 }
 
 export interface ChemistryPvScene {
@@ -96,20 +97,24 @@ function bagFromProblem(
   };
 }
 
-function looksCircuit(text: string): boolean {
-  return /電磁|回路|オーム|抵抗|電流|電圧|直列|並列|Ω|アンペア/.test(text);
+function looksIncline(text: string): boolean {
+  return /斜面|傾斜角|垂直抗力|摩擦力/.test(text);
 }
 
-function looksPhysicsPv(text: string): boolean {
-  return /熱力|気体|ボイル|シャルル|状態方程|圧力|体積|atm|等温/.test(text);
+function looksCircuit(text: string): boolean {
+  return /回路|オーム|直列|並列/.test(text) && /抵抗|Ω|電圧|電流/.test(text);
+}
+
+function looksPvProcess(text: string): boolean {
+  return /ボイル|シャルル|P-V|PVグラフ|等温変化/.test(text);
 }
 
 function looksBattery(text: string): boolean {
-  return /電池|電極|電気分解|ダニエル|負極|正極|イオン化傾向|酸化還元/.test(text);
+  return /電池|電極|ダニエル|電気分解/.test(text);
 }
 
-function looksChemistryPv(text: string): boolean {
-  return /ボイル|シャルル|気体|圧力|体積|P-V|PV|等温|状態方程/.test(text);
+function looksThermoChem(text: string): boolean {
+  return /発熱|吸熱|反応熱|熱化学|エネルギー図|活性化エネルギー/.test(text);
 }
 
 function looksEndothermic(text: string): boolean {
@@ -120,73 +125,88 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function inferPhysicsScene(problem: GeneratedProblem, bag: Record<string, unknown>): PhysicsScene {
-  const text = contextText(problem);
-  const explicit = (problem.visualConfig?.type ?? '').toLowerCase();
-
-  if (explicit === 'circuit' || (explicit !== 'incline' && explicit !== 'pv' && looksCircuit(text))) {
-    return {
-      kind: 'circuit',
-      r1: pickNumber(bag, ['r1', 'R1', 'r']) ?? 4,
-      r2: pickNumber(bag, ['r2', 'R2']) ?? 6,
-      voltage: pickNumber(bag, ['v', 'V', 'voltage', 'emf', 'E']) ?? 12,
-    };
-  }
-
-  if (explicit === 'pv' || (explicit !== 'incline' && looksPhysicsPv(text))) {
-    const p1 = pickNumber(bag, ['p1', 'P1', 'p']) ?? 2;
-    const v1 = pickNumber(bag, ['v1', 'V1', 'v']) ?? 4;
-    const p2 = pickNumber(bag, ['p2', 'P2']) ?? Math.max(1, Math.round(p1 * 1.5 * 100) / 100);
-    const v2 = pickNumber(bag, ['v2', 'V2']) ?? Math.round((p1 * v1 / p2) * 100) / 100;
-    return { kind: 'pv', p1, v1, p2, v2: v2 > 0 ? v2 : v1 };
-  }
-
-  const thetaRaw = pickNumber(bag, ['theta', 'thetaDeg', 'angle', 'deg']);
-  return {
-    kind: 'incline',
-    thetaDeg: clamp(thetaRaw ?? 30, 12, 55),
-    massKg: pickNumber(bag, ['m', 'mass', 'massKg']) ?? 2,
-    mu: pickNumber(bag, ['mu', 'mu_k', 'mu_s', 'friction']) ?? 0.3,
-  };
+function twoStatePv(bag: Record<string, unknown>): PhysicsPvScene | ChemistryPvScene | null {
+  const p1 = pickNumber(bag, ['p1', 'P1']);
+  const v1 = pickNumber(bag, ['v1', 'V1']);
+  const p2 = pickNumber(bag, ['p2', 'P2']);
+  const v2 = pickNumber(bag, ['v2', 'V2']);
+  if (p1 === null || v1 === null || p2 === null || v2 === null) return null;
+  if (p1 <= 0 || v1 <= 0 || p2 <= 0 || v2 <= 0) return null;
+  return { kind: 'pv', p1, v1, p2, v2 };
 }
 
-function inferChemistryScene(problem: GeneratedProblem, bag: Record<string, unknown>): ChemistryScene {
+function inferPhysicsScene(problem: GeneratedProblem, bag: Record<string, unknown>): PhysicsScene | null {
   const text = contextText(problem);
   const explicit = (problem.visualConfig?.type ?? '').toLowerCase();
 
-  if (explicit === 'battery' || (explicit !== 'energy' && explicit !== 'pv' && looksBattery(text))) {
+  if (explicit === 'circuit' || looksCircuit(text)) {
+    const r1 = pickNumber(bag, ['r1', 'R1', 'r']);
+    const voltage = pickNumber(bag, ['v', 'V', 'voltage', 'emf', 'E']);
+    if (r1 === null || voltage === null) return null;
+    const r2 = pickNumber(bag, ['r2', 'R2']);
+    return { kind: 'circuit', r1, r2: r2 ?? 0, voltage };
+  }
+
+  if (explicit === 'pv' || looksPvProcess(text)) {
+    return twoStatePv(bag);
+  }
+
+  if (explicit === 'incline' || looksIncline(text)) {
+    const thetaRaw = pickNumber(bag, ['theta', 'thetaDeg', 'angle', 'deg']);
+    if (thetaRaw === null) return null;
     return {
-      kind: 'battery',
-      anode: pickString(bag, ['anode', 'negative', 'zn']) ?? 'Zn',
-      cathode: pickString(bag, ['cathode', 'positive', 'cu']) ?? 'Cu',
+      kind: 'incline',
+      thetaDeg: clamp(thetaRaw, 8, 70),
+      massKg: pickNumber(bag, ['m', 'mass', 'massKg']),
+      mu: pickNumber(bag, ['mu', 'mu_k', 'mu_s', 'friction']),
     };
   }
 
-  if (explicit === 'pv' || (explicit !== 'energy' && looksChemistryPv(text))) {
-    const p1 = pickNumber(bag, ['p1', 'P1', 'p']) ?? 1;
-    const v1 = pickNumber(bag, ['v1', 'V1']) ?? 6;
-    const p2 = pickNumber(bag, ['p2', 'P2']) ?? 3;
-    const v2 =
-      pickNumber(bag, ['v2', 'V2']) ?? Math.round((p1 * v1 / Math.max(p2, 0.1)) * 100) / 100;
-    return { kind: 'pv', p1, v1, p2, v2: v2 > 0 ? v2 : 2 };
+  return null;
+}
+
+function inferChemistryScene(problem: GeneratedProblem, bag: Record<string, unknown>): ChemistryScene | null {
+  const text = contextText(problem);
+  const explicit = (problem.visualConfig?.type ?? '').toLowerCase();
+
+  if (explicit === 'battery' || looksBattery(text)) {
+    const daniel = /ダニエル|亜鉛|Zn|銅|Cu/.test(text);
+    return {
+      kind: 'battery',
+      anode: pickString(bag, ['anode', 'negative', 'zn']) ?? (daniel ? 'Zn' : '負極'),
+      cathode: pickString(bag, ['cathode', 'positive', 'cu']) ?? (daniel ? 'Cu' : '正極'),
+    };
   }
 
-  const reactants = pickNumber(bag, ['reactants', 'H_r', 'Hr']) ?? 80;
-  const products = pickNumber(bag, ['products', 'H_p', 'Hp']) ?? (looksEndothermic(text) ? 110 : 40);
-  const mode: EnergyScene['mode'] =
-    explicit === 'endothermic' || looksEndothermic(text) || products > reactants
-      ? 'endothermic'
-      : 'exothermic';
-  const peakBase = Math.max(reactants, products);
-  const activation = pickNumber(bag, ['Ea', 'activation', 'ea']) ?? peakBase + 35;
+  if (explicit === 'pv' || looksPvProcess(text)) {
+    return twoStatePv(bag);
+  }
 
-  return {
-    kind: 'energy',
-    mode,
-    reactants,
-    products: mode === 'exothermic' ? Math.min(products, reactants - 10) : Math.max(products, reactants + 10),
-    activation,
-  };
+  if (explicit === 'energy' || looksThermoChem(text)) {
+    const reactants = pickNumber(bag, ['reactants', 'H_r', 'Hr']);
+    const products = pickNumber(bag, ['products', 'H_p', 'Hp']);
+    const qualitative = reactants === null || products === null;
+    const mode: EnergyScene['mode'] =
+      explicit === 'endothermic' ||
+      looksEndothermic(text) ||
+      (products !== null && reactants !== null && products > reactants)
+        ? 'endothermic'
+        : 'exothermic';
+    const r = reactants ?? 80;
+    const p = products ?? (mode === 'exothermic' ? 40 : 110);
+    const peakBase = Math.max(r, p);
+    const activation = pickNumber(bag, ['Ea', 'activation', 'ea']) ?? peakBase + 35;
+    return {
+      kind: 'energy',
+      mode,
+      reactants: r,
+      products: p,
+      activation,
+      qualitative,
+    };
+  }
+
+  return null;
 }
 
 export function resolvePhysicsScene(
@@ -211,11 +231,7 @@ export function attachPhysicsVisual(
 ): Pick<GeneratedProblem, 'visualType' | 'visualConfig'> {
   const scene = resolvePhysicsScene(problem, vars);
   if (!scene) {
-    return {
-      visualType: problem.visualType === 'physics_simulation' ? 'none' : problem.visualType,
-      visualConfig:
-        problem.visualType === 'physics_simulation' ? { type: 'none', params: {} } : problem.visualConfig,
-    };
+    return { visualType: 'none', visualConfig: { type: 'none', params: {} } };
   }
 
   return {
@@ -233,11 +249,7 @@ export function attachChemistryVisual(
 ): Pick<GeneratedProblem, 'visualType' | 'visualConfig'> {
   const scene = resolveChemistryScene(problem, vars);
   if (!scene) {
-    return {
-      visualType: problem.visualType === 'chemistry_animation' ? 'none' : problem.visualType,
-      visualConfig:
-        problem.visualType === 'chemistry_animation' ? { type: 'none', params: {} } : problem.visualConfig,
-    };
+    return { visualType: 'none', visualConfig: { type: 'none', params: {} } };
   }
 
   return {

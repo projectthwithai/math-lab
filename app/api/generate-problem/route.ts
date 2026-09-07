@@ -18,6 +18,7 @@ import { stampCatalogProblem, stampDiscoveredProblem } from '@/lib/mock/stampDis
 import { getPatternDefaultDifficulty } from '@/data/patternsData';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
+import { parseVisualType, VISUAL_TYPE_PROMPT_RULES } from '@/lib/engine/visualNeed';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -71,6 +72,7 @@ interface LlmTemplatePayload {
   commonMistakes: string;
   choices?: string[];
   geometryScene?: unknown;
+  visualType?: string;
 }
 
 function isValidLlmTemplatePayload(value: unknown): value is LlmTemplatePayload {
@@ -124,6 +126,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     '三角形・円・接線・ベクトル・点と直線の問題では geometryScene を必ず付ける。' +
     'geometryScene は { points:[{id,x,y,label}], segments:[{from,to,dashed?,label?}], circles:[{cx,cy,r,dashed?,label?}], ' +
     'angles:[{vertex,from,to,label}], vectors:[{from,to,label}], tangents:[{from,to}], caption }。座標は -10〜10 程度。' +
+    VISUAL_TYPE_PROMPT_RULES +
     'LaTeXのバックスラッシュ記法は使わず、Unicode数学記号（θ, π, °, ², √ 等）と' +
     'ASCII表記（^, /, ()）のみで数式を表現してください。' +
     '難易度指定に従い、問題の構造そのものを劇的に分岐させてください。' +
@@ -150,7 +153,9 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       hints: '[string, string, string]',
       keyFormula: 'string',
       commonMistakes: 'string',
-      geometryScene: 'optional object for triangle/circle/tangent/vector figures',
+      visualType: 'none | math_graph | geometry_svg | physics_simulation | chemistry_animation',
+      visualConfig: '{ type: string, params: object }  （none のときは type:"none", params:{}）',
+      geometryScene: 'optional; 幾何図形が不可欠なときだけ。計算問題では省略',
     },
   });
 
@@ -181,6 +186,8 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     if (!isValidLlmTemplatePayload(parsed)) return null;
 
     const geometryScene = parseGeometryScene(parsed.geometryScene);
+    const requestedVisual = parseVisualType(parsed.visualType);
+    const visualType = geometryScene ? 'geometry_svg' : requestedVisual === 'geometry_svg' ? 'none' : requestedVisual;
     const base: GeneratedProblem = {
       id: `llm-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
       patternId: params.patternId ?? params.unitId,
@@ -190,10 +197,10 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       difficulty,
       format: parsed.format ?? 'input',
       questionText: parsed.templateText,
-      visualType: geometryScene ? 'geometry_svg' : 'none',
+      visualType,
       visualConfig: geometryScene
         ? { type: 'geometry', params: { ...geometryScene, scene: geometryScene } }
-        : { type: 'none', params: {} },
+        : { type: visualType === 'none' ? 'none' : visualType, params: {} },
       correctAnswer: '',
       choices: parsed.choices,
       hints: parsed.hints,

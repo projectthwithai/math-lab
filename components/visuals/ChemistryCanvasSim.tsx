@@ -70,7 +70,11 @@ function EnergyFigure({ scene }: { scene: EnergyScene }) {
         animate={{ opacity: 1 }}
       />
       <text x="360" y={(yR + yP) / 2 + 18} textAnchor="middle" fill="#6ee7b7" fontSize="14" fontWeight="700">
-        {`ΔH = ${dH > 0 ? '+' : ''}${dH}`}
+        {scene.qualitative
+          ? scene.mode === 'exothermic'
+            ? 'ΔH < 0（発熱）'
+            : 'ΔH > 0（吸熱）'
+          : `ΔH = ${dH > 0 ? '+' : ''}${dH}`}
       </text>
     </svg>
   );
@@ -179,7 +183,7 @@ export default function ChemistryCanvasSim({ problem, scene, className }: Chemis
   const uid = useId().replace(/:/g, '');
   const resolved = useMemo(() => {
     if (scene) return scene;
-    if (problem) return resolveChemistryScene(problem);
+    if (problem?.visualType === 'chemistry_animation') return resolveChemistryScene(problem);
     return null;
   }, [problem, scene]);
 

@@ -402,6 +402,10 @@ export const UNITS_DATA: UnitInfo[] = [
 // ヘルパー関数
 // ------------------------------------------
 
+export function getUnitsBySubject(subject: Subject): UnitInfo[] {
+  return UNITS_DATA.filter((unit) => unit.subject === subject);
+}
+
 export function getUnitsByCategory(category: UnitCategory): UnitInfo[] {
   return UNITS_DATA.filter((unit) => unit.category === category);
 }

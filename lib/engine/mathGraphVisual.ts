@@ -47,18 +47,21 @@ function contextText(problem: GeneratedProblem): string {
   return `${problem.unit} ${problem.title} ${problem.questionText}`;
 }
 
-function looksQuadratic(text: string): boolean {
-  return /2次|二次|x\^2|x²|放物|頂点|平方完成/.test(text);
+function looksQuadraticGraph(text: string): boolean {
+  if (/解の公式|因数分解/.test(text) && !/グラフ|図示|頂点|放物線/.test(text)) return false;
+  if (/判別式/.test(text) && !/グラフ|図示|頂点|放物線|領域/.test(text)) return false;
+  if (/2次方程式/.test(text) && !/グラフ|図示|頂点|放物線/.test(text)) return false;
+  if (/グラフ|図示|概形|放物線|頂点|平方完成|領域/.test(text)) return true;
+  return /2次関数|二次関数/.test(text) && /最大|最小|軸|定義域/.test(text);
 }
 
-function looksLinear(text: string): boolean {
-  return /一次|1次|直線|比例|傾き/.test(text);
+function looksLinearGraph(text: string): boolean {
+  return /グラフ|図示|概形/.test(text);
 }
 
-function looksSine(text: string): boolean {
-  if (/三角関数|波形|合成/.test(text)) return true;
-  if (/三角比/.test(text)) return false;
-  return /sin|波/.test(text);
+function looksSineGraph(text: string): boolean {
+  if (/三角比/.test(text) && !/グラフ|図示|波形/.test(text)) return false;
+  return /グラフ|図示|概形|波形/.test(text);
 }
 
 function quadraticFormula(a: number, b: number, c: number): string {
@@ -181,27 +184,27 @@ function inferFromBag(problem: GeneratedProblem, bag: Record<string, unknown>): 
   const m = pickNumber(bag, ['m', 'slope']);
   const explicitGraph = problem.visualType === 'math_graph';
 
-  if ((explicitGraph || looksQuadratic(text)) && a !== null && p !== null && q !== null) {
+  if ((explicitGraph || looksQuadraticGraph(text)) && a !== null && p !== null && q !== null) {
     return quadraticFromVertex(a, p, q);
   }
-  if ((explicitGraph || looksQuadratic(text)) && a !== null && b !== null && c !== null) {
+  if ((explicitGraph || looksQuadraticGraph(text)) && a !== null && b !== null && c !== null) {
     return quadraticFromAbc(a, b, c);
   }
-  if ((explicitGraph || looksQuadratic(text)) && t !== null && k !== null) {
+  if ((explicitGraph || looksQuadraticGraph(text)) && t !== null && k !== null) {
     return quadraticFromVertex(1, t, k);
   }
-  if (a !== null && /2ax/.test(text) && /-x/.test(text)) {
+  if (a !== null && /2ax/.test(text) && /-x/.test(text) && looksQuadraticGraph(text)) {
     return quadraticFromAbc(-1, 2 * a, 0);
   }
-  if ((explicitGraph || looksLinear(text)) && m !== null && b !== null) {
+  if ((explicitGraph || looksLinearGraph(text)) && m !== null && b !== null) {
     return linearFromMb(m, b);
   }
-  if (looksSine(text) && a !== null && b !== null) {
+  if (looksSineGraph(text) && a !== null && b !== null) {
     const amplitude = Math.sqrt(a * a + b * b);
     return sineFromParams(amplitude, 1, 0, 0);
   }
   const amplitude = pickNumber(bag, ['amplitude', 'A', 'amp']);
-  if (amplitude !== null && (explicitGraph || looksSine(text))) {
+  if (amplitude !== null && (explicitGraph || looksSineGraph(text))) {
     return sineFromParams(amplitude, pickNumber(bag, ['frequency', 'omega', 'freq']) ?? 1);
   }
   return null;
@@ -231,10 +234,7 @@ export function attachMathGraphVisual(
   };
   const model = resolveMathGraphModel(scratch, vars);
   if (!model) {
-    return {
-      visualType: problem.visualType === 'math_graph' ? 'none' : problem.visualType,
-      visualConfig: problem.visualType === 'math_graph' ? { type: 'none', params: {} } : problem.visualConfig,
-    };
+    return { visualType: 'none', visualConfig: { type: 'none', params: {} } };
   }
   return {
     visualType: 'math_graph',

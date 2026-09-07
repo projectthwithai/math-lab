@@ -175,7 +175,9 @@ export default function ScoreResultModal({
           </div>
           <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-red-400">よくあるミス</p>
-            <p className="text-sm text-slate-700 dark:text-slate-300">{problem.explanation.commonMistakes}</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">
+              <KaTeXText text={problem.explanation.commonMistakes} />
+            </p>
           </div>
         </div>
 
@@ -244,10 +246,13 @@ export default function ScoreResultModal({
           </button>
           <button
             type="button"
-            onClick={onNextProblem}
-            className="flex-1 rounded-lg border border-slate-800 bg-slate-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+            onClick={() => {
+              onClose();
+              onNextProblem();
+            }}
+            className="flex-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 py-2.5 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
           >
-            次の問題へ
+            ➡️ 次の問題へ
           </button>
         </div>
       </motion.div>

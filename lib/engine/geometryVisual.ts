@@ -133,7 +133,7 @@ function contextText(problem: GeneratedProblem): string {
 }
 
 function looksTriangle(text: string): boolean {
-  return /三角形|二等分|正弦|余弦|図形の性質|三角比/.test(text);
+  return /三角形|二等辺|直角三角形|正弦定理|余弦定理/.test(text);
 }
 
 function looksCircle(text: string): boolean {

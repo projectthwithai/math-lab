@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X } from 'lucide-react';
+import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
 
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
@@ -25,6 +25,7 @@ interface NavTab {
 const NAV_TABS: NavTab[] = [
   { href: '/', label: 'ホーム', icon: Home, exact: true },
   { href: '/units', label: '単元選択', icon: Compass },
+  { href: '/mock-exam', label: '模試', icon: ClipboardCheck },
   { href: '/patterns', label: 'パターン図鑑', icon: BookOpen },
   { href: '/armory', label: '武器庫', icon: Shield },
   { href: '/library', label: 'ライブラリ', icon: Library },

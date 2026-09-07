@@ -3,10 +3,12 @@
 // ==========================================
 // `searchParams`（Next.js 16ではPromise）から`unitId`/`patternId`を取得し、
 // それらが変わるたびに`WorkspaceView`を強制的に再マウントする（key prop）。
-// グラフ・図形は WorkspaceView 内で初期折りたたみ（アコーディオン）表示する。
+// グラフ・図形は visualType が none / 無効なら WorkspaceView で枠ごと非表示。
+// visualType がある問題だけ、初期折りたたみのアコーディオンを出す。
 // 出題プールは WorkspaceView が userStore.discoveredPatterns を
 // /api/generate-problem に渡し、固定図鑑＋発掘パターンから抽選する。
 
+import PageBackButton from '@/components/layout/PageBackButton';
 import WorkspaceView from './WorkspaceView';
 
 export default async function WorkspacePage(props: PageProps<'/workspace'>) {
@@ -30,6 +32,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
+      <PageBackButton fallbackHref="/units" />
       <WorkspaceView
         key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${source ?? ''}`}
         unitId={unitId}

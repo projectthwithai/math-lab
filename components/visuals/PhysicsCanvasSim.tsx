@@ -129,7 +129,7 @@ function InclineFigure({ scene, uid }: { scene: InclineScene; uid: string }) {
             strokeWidth="2"
           />
           <text x="0" y={-blockH / 2 + 2} textAnchor="middle" fill="#ede9fe" fontSize="13" fontWeight="700">
-            {`${scene.massKg} kg`}
+            {scene.massKg !== null ? `${scene.massKg} kg` : 'm'}
           </text>
         </g>
         <ForceArrow x={cx} y={cy - 18} dx={0} dy={88} color="#f472b6" label="W" markerId={`${uid}-w`} />
@@ -198,9 +198,8 @@ function InclineFigure({ scene, uid }: { scene: InclineScene; uid: string }) {
 }
 
 function CircuitFigure({ scene, uid }: { scene: CircuitScene; uid: string }) {
-  const req = scene.r1 + scene.r2;
-  const current = Math.round((scene.voltage / Math.max(req, 0.01)) * 100) / 100;
   const path = 'M 120 80 H 600 V 300 H 120 V 80';
+  const hasR2 = scene.r2 > 0;
 
   return (
     <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="h-auto w-full" preserveAspectRatio="xMidYMid meet">
@@ -214,25 +213,23 @@ function CircuitFigure({ scene, uid }: { scene: CircuitScene; uid: string }) {
       <motion.circle r="6" fill="#c4b5fd">
         <animateMotion dur="2.4s" repeatCount="indefinite" path={path} />
       </motion.circle>
-      {/* Battery */}
       <line x1="110" y1="150" x2="110" y2="230" stroke="#e2e8f0" strokeWidth="3" />
       <line x1="130" y1="165" x2="130" y2="215" stroke="#a78bfa" strokeWidth="8" />
       <text x="78" y="198" fill="#c4b5fd" fontSize="13" fontWeight="700">
         {`${scene.voltage} V`}
       </text>
-      {/* R1 */}
       <rect x="250" y="62" width="90" height="36" rx="6" fill="#1e1b4b" stroke="#a78bfa" strokeWidth="2" />
       <text x="295" y="85" textAnchor="middle" fill="#ede9fe" fontSize="13" fontWeight="700">
         {`R1 ${scene.r1}Ω`}
       </text>
-      {/* R2 */}
-      <rect x="582" y="160" width="36" height="90" rx="6" fill="#1e1b4b" stroke="#a78bfa" strokeWidth="2" />
-      <text x="600" y="268" textAnchor="middle" fill="#ede9fe" fontSize="13" fontWeight="700">
-        {`R2 ${scene.r2}Ω`}
-      </text>
-      <text x="360" y="340" fill="#a78bfa" fontSize="14" fontWeight="700">
-        {`I = ${current} A`}
-      </text>
+      {hasR2 && (
+        <>
+          <rect x="582" y="160" width="36" height="90" rx="6" fill="#1e1b4b" stroke="#a78bfa" strokeWidth="2" />
+          <text x="600" y="268" textAnchor="middle" fill="#ede9fe" fontSize="13" fontWeight="700">
+            {`R2 ${scene.r2}Ω`}
+          </text>
+        </>
+      )}
     </svg>
   );
 }
@@ -278,7 +275,7 @@ export default function PhysicsCanvasSim({ problem, scene, className }: PhysicsC
   const uid = useId().replace(/:/g, '');
   const resolved = useMemo(() => {
     if (scene) return scene;
-    if (problem) return resolvePhysicsScene(problem);
+    if (problem?.visualType === 'physics_simulation') return resolvePhysicsScene(problem);
     return null;
   }, [problem, scene]);
 

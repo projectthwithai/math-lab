@@ -9,6 +9,7 @@ import type { GeneratedProblem } from '@/types/mathLab';
 import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
 import { attachGeometryVisual } from '@/lib/engine/geometryVisual';
 import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
+import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -74,7 +75,7 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
     return problem;
   }
 
-  const questionText = fillTemplate(templateConfig.templateText, result.vars);
+  const questionText = cleanLatexFormula(fillTemplate(templateConfig.templateText, result.vars));
   const visual =
     problem.subject === 'physics'
       ? attachPhysicsVisual(problem, result.vars)
@@ -87,16 +88,23 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
               : attachMathGraphVisual(problem, result.vars);
           })();
 
-  return {
+  return cleanGeneratedProblem({
     ...problem,
     questionText,
-    correctAnswer: result.correctAnswer,
-    choices: result.choices ?? problem.choices,
+    correctAnswer:
+      typeof result.correctAnswer === 'string'
+        ? cleanLatexFormula(result.correctAnswer)
+        : result.correctAnswer,
+    choices: (result.choices ?? problem.choices)?.map((choice) => cleanLatexFormula(choice)),
     explanation: {
       ...problem.explanation,
-      stepByStep: result.explanationSteps ?? problem.explanation.stepByStep,
+      stepByStep: (result.explanationSteps ?? problem.explanation.stepByStep).map((step) =>
+        cleanLatexFormula(step)
+      ),
+      keyFormula: cleanLatexFormula(problem.explanation.keyFormula),
+      commonMistakes: cleanLatexFormula(problem.explanation.commonMistakes),
     },
     visualType: visual.visualType,
     visualConfig: visual.visualConfig,
-  };
+  });
 }

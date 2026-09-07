@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Compass, BookOpen, Shield, Library, type LucideIcon } from 'lucide-react';
+import { Compass, BookOpen, Shield, Library, ClipboardCheck, type LucideIcon } from 'lucide-react';
 
 interface QuickLaunchItem {
   href: string;
@@ -23,6 +23,13 @@ const QUICK_LAUNCH_ITEMS: QuickLaunchItem[] = [
     description: '数学・物理・化学の全単元から、解きたいテーマを選んで出題する。',
     icon: Compass,
     accentText: 'text-cyan-500 dark:text-cyan-400',
+  },
+  {
+    href: '/mock-exam',
+    title: '全国統一AI実践模試',
+    description: '範囲・時間を選んでタイマー模試。偏差値と保護者共有レポートまで一気通貫。',
+    icon: ClipboardCheck,
+    accentText: 'text-amber-500 dark:text-amber-300',
   },
   {
     href: '/patterns',
@@ -49,7 +56,7 @@ const QUICK_LAUNCH_ITEMS: QuickLaunchItem[] = [
 
 export default function QuickLaunchGrid() {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {QUICK_LAUNCH_ITEMS.map((item, index) => {
         const Icon = item.icon;
         return (

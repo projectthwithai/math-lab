@@ -7,10 +7,10 @@
 // [右] タブ切り替え（手書きメモ / 解答入力・テンキー / 3段階ヒント / Apexガイド壁打ち）
 // 「解答を送信する」で採点結果モーダル(ScoreResultModal)を表示する。
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X } from 'lucide-react';
+import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -36,6 +36,7 @@ import ChemistryCanvasSim from '@/components/visuals/ChemistryCanvasSim';
 import { resolveMathGraphModel } from '@/lib/engine/mathGraphVisual';
 import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
 import { resolveChemistryScene, resolvePhysicsScene } from '@/lib/engine/scienceVisual';
+import { isActiveVisualType } from '@/lib/engine/visualNeed';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
@@ -87,30 +88,60 @@ export default function WorkspaceView({
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isSolved, setIsSolved] = useState(false);
   const [isVisualOpen, setIsVisualOpen] = useState(false);
+  /** 同一問題への再送信による二重XPを防ぐ。モーダルを閉じても解除しない */
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const isSubmittedRef = useRef(false);
+  const fetchingRef = useRef(false);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
-  const geometryScene = useMemo(() => (problem ? resolveGeometryScene(problem) : null), [problem]);
-  const graphModel = useMemo(
-    () => (problem && !geometryScene ? resolveMathGraphModel(problem) : null),
-    [problem, geometryScene]
+  const visualEnabled = isActiveVisualType(problem?.visualType);
+  const geometryScene = useMemo(
+    () => (problem?.visualType === 'geometry_svg' ? resolveGeometryScene(problem) : null),
+    [problem]
   );
-  const physicsScene = useMemo(() => (problem ? resolvePhysicsScene(problem) : null), [problem]);
-  const chemistryScene = useMemo(() => (problem ? resolveChemistryScene(problem) : null), [problem]);
-  const hasVisual = Boolean(geometryScene || graphModel || physicsScene || chemistryScene);
+  const graphModel = useMemo(
+    () => (problem?.visualType === 'math_graph' ? resolveMathGraphModel(problem) : null),
+    [problem]
+  );
+  const physicsScene = useMemo(
+    () => (problem?.visualType === 'physics_simulation' ? resolvePhysicsScene(problem) : null),
+    [problem]
+  );
+  const chemistryScene = useMemo(
+    () => (problem?.visualType === 'chemistry_animation' ? resolveChemistryScene(problem) : null),
+    [problem]
+  );
+  const hasVisual =
+    visualEnabled && Boolean(geometryScene || graphModel || physicsScene || chemistryScene);
   const patternMemo = useMemo(
     () => (problem?.patternId ? findPatternLinkedMemo(problem.patternId) : null),
     [problem?.id, problem?.patternId]
   );
   const patternName = getPatternDisplayName(problem?.patternId);
 
+  const applyNewProblem = useCallback((next: GeneratedProblem) => {
+    setProblem(next);
+    setAnswerInput('');
+    setRevealedHintCount(0);
+    setElapsedSeconds(0);
+    setSubmission(null);
+    setIsMemoOpen(false);
+    setIsSolved(false);
+    setIsVisualOpen(false);
+    setIsSubmitted(false);
+    isSubmittedRef.current = false;
+  }, []);
+
   const fetchProblem = useCallback(async (opts?: { useInitialDifficulty?: boolean }) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       if (source === 'pending') {
         const pending = consumePendingWorkspaceProblem();
         if (pending) {
           setEnergyError(null);
           setIsLoading(true);
-          setProblem(pending);
+          applyNewProblem(pending);
           return;
         }
       }
@@ -147,7 +178,7 @@ export default function WorkspaceView({
       });
       if (!response.ok) throw new Error(`generate-problem ${response.status}`);
       const data = (await response.json()) as GeneratedProblem;
-      setProblem(data);
+      applyNewProblem(data);
     } catch (error) {
       console.error('[WorkspaceView] 問題の取得に失敗しました', error);
       const generateCost = getGenerateEnergyCost(source);
@@ -158,16 +189,10 @@ export default function WorkspaceView({
           : '問題の生成に失敗しました。もう一度試してください。'
       );
     } finally {
+      fetchingRef.current = false;
       setIsLoading(false);
-      setAnswerInput('');
-      setRevealedHintCount(0);
-      setElapsedSeconds(0);
-      setSubmission(null);
-      setIsMemoOpen(false);
-      setIsSolved(false);
-      setIsVisualOpen(false);
     }
-  }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source]);
+  }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem]);
 
   useEffect(() => {
     // 発掘パターンを出題プールに含めるため、Zustand ハイドレーション後に生成する。
@@ -178,10 +203,10 @@ export default function WorkspaceView({
   }, [fetchProblem, hasHydrated]);
 
   useEffect(() => {
-    if (submission) return;
+    if (isSubmitted) return;
     const timer = window.setInterval(() => setElapsedSeconds((prev) => prev + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [submission]);
+  }, [isSubmitted]);
 
   const handleRegenerateLocally = () => {
     if (!problem) return;
@@ -189,18 +214,13 @@ export default function WorkspaceView({
       ...problem,
       id: `${problem.id}-regen-${Date.now()}`,
     });
-    setProblem(regenerated);
-    setAnswerInput('');
-    setRevealedHintCount(0);
-    setElapsedSeconds(0);
-    setSubmission(null);
-    setIsMemoOpen(false);
-    setIsSolved(false);
-    setIsVisualOpen(false);
+    applyNewProblem(regenerated);
   };
 
   const handleSubmitAnswer = () => {
-    if (!problem || submission) return;
+    if (!problem || isSubmitted || isSubmittedRef.current) return;
+    isSubmittedRef.current = true;
+    setIsSubmitted(true);
     const isCorrect = checkAnswer(answerInput, problem.correctAnswer);
     const xpResult = recordAnswer({
       isCorrect,
@@ -215,6 +235,13 @@ export default function WorkspaceView({
     if (isQuadraticDailyQuestUnit(unitId, problem.unit)) {
       completeDailyQuest('solve-quadratic');
     }
+  };
+
+  const handleNextProblem = () => {
+    if (fetchingRef.current || isLoading) return;
+    setSubmission(null);
+    void fetchProblem();
+    router.refresh();
   };
 
   const formattedTime = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(
@@ -372,16 +399,45 @@ export default function WorkspaceView({
 
           {activeTab === 'input' && (
             <div className="flex flex-col gap-3">
-              <label className="text-xs text-slate-500">解答を入力してください</label>
-              <input
-                type="text"
-                value={answerInput}
-                onChange={(event) => setAnswerInput(event.target.value)}
-                disabled={Boolean(submission)}
-                placeholder="ここに解答を入力..."
-                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-3 text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50"
-              />
-              <LaTeXKeypad onInsert={(symbol) => setAnswerInput((prev) => prev + symbol)} />
+              {problem.format === 'choice' && problem.choices && problem.choices.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-slate-500">当てはまるものを1つ選んでください</label>
+                  {problem.choices.map((choice, index) => {
+                    const selected = answerInput === choice;
+                    return (
+                      <button
+                        key={`${choice}-${index}`}
+                        type="button"
+                        disabled={isSubmitted}
+                        onClick={() => setAnswerInput(choice)}
+                        className={`rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                          selected
+                            ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200'
+                            : 'border-slate-300 bg-white text-slate-800 hover:border-cyan-400/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200'
+                        }`}
+                      >
+                        <span className="mr-2 text-[11px] font-bold text-slate-500">
+                          {['①', '②', '③', '④', '⑤'][index] ?? `${index + 1}.`}
+                        </span>
+                        <KaTeXText text={choice} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  <label className="text-xs text-slate-500">解答を入力してください</label>
+                  <input
+                    type="text"
+                    value={answerInput}
+                    onChange={(event) => setAnswerInput(event.target.value)}
+                    disabled={isSubmitted}
+                    placeholder="ここに解答を入力..."
+                    className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-3 text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50"
+                  />
+                  <LaTeXKeypad onInsert={(symbol) => setAnswerInput((prev) => prev + symbol)} />
+                </>
+              )}
             </div>
           )}
 
@@ -414,14 +470,24 @@ export default function WorkspaceView({
           {activeTab === 'chat' && <AISolutionChat problem={problem} />}
         </div>
 
-        <button
-          type="button"
-          onClick={handleSubmitAnswer}
-          disabled={Boolean(submission)}
-          className="mt-auto rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white transition-colors hover:border-slate-700 hover:bg-slate-800 disabled:opacity-40 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-        >
-          解答を送信する
-        </button>
+        {isSubmitted ? (
+          <button
+            type="button"
+            onClick={handleNextProblem}
+            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-cyan-400/50 bg-cyan-400/10 py-3 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
+          >
+            <ArrowRight className="h-4 w-4" />
+            ➡️ 次の問題へ
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmitAnswer}
+            className="mt-auto rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white transition-colors hover:border-slate-700 hover:bg-slate-800 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+          >
+            解答を送信する
+          </button>
+        )}
       </div>
 
       {isMemoOpen && patternMemo && (
@@ -461,10 +527,7 @@ export default function WorkspaceView({
           isCorrect={submission.isCorrect}
           xpResult={submission.xpResult}
           onClose={() => setSubmission(null)}
-          onNextProblem={() => {
-            fetchProblem();
-            router.refresh();
-          }}
+          onNextProblem={handleNextProblem}
         />
       )}
     </div>
