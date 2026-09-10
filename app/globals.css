@@ -86,3 +86,7 @@ input[type="text"].font-mono {
 .graph-neon-reveal {
   animation: graph-neon-reveal 0.9s ease-out both;
 }
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

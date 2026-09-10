@@ -211,7 +211,7 @@ export default function MockExamSetup() {
         className="flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/50 bg-cyan-400/15 py-4 text-sm font-bold text-cyan-200 transition-colors hover:bg-cyan-400/25 disabled:opacity-40"
       >
         <Rocket className="h-5 w-5" />
-        🚀 模試をスタートする ({minutes}分/{questionCount}問)
+        模試をスタートする ({minutes}分/{questionCount}問)
       </motion.button>
     </div>
   );

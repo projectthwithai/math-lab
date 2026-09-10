@@ -39,7 +39,7 @@ const QUICK_LAUNCH_ITEMS: QuickLaunchItem[] = [
     accentText: 'text-fuchsia-500 dark:text-fuchsia-400',
   },
   {
-    href: '/armory',
+    href: '/patterns?view=armory',
     title: '武器庫を開く',
     description: '定理・公式図鑑。使いどころ・発動条件・成り立ちアニメーションを確認。',
     icon: Shield,

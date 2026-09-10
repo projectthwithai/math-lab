@@ -13,6 +13,7 @@
 
 import type { SolutionPattern } from '@/types/mathLab';
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitCategory } from './unitsData';
+import { resolveSubtopicIdForPattern } from './subtopicsData';
 
 export const PATTERN_LEVEL_LABELS: Record<SolutionPattern['level'], string> = {
   basic: '基本',
@@ -1643,12 +1644,20 @@ export const SOLUTION_PATTERNS: SolutionPattern[] = [
   },
 ];
 
+for (const pattern of SOLUTION_PATTERNS) {
+  pattern.subtopicId = resolveSubtopicIdForPattern(pattern);
+}
+
 // ------------------------------------------
 // ヘルパー関数
 // ------------------------------------------
 
 export function getSolutionPatternsByUnit(unitId: string): SolutionPattern[] {
   return SOLUTION_PATTERNS.filter((pattern) => pattern.unitId === unitId);
+}
+
+export function getSolutionPatternsBySubtopic(subtopicId: string): SolutionPattern[] {
+  return SOLUTION_PATTERNS.filter((pattern) => pattern.subtopicId === subtopicId);
 }
 
 export function getPatternDefaultDifficulty(level: SolutionPattern['level']): number {

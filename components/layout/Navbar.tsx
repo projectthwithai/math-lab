@@ -50,9 +50,9 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-white sm:text-base">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:py-3 lg:px-10">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-white sm:text-base">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-cyan-500 dark:border-slate-800 dark:bg-slate-900 dark:text-cyan-400">
               <Sparkles className="h-4 w-4" />
             </span>
@@ -60,7 +60,7 @@ export default function Navbar() {
             <span className="sm:hidden">Math Lab</span>
           </Link>
 
-          <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px] font-medium sm:text-xs">
+          <div className="flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium sm:text-xs">
             <span
               className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-orange-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-orange-400"
               title="連続学習ストリーク"
@@ -108,7 +108,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <nav aria-label="メインナビゲーション" className="flex flex-wrap gap-1.5">
+        <nav aria-label="メインナビゲーション" className="hidden flex-wrap gap-1.5 md:flex">
           {NAV_TABS.map((tab) => {
             const isActive = tab.exact ? pathname === tab.href : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             const Icon = tab.icon;
@@ -146,7 +146,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="fixed bottom-5 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-slate-950/95 px-4 py-3 shadow-xl"
+            className="fixed bottom-24 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-slate-950/95 px-4 py-3 shadow-xl md:bottom-5"
             role="status"
           >
             <div className="flex items-start gap-2">

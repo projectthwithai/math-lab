@@ -18,6 +18,7 @@ import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
+import GoalBackwardTree from './GoalBackwardTree';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 
 interface ScoreResultModalProps {
@@ -179,6 +180,10 @@ export default function ScoreResultModal({
               <KaTeXText text={problem.explanation.commonMistakes} />
             </p>
           </div>
+        </div>
+
+        <div className="mb-5">
+          <GoalBackwardTree problem={problem} compact />
         </div>
 
         {/* ③ ✍️ 自分流のメモとして上書き保存する */}

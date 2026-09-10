@@ -265,24 +265,12 @@ export default function MockExamPlay() {
             </div>
           ) : (
             <>
-              <input
-                type="text"
-                value={currentAnswer}
-                onChange={(event) =>
-                  setAnswers((prev) => {
-                    const next = [...prev];
-                    next[index] = event.target.value;
-                    return next;
-                  })
-                }
-                placeholder="解答を入力..."
-                className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-base dark:border-slate-700 dark:bg-slate-950"
-              />
               <LaTeXKeypad
-                onInsert={(symbol) =>
+                value={currentAnswer}
+                onChange={(nextValue) =>
                   setAnswers((prev) => {
                     const next = [...prev];
-                    next[index] = `${next[index] ?? ''}${symbol}`;
+                    next[index] = nextValue;
                     return next;
                   })
                 }

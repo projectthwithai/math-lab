@@ -7,6 +7,22 @@
 export type Subject = 'math' | 'physics' | 'chemistry';
 export type ProblemFormat = 'choice' | 'input' | 'descriptive';
 
+export interface SubtopicItem {
+  id: string;
+  unitId: string;
+  title: string;
+  description: string;
+  difficulty: number; // 1 - 5
+  order: number;
+}
+
+export interface GoalBackwardTreeModel {
+  goal: { label: string; detail: string };
+  weapons: Array<{ name: string; formula: string; why: string }>;
+  missingConditions: string[];
+  approach: string[];
+}
+
 // ------------------------------------------
 // GeneratedProblem（AI生成問題 / モック問題 共通フォーマット）
 // ------------------------------------------
@@ -68,6 +84,8 @@ export interface SolutionPattern {
   unit: string;
   /** `data/unitsData.ts` の UnitInfo.id（Workspaceへの「この問題を解く」遷移に使用） */
   unitId?: string;
+  /** 単元 ➔ サブトピック ➔ パターンの3層ツリー用 */
+  subtopicId?: string;
   level: PatternLevel;
   /** 解法パターン名（例: "パターン2: 軸が動く2次関数の最大・最小"） */
   patternName: string;

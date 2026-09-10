@@ -4,7 +4,8 @@
 // 高校数学（数I / 数A / 数II / 数B / 数III / 数C）・物理・化学の
 // 全単元マスターデータ（34単元）。
 
-import type { Subject } from '@/types/mathLab';
+import type { Subject, SubtopicItem } from '@/types/mathLab';
+import { hydrateUnitSubtopics } from './subtopicsData';
 
 export type UnitCategory = '数I' | '数A' | '数II' | '数B' | '数III' | '数C' | '物理' | '化学';
 
@@ -20,6 +21,7 @@ export interface UnitInfo {
   iconName: string;
   recommendedGrade: RecommendedGrade;
   patternCount: number;
+  subtopics: SubtopicItem[];
 }
 
 export const UNIT_CATEGORIES: UnitCategory[] = ['数I', '数A', '数II', '数B', '数III', '数C', '物理', '化学'];
@@ -36,6 +38,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '展開・因数分解、絶対値、1次不等式など数と式の基本操作。',
     iconName: 'Radical',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -46,6 +49,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '平方完成・グラフの移動・最大最小・判別式の応用。',
     iconName: 'FunctionSquare',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 6,
   },
   {
@@ -56,6 +60,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '三角比の定義、正弦定理・余弦定理、図形への応用。',
     iconName: 'Triangle',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -66,6 +71,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '分散・標準偏差・相関係数、四分位数と箱ひげ図。',
     iconName: 'BarChart3',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 3,
   },
 
@@ -80,6 +86,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '順列・組合せ、条件付き確率、期待値。',
     iconName: 'Dice5',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -90,6 +97,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '角の二等分線定理、方べきの定理、円周角の定理などの平面図形の性質。',
     iconName: 'Compass',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -100,6 +108,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '約数・倍数、ユークリッドの互除法、不定方程式、n進法。',
     iconName: 'Hash',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 3,
   },
 
@@ -114,6 +123,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '剰余の定理・因数定理、二項定理、複素数と2次方程式の解。',
     iconName: 'GitBranch',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -124,6 +134,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '点と直線の距離、円の方程式、軌跡と領域。',
     iconName: 'Ruler',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -134,6 +145,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '加法定理・三角関数の合成、グラフと方程式・不等式。',
     iconName: 'Waves',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -144,6 +156,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '指数・対数の性質、方程式・不等式、常用対数の応用。',
     iconName: 'TrendingUp',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -154,6 +167,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '導関数・接線・極値、グラフの応用。',
     iconName: 'LineChart',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -164,6 +178,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '不定積分・定積分、面積の計算。',
     iconName: 'Layers',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
 
@@ -178,6 +193,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '等差・等比数列、漸化式、数学的帰納法。',
     iconName: 'Binary',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -188,6 +204,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '二項分布、正規分布、期待値と分散、区間推定。',
     iconName: 'PieChart',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
 
@@ -202,6 +219,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '数列・関数の極限、無限級数。',
     iconName: 'Infinity',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -212,6 +230,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '合成関数・逆関数・様々な関数の導関数、応用。',
     iconName: 'FunctionSquare',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -222,6 +241,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '置換積分・部分積分、面積・体積、微分方程式。',
     iconName: 'Layers',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -232,6 +252,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '媒介変数表示された曲線の微分、極座標と極方程式。',
     iconName: 'Spline',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
 
@@ -246,6 +267,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '平面・空間ベクトルの演算と図形への応用。',
     iconName: 'Move3d',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -256,6 +278,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '複素数の極形式・ド・モアブルの定理、楕円・双曲線・放物線。',
     iconName: 'Atom',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 4,
   },
 
@@ -270,6 +293,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '運動の法則、仕事とエネルギー、運動量保存。',
     iconName: 'Orbit',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 5,
   },
   {
@@ -280,6 +304,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '気体の法則、熱力学第一法則、分子運動論。',
     iconName: 'Thermometer',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -290,6 +315,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '波の性質、音波、光の干渉と回折。',
     iconName: 'Waves',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -300,6 +326,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '電場・磁場、電磁誘導、交流回路。',
     iconName: 'Zap',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -310,6 +337,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '放射性崩壊、半減期、光電効果、原子核反応。',
     iconName: 'Magnet',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
 
@@ -324,6 +352,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '原子の構造、化学結合、物質量（モル計算）。',
     iconName: 'CircleDot',
     recommendedGrade: '高1',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -334,6 +363,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '化学反応式、気体の法則、化学反応の量的関係。',
     iconName: 'FlaskConical',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -344,6 +374,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '酸・塩基の定義、pH、中和滴定の量的関係。',
     iconName: 'TestTube',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -354,6 +385,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '酸化数、酸化剤・還元剤、電池と電気分解。',
     iconName: 'Beaker',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -364,6 +396,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '可逆反応と平衡定数、ルシャトリエの原理、電離平衡。',
     iconName: 'FlaskConical',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 4,
   },
   {
@@ -374,6 +407,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '金属・非金属元素の性質と反応、工業的製法。',
     iconName: 'TestTube',
     recommendedGrade: '高2',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -384,6 +418,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '炭化水素、官能基、異性体、反応経路の推定。',
     iconName: 'Sparkles',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
   {
@@ -394,6 +429,7 @@ export const UNITS_DATA: UnitInfo[] = [
     description: '合成高分子と天然高分子、重合度と分子量の計算。',
     iconName: 'Shapes',
     recommendedGrade: '高3',
+    subtopics: [],
     patternCount: 3,
   },
 ];
@@ -429,3 +465,5 @@ export function getSubjectForCategory(category: UnitCategory): Subject {
       return 'chemistry';
   }
 }
+
+hydrateUnitSubtopics(UNITS_DATA);

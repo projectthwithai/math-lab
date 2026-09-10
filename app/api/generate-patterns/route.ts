@@ -14,12 +14,14 @@ import { getUnitById } from '@/data/unitsData';
 import { SOLUTION_PATTERNS } from '@/data/patternsData';
 import { generateMockPatterns } from '@/lib/mock/generateMockPatterns';
 import { completeLlmJson } from '@/lib/llm/completeJson';
+import { resolveSubtopicIdForPattern } from '@/data/subtopicsData';
 
 interface GeneratePatternsBody {
   unitId?: unknown;
   subject?: unknown;
   existingNames?: unknown;
   count?: unknown;
+  subtopicId?: unknown;
 }
 
 function normalizeId(raw: unknown): string | undefined {
@@ -128,6 +130,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const unitId = normalizeId(body.unitId);
+  const subtopicId = normalizeId(body.subtopicId);
   const subject = isSubject(body.subject) ? body.subject : undefined;
   const count = parseCount(body.count);
   const extraNames = parseExistingNames(body.existingNames);
@@ -139,11 +142,14 @@ export async function POST(request: Request): Promise<Response> {
   const viaLlm = await generateViaLlm({ unitId, subject, existingNames, count });
   const rawPatterns = viaLlm ?? generateMockPatterns({ unitId, subject, existingNames, count });
   // クライアントはレスポンスを userStore.discoveredPatterns に自動保存する。
-  const patterns = rawPatterns.map((pattern) => ({
-    ...pattern,
-    unitId: pattern.unitId ?? unitId,
-    discovered: true as const,
-  }));
+  const patterns = rawPatterns.map((pattern) => {
+    const next = {
+      ...pattern,
+      unitId: pattern.unitId ?? unitId,
+      discovered: true as const,
+    };
+    return { ...next, subtopicId: next.subtopicId ?? subtopicId ?? resolveSubtopicIdForPattern(next) };
+  });
 
   return NextResponse.json({
     patterns,
@@ -162,10 +168,13 @@ export async function GET(request: Request): Promise<Response> {
   const existingNames = SOLUTION_PATTERNS.filter((pattern) => !unitId || pattern.unitId === unitId).map(
     (pattern) => pattern.patternName
   );
-  const patterns = generateMockPatterns({ unitId, subject, existingNames, count }).map((pattern) => ({
-    ...pattern,
-    unitId: pattern.unitId ?? unitId,
-    discovered: true as const,
-  }));
+  const patterns = generateMockPatterns({ unitId, subject, existingNames, count }).map((pattern) => {
+    const next = {
+      ...pattern,
+      unitId: pattern.unitId ?? unitId,
+      discovered: true as const,
+    };
+    return { ...next, subtopicId: next.subtopicId ?? resolveSubtopicIdForPattern(next) };
+  });
   return NextResponse.json({ patterns, source: 'local', persistToStore: true });
 }

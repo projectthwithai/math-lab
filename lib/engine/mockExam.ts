@@ -26,6 +26,8 @@ export interface MockExamConfig {
   minutes: number;
   questionCount: number;
   style: MockExamStyle;
+  /** 単元総復習など、特定パターンを均等に出題するとき */
+  patternIds?: string[];
 }
 
 export interface MockExamQuestionResult {
@@ -152,9 +154,11 @@ export function buildMockExamProblems(config: MockExamConfig): GeneratedProblem[
 
   for (let i = 0; i < config.questionCount; i += 1) {
     const unitId = config.unitIds[i % config.unitIds.length];
+    const patternId = config.patternIds?.[i % config.patternIds.length];
     let problem = cleanGeneratedProblem(
       generateMockProblem({
         unitId,
+        patternId,
         difficulty,
       })
     );

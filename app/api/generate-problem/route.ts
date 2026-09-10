@@ -25,6 +25,7 @@ import { completeLlmJson } from '@/lib/llm/completeJson';
 interface GenerateProblemParams {
   unitId?: string;
   patternId?: string;
+  subtopicId?: string;
   difficulty?: number;
   discoveredPatterns?: SolutionPattern[];
   prompt?: string;
@@ -212,6 +213,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
     const picked = pickPracticePattern({
       unitId: generationParams.unitId,
       patternId: generationParams.patternId,
+      subtopicId: params.subtopicId,
       discoveredPatterns: params.discoveredPatterns ?? [],
     });
     if (picked.pattern) {
@@ -231,6 +233,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
   const picked = pickPracticePattern({
     unitId: params.unitId,
     patternId: params.patternId,
+    subtopicId: params.subtopicId,
     discoveredPatterns: params.discoveredPatterns ?? [],
   });
 
@@ -264,6 +267,7 @@ export async function GET(request: Request): Promise<Response> {
   const params: GenerateProblemParams = {
     unitId: normalizeId(url.searchParams.get('unitId')),
     patternId: normalizeId(url.searchParams.get('patternId')),
+    subtopicId: normalizeId(url.searchParams.get('subtopicId')),
     difficulty: parseDifficulty(url.searchParams.get('difficulty')),
     prompt: normalizeId(url.searchParams.get('prompt')),
     discoveredPatterns: [],
@@ -284,6 +288,7 @@ export async function POST(request: Request): Promise<Response> {
   const params: GenerateProblemParams = {
     unitId: normalizeId(body.unitId),
     patternId: normalizeId(body.patternId),
+    subtopicId: normalizeId(body.subtopicId),
     difficulty: parseDifficulty(body.difficulty),
     prompt: normalizeId(body.prompt),
     discoveredPatterns: parseDiscoveredPatterns(body.discoveredPatterns),

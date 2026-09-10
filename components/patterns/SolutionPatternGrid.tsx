@@ -3,8 +3,8 @@
 // ==========================================
 // Apex Suite: Math Lab - 階層型パターン図鑑
 // ==========================================
-// ① 単元カード一覧 → ② クリックでその単元のパターンカードが展開。
-// 各パターンカードは「具体例題（LaTeX）」「自分流メモ」「このパターンを解く」。
+// ① 単元を選ぶ → ② サブトピックを選ぶ → ③ パターンカードが展開。
+// 各パターンカードは「具体例題（LaTeX）」「アプローチ方針」「自分流メモ」「このパターンを解く」。
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ import {
   SOLUTION_PATTERNS,
   PATTERN_LEVEL_LABELS,
   getSolutionPatternsByUnit,
+  getSolutionPatternsBySubtopic,
   getPatternDefaultDifficulty,
 } from '@/data/patternsData';
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitInfo } from '@/data/unitsData';
@@ -86,6 +87,7 @@ function PatternCard({
   const handleSolve = () => {
     const params = new URLSearchParams();
     if (pattern.unitId) params.set('unitId', pattern.unitId);
+    if (pattern.subtopicId) params.set('subtopicId', pattern.subtopicId);
     params.set('patternId', pattern.id);
     params.set('difficulty', String(getPatternDefaultDifficulty(pattern.level)));
     router.push(`/workspace?${params.toString()}`);
@@ -192,7 +194,10 @@ function PatternCard({
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-400">{displayedStrategy}</p>
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">アプローチ方針</p>
+              <p className="text-xs leading-relaxed text-slate-400">{displayedStrategy}</p>
+            </div>
             {override && (
               <div className="sm:w-52">
                 <AiSolutionCheckPanel
@@ -311,6 +316,7 @@ export default function SolutionPatternGrid() {
   const [levelFilter, setLevelFilter] = useState<SolutionPattern['level'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+  const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, PatternOverride>>({});
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoverNotice, setDiscoverNotice] = useState<string | null>(null);
@@ -353,11 +359,13 @@ export default function SolutionPatternGrid() {
   }, [subjectFilter, searchQuery, discovered]);
 
   const filteredPatterns = useMemo(() => {
-    if (!selectedUnitId) return [];
+    if (!selectedUnitId || !selectedSubtopicId) return [];
     const query = searchQuery.trim().toLowerCase();
     const merged = [
-      ...discovered.filter((pattern) => pattern.unitId === selectedUnitId),
-      ...getSolutionPatternsByUnit(selectedUnitId),
+      ...discovered.filter(
+        (pattern) => pattern.unitId === selectedUnitId && pattern.subtopicId === selectedSubtopicId
+      ),
+      ...getSolutionPatternsBySubtopic(selectedSubtopicId),
     ];
     return merged.filter((pattern) => {
       const matchesLevel = levelFilter === 'all' || pattern.level === levelFilter;
@@ -368,7 +376,7 @@ export default function SolutionPatternGrid() {
         pattern.strategyText.toLowerCase().includes(query);
       return matchesLevel && matchesQuery;
     });
-  }, [selectedUnitId, levelFilter, searchQuery, discovered]);
+  }, [selectedUnitId, selectedSubtopicId, levelFilter, searchQuery, discovered]);
 
   const handleSaveOverride = (patternId: string, text: string) => {
     const saved = saveCustomStrategyText(patternId, text);
@@ -413,6 +421,7 @@ export default function SolutionPatternGrid() {
           subject: selectedUnit?.subject,
           existingNames,
           count: 4,
+          subtopicId: selectedSubtopicId,
         }),
       });
       const [, response] = await Promise.all([analysisDelay, fetchPatterns]);
@@ -427,6 +436,7 @@ export default function SolutionPatternGrid() {
       const stamped = incoming.map((pattern) => ({
         ...pattern,
         unitId: pattern.unitId ?? selectedUnitId,
+        subtopicId: pattern.subtopicId ?? selectedSubtopicId ?? undefined,
         discovered: true as const,
       }));
       const added = appendDiscoveredPatterns(stamped);
@@ -454,6 +464,7 @@ export default function SolutionPatternGrid() {
               onClick={() => {
                 setSubjectFilter(subject);
                 setSelectedUnitId(null);
+                setSelectedSubtopicId(null);
               }}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 subjectFilter === subject
@@ -506,7 +517,10 @@ export default function SolutionPatternGrid() {
                             unit={unit}
                             clearedCount={clearedCount}
                             totalCount={patterns.length}
-                            onSelect={setSelectedUnitId}
+                            onSelect={(unitId) => {
+                              setSelectedUnitId(unitId);
+                              setSelectedSubtopicId(null);
+                            }}
                           />
                         );
                       })}
@@ -518,9 +532,9 @@ export default function SolutionPatternGrid() {
               <p className="py-10 text-center text-sm text-slate-500">条件に一致する単元が見つかりませんでした。</p>
             )}
           </motion.div>
-        ) : (
+        ) : !selectedSubtopicId ? (
           <motion.div
-            key={selectedUnitId}
+            key={`${selectedUnitId}-subtopics`}
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 16 }}
@@ -530,17 +544,69 @@ export default function SolutionPatternGrid() {
               <button
                 type="button"
                 onClick={() => setSelectedUnitId(null)}
-                className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-cyan-400/50 hover:text-cyan-300"
+                className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-cyan-400/50 dark:border-slate-700 dark:text-slate-300"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                単元一覧へ戻る
+                単元を選ぶ
               </button>
               <div className="flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   {selectedUnit?.category} / {selectedUnit?.title}
                 </p>
                 <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
-                  {selectedUnit?.title} のパターン（{filteredPatterns.length}件）
+                  サブトピックを選ぶ
+                </h2>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              {(selectedUnit?.subtopics ?? []).map((subtopic) => {
+                const patterns = [
+                  ...getSolutionPatternsBySubtopic(subtopic.id),
+                  ...discovered.filter((pattern) => pattern.subtopicId === subtopic.id),
+                ];
+                const clearedCount = patterns.filter((pattern) => clearedSet.has(pattern.id)).length;
+                return (
+                  <button
+                    key={subtopic.id}
+                    type="button"
+                    onClick={() => setSelectedSubtopicId(subtopic.id)}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-left dark:border-slate-800 dark:bg-slate-900/60"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{subtopic.title}</p>
+                      <p className="text-xs text-slate-500">{subtopic.description}</p>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-slate-400">
+                      {clearedCount}/{patterns.length} · ★{subtopic.difficulty}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={`${selectedUnitId}-${selectedSubtopicId}`}
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedSubtopicId(null)}
+                className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-cyan-400/50 dark:border-slate-700 dark:text-slate-300"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                サブトピックを選ぶ
+              </button>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  {selectedUnit?.title} / {selectedUnit?.subtopics.find((item) => item.id === selectedSubtopicId)?.title}
+                </p>
+                <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+                  このサブトピックのパターン（{filteredPatterns.length}件）
                 </h2>
               </div>
             </div>

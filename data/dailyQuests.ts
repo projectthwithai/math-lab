@@ -37,7 +37,7 @@ export const DAILY_QUESTS: DailyQuestDefinition[] = [
     index: 2,
     title: '武器庫で公式を1つ確認する',
     description: '武器庫を開き、定理・公式カードを1つ閲覧する。閲覧は 0 Energy。',
-    href: '/armory',
+    href: '/patterns?view=armory',
     cta: '武器庫を開く',
     reward: { type: 'energy', amount: 30, label: 'Energy回復 +30' },
   },

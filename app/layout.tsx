@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_JP, JetBrains_Mono } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
+import BottomNav from "@/components/layout/BottomNav";
 import UserStoreHydrator from "@/components/layout/UserStoreHydrator";
 import AppThemeProvider from "@/components/layout/ThemeProvider";
 import "./globals.css";
@@ -29,6 +30,10 @@ export const metadata: Metadata = {
   description: "ゲーミング学習OS - Math Lab",
 };
 
+export const viewport: Viewport = {
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -40,7 +45,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppThemeProvider>
           <UserStoreHydrator />
           <Navbar />
-          {children}
+          <div className="flex-1 pb-20 md:pb-0">{children}</div>
+          <BottomNav />
         </AppThemeProvider>
       </body>
     </html>

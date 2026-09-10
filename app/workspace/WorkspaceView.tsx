@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight } from 'lucide-react';
+import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -40,8 +40,10 @@ import { isActiveVisualType } from '@/lib/engine/visualNeed';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
+import ScientificCalculator from '@/components/workspace/ScientificCalculator';
 import AISolutionChat from '@/components/workspace/AISolutionChat';
 import ScoreResultModal from '@/components/workspace/ScoreResultModal';
+import GoalBackwardTree from '@/components/workspace/GoalBackwardTree';
 
 type WorkspaceTab = 'memo' | 'input' | 'hints' | 'chat';
 
@@ -61,6 +63,7 @@ interface WorkspaceViewProps {
   prompt?: string;
   /** pending = 画像解析で作った完成済み問題を sessionStorage から読む */
   source?: string;
+  subtopicId?: string;
 }
 
 export default function WorkspaceView({
@@ -69,6 +72,7 @@ export default function WorkspaceView({
   initialDifficulty,
   prompt,
   source,
+  subtopicId,
 }: WorkspaceViewProps) {
   const router = useRouter();
   const recordAnswer = useUserStore((state) => state.recordAnswer);
@@ -90,6 +94,7 @@ export default function WorkspaceView({
   const [isVisualOpen, setIsVisualOpen] = useState(false);
   /** 同一問題への再送信による二重XPを防ぐ。モーダルを閉じても解除しない */
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const isSubmittedRef = useRef(false);
   const fetchingRef = useRef(false);
 
@@ -171,6 +176,7 @@ export default function WorkspaceView({
         body: JSON.stringify({
           unitId,
           patternId,
+          subtopicId,
           difficulty,
           prompt,
           discoveredPatterns: prompt ? [] : excavatedForUnit,
@@ -192,7 +198,7 @@ export default function WorkspaceView({
       fetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [unitId, patternId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem]);
+  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem]);
 
   useEffect(() => {
     // 発掘パターンを出題プールに含めるため、Zustand ハイドレーション後に生成する。
@@ -372,7 +378,7 @@ export default function WorkspaceView({
 
       {/* 右: タブ切り替えエリア */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -392,6 +398,14 @@ export default function WorkspaceView({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setIsCalculatorOpen(true)}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            🧮 電卓
+          </button>
         </div>
 
         <div className="min-h-[340px] flex-1">
@@ -427,15 +441,7 @@ export default function WorkspaceView({
               ) : (
                 <>
                   <label className="text-xs text-slate-500">解答を入力してください</label>
-                  <input
-                    type="text"
-                    value={answerInput}
-                    onChange={(event) => setAnswerInput(event.target.value)}
-                    disabled={isSubmitted}
-                    placeholder="ここに解答を入力..."
-                    className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-3 text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50"
-                  />
-                  <LaTeXKeypad onInsert={(symbol) => setAnswerInput((prev) => prev + symbol)} />
+                  <LaTeXKeypad value={answerInput} onChange={setAnswerInput} disabled={isSubmitted} />
                 </>
               )}
             </div>
@@ -443,6 +449,7 @@ export default function WorkspaceView({
 
           {activeTab === 'hints' && (
             <div className="flex flex-col gap-3">
+              <GoalBackwardTree problem={problem} compact />
               {problem.hints.map((hint, index) => {
                 const isRevealed = revealedHintCount > index;
                 return (
@@ -530,6 +537,25 @@ export default function WorkspaceView({
           onNextProblem={handleNextProblem}
         />
       )}
+
+      <button
+        type="button"
+        onClick={() => setIsCalculatorOpen(true)}
+        className="fixed right-0 top-1/3 z-40 hidden rounded-l-xl border border-r-0 border-cyan-400/40 bg-slate-950/90 px-2 py-3 text-xs font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.25)] md:flex md:flex-col md:items-center md:gap-1"
+        aria-label="電卓を開く"
+      >
+        <Calculator className="h-4 w-4" />
+        電卓
+      </button>
+
+      <ScientificCalculator
+        open={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
+        onApply={(value) => {
+          setAnswerInput(value);
+          setActiveTab('input');
+        }}
+      />
     </div>
   );
 }

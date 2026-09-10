@@ -35,6 +35,7 @@ export function findPatternInPools(
 export function pickPracticePattern(params: {
   unitId?: string;
   patternId?: string;
+  subtopicId?: string;
   discoveredPatterns: SolutionPattern[];
 }): PickedPracticePattern {
   const explicit = findPatternInPools(params.patternId, params.discoveredPatterns);
@@ -47,7 +48,23 @@ export function pickPracticePattern(params: {
     return pattern.unitId === unitId;
   });
 
-  const pool: PickedPracticePattern[] = [
+  const bySubtopic = params.subtopicId
+    ? (items: PickedPracticePattern[]) =>
+        items.filter((item) => item.pattern?.subtopicId === params.subtopicId)
+    : (items: PickedPracticePattern[]) => items;
+
+  const pool: PickedPracticePattern[] = bySubtopic([
+    ...catalog.map((pattern) => ({
+      pattern,
+      fromDiscovered: false,
+    })),
+    ...excavated.map((pattern) => ({
+      pattern,
+      fromDiscovered: true,
+    })),
+  ]);
+
+  const fallback: PickedPracticePattern[] = [
     ...catalog.map((pattern) => ({
       pattern,
       fromDiscovered: false,
@@ -58,9 +75,11 @@ export function pickPracticePattern(params: {
     })),
   ];
 
-  if (pool.length === 0) {
+  const chosen = pool.length > 0 ? pool : fallback;
+  if (chosen.length === 0) {
     return { pattern: null, fromDiscovered: false };
   }
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  return chosen[Math.floor(Math.random() * chosen.length)];
 }
+
