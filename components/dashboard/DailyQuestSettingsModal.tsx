@@ -5,7 +5,7 @@
 // ==========================================
 // クエスト総数（3〜10）と、各クエストの教科・単元・難易度（★1〜★5）を編集する。
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 
@@ -80,32 +80,35 @@ export default function DailyQuestSettingsModal({
     onClose();
   };
 
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[90] flex h-dvh w-full flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <motion.div
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex h-full min-h-0 w-full flex-col"
       >
-        <button
-          type="button"
-          onClick={handleDiscard}
-          className="absolute right-4 top-4 z-10 rounded-full p-1 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
-          aria-label="保存せずに閉じる"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <header className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-8">
+          <div className="mx-auto max-w-5xl">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+              ⚙️ デイリークエストを編集
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。
+            </p>
+          </div>
+        </header>
 
-        <div className="overflow-y-auto p-5 sm:p-6">
-
-        <h2 className="pr-10 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
-          ⚙️ デイリークエストを編集
-        </h2>
-        <p className="mt-1 text-xs text-slate-500">
-          クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。
-        </p>
-
-        <div className="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
+          <div className="mx-auto max-w-5xl pb-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">クエスト総数</p>
             <span className="text-sm font-bold text-cyan-600 dark:text-cyan-300">{count}問</span>
@@ -156,7 +159,7 @@ export default function DailyQuestSettingsModal({
                 <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">教科</p>
                 <div className="mt-1.5 flex flex-wrap gap-3">
                   {SUBJECTS.map((subject) => (
-                    <label key={subject} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200">
+                    <label key={subject} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                       <input
                         type="checkbox"
                         checked={quest.subjects.includes(subject)}
@@ -169,7 +172,7 @@ export default function DailyQuestSettingsModal({
                 </div>
 
                 <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">単元（複数選択・ランダム出題）</p>
-                <div className="mt-1.5 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                <div className="mt-1.5 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                   {UNIT_CATEGORIES.map((category) => {
                     const units = unitPool.filter((unit) => unit.category === category);
                     if (units.length === 0) return null;
@@ -178,7 +181,7 @@ export default function DailyQuestSettingsModal({
                         <p className="mb-1 text-[10px] font-bold text-slate-400">{category}</p>
                         <div className="flex flex-col gap-1">
                           {units.map((unit) => (
-                            <label key={unit.id} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200">
+                            <label key={unit.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-slate-700 dark:text-slate-200">
                               <input
                                 type="checkbox"
                                 checked={quest.unitIds.includes(unit.id)}
@@ -216,26 +219,28 @@ export default function DailyQuestSettingsModal({
             );
           })}
         </ol>
-
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:grid-cols-2 sm:p-5">
-          <button
-            type="button"
-            onClick={handleDiscard}
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <X className="h-4 w-4" />
-            保存せずに閉じる
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-bold text-cyan-800 shadow-[0_0_28px_rgba(34,211,238,0.28)] transition hover:bg-cyan-400/25 dark:text-cyan-100"
-          >
-            <Check className="h-4 w-4" />
-            設定を保存して閉じる
-          </button>
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 sm:px-8 sm:pt-4">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <X className="h-4 w-4" />
+              保存せずに閉じる
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-bold text-cyan-800 shadow-[0_0_28px_rgba(34,211,238,0.28)] transition hover:bg-cyan-400/25 dark:text-cyan-100"
+            >
+              <Check className="h-4 w-4" />
+              設定を保存して閉じる
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>
