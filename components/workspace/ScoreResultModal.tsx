@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -20,6 +20,10 @@ import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { useAuthSession } from '@/lib/auth/useAuthSession';
+import { signInWithGoogleOAuth } from '@/lib/supabase/client';
+import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT, SUPABASE_URL_HINT } from '@/lib/supabase/config';
+import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 
 interface ScoreResultModalProps {
   problem: GeneratedProblem;
@@ -64,6 +68,10 @@ export default function ScoreResultModal({
 }: ScoreResultModalProps) {
   const [noteContent, setNoteContent] = useState('');
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const { user, ready: authReady } = useAuthSession();
+  const showGuestSignup = isCorrect && authReady && !user;
 
   useEffect(() => {
     // 問題が変わるたびにLocalStorageから既存のノートを読み込む（外部ストアとの同期）。
@@ -71,6 +79,30 @@ export default function ScoreResultModal({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNoteContent(existing?.content ?? '');
   }, [problem.id]);
+
+  const handleGoogleSave = async () => {
+    setAuthBusy(true);
+    setAuthNotice(null);
+    try {
+      const result = await signInWithGoogleOAuth();
+      if (!result.ok) {
+        if (result.missingEnv) {
+          window.alert(result.error);
+        }
+        setAuthNotice(result.error);
+        setAuthBusy(false);
+      }
+    } catch (error) {
+      console.error('[ScoreResultModal] Google ログインに失敗しました', error);
+      if (isSupabaseNetworkError(error)) {
+        activateLocalDeveloperFallback();
+        setAuthNotice(SUPABASE_BOOTING_HINT);
+      } else {
+        setAuthNotice(SUPABASE_URL_HINT);
+      }
+      setAuthBusy(false);
+    }
+  };
 
   const handleSaveNote = () => {
     saveCustomSolutionNote(problem.id, noteContent, problem.patternId);
@@ -153,6 +185,31 @@ export default function ScoreResultModal({
             </div>
           </motion.div>
         </div>
+
+        {showGuestSignup && (
+          <div className="mb-5 rounded-2xl border border-amber-400/50 bg-gradient-to-br from-amber-400/15 via-orange-400/10 to-cyan-400/10 p-5 dark:from-amber-400/20 dark:via-slate-900/40 dark:to-cyan-400/10">
+            <p className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+              🎉 ナイス正解！+100 XP を獲得しました！
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-amber-800 dark:text-amber-100">
+              ⚠️ 現在ゲストモードです。獲得したXPや解法ノート、学習記録をクラウドに永久保存し、106個の武器庫をアンロックするためにGoogleで登録・保存しよう！
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void handleGoogleSave();
+              }}
+              disabled={authBusy}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_28px_rgba(251,191,36,0.25)] transition hover:bg-slate-800 disabled:opacity-60 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-300"
+            >
+              <Flame className="h-4 w-4" />
+              🔥 Googleアカウントで記録を保存して始める
+            </button>
+            {authNotice && (
+              <p className="mt-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{authNotice}</p>
+            )}
+          </div>
+        )}
 
         {/* ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（最も大きく強調表示） */}
         <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">

@@ -134,6 +134,9 @@ interface UserStoreState {
   /** 管理者メールでログイン中のみ true。localStorage には保存せず、Auth から再計算する */
   isDeveloper: boolean;
 
+  /** 未ログインの1問お試し体験中。ホームをダッシュボードに切り替える */
+  isGuestDemo: boolean;
+
   /** ローカル進捗の最終更新時刻（Energy の last-write 同期に使う） */
   progressUpdatedAt: string | null;
 
@@ -156,6 +159,8 @@ interface UserStoreState {
   setHasHydrated: (value: boolean) => void;
 
   // --- アクション ---
+  /** ウェルカム画面から「1問だけ体験」を開始する */
+  startGuestDemo: () => void;
   /** アプリ起動時（クライアントマウント後）に1度呼び出し、ストリーク更新とEnergy日次リフィルを行う */
   touchDailyStreakAndEnergy: () => void;
   /** 1問解答した結果を反映する（XP付与・難易度適応・パターン攻略記録。Energyは消費しない） */
@@ -203,6 +208,7 @@ export const useUserStore = create<UserStoreState>()(
       maxEnergy: DEFAULT_MAX_ENERGY,
       lastEnergyRefillDateISO: null,
       isDeveloper: false,
+      isGuestDemo: false,
       progressUpdatedAt: null,
 
       clearedPatternIds: [],
@@ -215,6 +221,8 @@ export const useUserStore = create<UserStoreState>()(
 
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
+
+      startGuestDemo: () => set({ isGuestDemo: true }),
 
       touchDailyStreakAndEnergy: () => {
         const today = getTodayISODate();
@@ -400,6 +408,7 @@ export const useUserStore = create<UserStoreState>()(
           energy,
           // 開発者フラグは Auth メール判定のみ。localStorage 改ざんは無効化する。
           isDeveloper: false,
+          isGuestDemo: incoming.isGuestDemo === true,
           unlockedWeaponIds: Array.isArray(incoming.unlockedWeaponIds)
             ? incoming.unlockedWeaponIds
             : current.unlockedWeaponIds,

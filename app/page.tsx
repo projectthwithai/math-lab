@@ -8,10 +8,14 @@
 // 2. 🎯 本日のデイリーミッション（未攻略パターンから厳選した3問）
 // 3. 📊 弱点自動分析アナリティクス（レーダーチャート）
 // 4. 🚀 Quick Launch（4つのメイン機能へのナビゲーション）
+//
+// 未ログインかつゲスト未開始のときは WelcomeAuthView を最前面に出す。
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Target, BarChart3, Rocket } from 'lucide-react';
 
+import WelcomeAuthView from '@/components/auth/WelcomeAuthView';
 import InstantGeneratorBar from '@/components/dashboard/InstantGeneratorBar';
 import PlayerStatusPanel from '@/components/dashboard/PlayerStatusPanel';
 import DailyQuestBoard from '@/components/dashboard/DailyQuestBoard';
@@ -19,11 +23,15 @@ import DailyMissionCard from '@/components/dashboard/DailyMissionCard';
 import QuickLaunchGrid from '@/components/dashboard/QuickLaunchGrid';
 import WeaknessRadarChart from '@/components/patterns/WeaknessRadarChart';
 
+import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { useUserStore, getTodayISODate } from '@/lib/store/userStore';
 import { selectDailyMissionPatterns } from '@/lib/engine/adaptiveEngine';
 import { SOLUTION_PATTERNS, getWeaknessRadarData, getCompletionSummary } from '@/data/patternsData';
 
-export default function Home() {
+const GUEST_DEMO_WORKSPACE_HREF =
+  '/workspace?unitId=math-1a-numbers-and-expressions&patternId=sp-numbers-01&difficulty=3&source=guest-demo';
+
+function DashboardHome() {
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
 
   const todayISO = useMemo(() => getTodayISODate(), []);
@@ -86,4 +94,37 @@ export default function Home() {
       </section>
     </main>
   );
+}
+
+export default function Home() {
+  const router = useRouter();
+  const { user, ready } = useAuthSession();
+  const hasHydrated = useUserStore((state) => state.hasHydrated);
+  const isGuestDemo = useUserStore((state) => state.isGuestDemo);
+  const isDeveloper = useUserStore((state) => state.isDeveloper);
+  const startGuestDemo = useUserStore((state) => state.startGuestDemo);
+
+  const gateReady = ready && hasHydrated;
+  const canEnterApp = Boolean(user) || isGuestDemo || isDeveloper;
+
+  if (!gateReady) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-sm text-slate-500">読み込み中...</p>
+      </main>
+    );
+  }
+
+  if (!canEnterApp) {
+    return (
+      <WelcomeAuthView
+        onStartGuestDemo={() => {
+          startGuestDemo();
+          router.push(GUEST_DEMO_WORKSPACE_HREF);
+        }}
+      />
+    );
+  }
+
+  return <DashboardHome />;
 }

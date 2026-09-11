@@ -4,14 +4,14 @@
 // Apex Suite: Math Lab - Google Auth Button
 // ==========================================
 
-import { useEffect, useRef, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogIn, LogOut, UserRound, X } from 'lucide-react';
+import { Flame, LogOut, UserRound, X } from 'lucide-react';
 
-import { getSupabaseBrowserClient, signInWithGoogleOAuth } from '@/lib/supabase/client';
+import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
+import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signOut } from '@/lib/supabase/authSync';
 
 interface AuthButtonProps {
@@ -19,64 +19,17 @@ interface AuthButtonProps {
 }
 
 export default function AuthButton({ onNotice }: AuthButtonProps) {
-  const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const onNoticeRef = useRef(onNotice);
-  onNoticeRef.current = onNotice;
-
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-
-    let active = true;
-    const notify = (message: string) => {
-      if (onNoticeRef.current) {
-        onNoticeRef.current(message);
+  const { user } = useAuthSession({
+    onNetworkHint: (message) => {
+      if (onNotice) {
+        onNotice(message);
         return;
       }
       setToast(message);
-    };
-
-    void supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error && isSupabaseNetworkError(error)) {
-          activateLocalDeveloperFallback();
-          notify(SUPABASE_BOOTING_HINT);
-          return;
-        }
-        setUser(data.user ?? null);
-      })
-      .catch((error) => {
-        console.warn('[AuthButton] セッション確認をスキップしました（DNS/ネットワーク）', error);
-        if (!active) return;
-        if (isSupabaseNetworkError(error)) {
-          activateLocalDeveloperFallback();
-          notify(SUPABASE_BOOTING_HINT);
-        }
-      });
-
-    let subscription: { unsubscribe: () => void } | null = null;
-    try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-      });
-      subscription = data.subscription;
-    } catch (error) {
-      console.warn('[AuthButton] Auth 購読をスキップしました', error);
-      if (isSupabaseNetworkError(error)) {
-        activateLocalDeveloperFallback();
-        notify(SUPABASE_BOOTING_HINT);
-      }
-    }
-
-    return () => {
-      active = false;
-      subscription?.unsubscribe();
-    };
-  }, []);
+    },
+  });
 
   useEffect(() => {
     if (!toast) return;
@@ -195,11 +148,11 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
           void handleLogin();
         }}
         disabled={busy}
-        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium tracking-tight text-cyan-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-cyan-300 dark:hover:border-slate-700 sm:text-xs"
+        className="flex items-center gap-1.5 rounded-full border border-amber-400/70 bg-gradient-to-r from-amber-400/25 via-orange-400/15 to-cyan-400/20 px-3 py-1.5 text-[11px] font-bold tracking-tight text-amber-800 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:border-amber-300 dark:border-amber-400/50 dark:from-amber-400/20 dark:to-cyan-400/10 dark:text-amber-200 sm:text-xs"
       >
-        <LogIn className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Googleでログイン</span>
-        <span className="sm:hidden">ログイン</span>
+        <Flame className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" />
+        <span className="hidden sm:inline">Googleで保存</span>
+        <span className="sm:hidden">保存</span>
       </button>
       {toastNode}
     </>

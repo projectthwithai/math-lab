@@ -26,6 +26,9 @@ export const ENERGY_COST_CORRECT_SCRATCHPAD = 5;
 /** デイリークエスト経由の問題生成・解答。常に 0 Energy */
 export const ENERGY_COST_DAILY_QUEST = 0;
 
+/** 未ログイン1問お試しの初回生成。常に 0 Energy */
+export const ENERGY_COST_GUEST_DEMO = 0;
+
 /** デイリークエスト達成時の Energy 回復量 */
 export const DAILY_QUEST_ENERGY_REWARD = 30;
 
@@ -33,9 +36,15 @@ export function isDailyQuestSource(source?: string | null): boolean {
   return source === 'daily-quest';
 }
 
-/** ワークスペースの問題生成コスト。デイリークエスト経由は常に 0 */
+export function isGuestDemoSource(source?: string | null): boolean {
+  return source === 'guest-demo';
+}
+
+/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験は常に 0 */
 export function getGenerateEnergyCost(source?: string | null): number {
-  return isDailyQuestSource(source) ? ENERGY_COST_DAILY_QUEST : ENERGY_COST_GENERATE_PROBLEM;
+  if (isDailyQuestSource(source)) return ENERGY_COST_DAILY_QUEST;
+  if (isGuestDemoSource(source)) return ENERGY_COST_GUEST_DEMO;
+  return ENERGY_COST_GENERATE_PROBLEM;
 }
 
 export function formatEnergyShortage(cost: number, remaining: number): string {

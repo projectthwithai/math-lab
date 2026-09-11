@@ -89,6 +89,7 @@ export default function Navbar() {
               )}
             </span>
             <ThemeToggle />
+            {/* 未ログイン時は AuthButton が常時「Googleで保存」を強調表示する */}
             <AuthButton
               onNotice={(message) => {
                 const isBootingHint = message === SUPABASE_BOOTING_HINT || message.includes('起動準備中');
