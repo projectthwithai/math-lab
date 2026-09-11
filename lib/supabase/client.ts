@@ -5,22 +5,37 @@
 import { createBrowserClient } from '@supabase/ssr';
 import {
   SUPABASE_BOOTING_HINT,
-  SUPABASE_URL_HINT,
   getSupabasePublicEnv,
-  inspectSupabaseEnv,
-  isSafeOAuthAuthorizeUrl,
+  getSupabasePublicKey,
   isSupabaseConfigured,
   isSupabaseNetworkError,
 } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 
-export const SUPABASE_ENV_HINT = '.env.local に Supabase の環境変数を設定してください';
+function sanitizeEnvValue(raw: string | undefined): string {
+  return (raw ?? '').trim().replace(/^["']|["']$/g, '').trim();
+}
+
+let didLogSupabaseConnection = false;
 
 export function getSupabaseBrowserClient() {
+  const url = sanitizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const publicKey =
+    sanitizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
+    sanitizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) ||
+    getSupabasePublicKey();
   const env = getSupabasePublicEnv();
-  if (!env) return null;
+  const resolvedUrl = url || env?.url || '';
+  const resolvedKey = publicKey || env?.anonKey || '';
+
+  if (!didLogSupabaseConnection) {
+    didLogSupabaseConnection = true;
+    console.log('Connecting to Supabase:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  }
+
+  if (!resolvedUrl || !resolvedKey) return null;
   try {
-    return createBrowserClient(env.url, env.anonKey);
+    return createBrowserClient(resolvedUrl, resolvedKey);
   } catch (error) {
     console.error('[supabase/client] ブラウザクライアントの生成に失敗しました', error);
     return null;
@@ -29,18 +44,12 @@ export function getSupabaseBrowserClient() {
 
 export type GoogleSignInResult =
   | { ok: true }
-  | { ok: false; missingEnv: true; dnsUnavailable?: false; error: string }
-  | { ok: false; missingEnv: false; dnsUnavailable?: boolean; developerFallback?: boolean; error: string };
-
-function envFailure(): GoogleSignInResult {
-  return { ok: false, missingEnv: true, error: SUPABASE_URL_HINT };
-}
+  | { ok: false; dnsUnavailable?: boolean; developerFallback?: boolean; error: string };
 
 function dnsFailure(): GoogleSignInResult {
   const developerFallback = activateLocalDeveloperFallback();
   return {
     ok: false,
-    missingEnv: false,
     dnsUnavailable: true,
     developerFallback,
     error: SUPABASE_BOOTING_HINT,
@@ -48,32 +57,19 @@ function dnsFailure(): GoogleSignInResult {
 }
 
 /**
- * Google OAuth を開始する。
- * URL が壊れている場合はリダイレクトせず、呼び出し側でアラートできるように返す。
+ * Google OAuth を開始する。事前の URL 検証や alert ブロックは行わない。
  */
 export async function signInWithGoogleOAuth(): Promise<GoogleSignInResult> {
-  if (typeof window === 'undefined') {
-    return { ok: false, missingEnv: false, error: 'ブラウザでのみログインできます。' };
-  }
-
-  const inspected = inspectSupabaseEnv();
-  if (!inspected.ok) {
-    return envFailure();
-  }
-
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    return envFailure();
+    return { ok: false, error: 'Supabase クライアントを初期化できませんでした。' };
   }
 
-  const redirectTo = window.location.origin || 'http://localhost:3000';
-
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo,
-        skipBrowserRedirect: true,
+        redirectTo: window.location.origin,
       },
     });
 
@@ -82,24 +78,16 @@ export async function signInWithGoogleOAuth(): Promise<GoogleSignInResult> {
       if (isSupabaseNetworkError(error) || isSupabaseNetworkError(error.message)) {
         return dnsFailure();
       }
-      if (/invalid|url|redirect/i.test(error.message) && !/fetch/i.test(error.message)) {
-        return envFailure();
-      }
-      return { ok: false, missingEnv: false, error: error.message };
+      return { ok: false, error: error.message };
     }
 
-    if (!data.url || !isSafeOAuthAuthorizeUrl(data.url, inspected.url)) {
-      return envFailure();
-    }
-
-    window.location.assign(data.url);
     return { ok: true };
   } catch (error) {
     console.error('[supabase/client] Google ログインで例外が発生しました', error);
     if (isSupabaseNetworkError(error)) {
       return dnsFailure();
     }
-    return envFailure();
+    return { ok: false, error: error instanceof Error ? error.message : 'Google ログインに失敗しました。' };
   }
 }
 
@@ -137,4 +125,4 @@ export async function completeOAuthRedirectIfNeeded(): Promise<void> {
   window.history.replaceState({}, '', next || '/');
 }
 
-export { isSupabaseConfigured, SUPABASE_URL_HINT, SUPABASE_BOOTING_HINT, isSupabaseNetworkError };
+export { isSupabaseConfigured, SUPABASE_BOOTING_HINT, isSupabaseNetworkError, getSupabasePublicKey };

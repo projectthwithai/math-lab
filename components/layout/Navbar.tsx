@@ -13,7 +13,7 @@ import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinit
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
-import { SUPABASE_BOOTING_HINT, SUPABASE_URL_HINT } from '@/lib/supabase/config';
+import { SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 
 interface NavTab {
   href: string;
@@ -92,17 +92,6 @@ export default function Navbar() {
             {/* 未ログイン時は AuthButton が常時「Googleで保存」を強調表示する */}
             <AuthButton
               onNotice={(message) => {
-                const isBootingHint = message === SUPABASE_BOOTING_HINT || message.includes('起動準備中');
-                const isEnvHint =
-                  !isBootingHint &&
-                  (message.includes('SupabaseURL') ||
-                    message.includes('Supabase URL') ||
-                    message === SUPABASE_URL_HINT);
-                if (isEnvHint) {
-                  window.alert(SUPABASE_URL_HINT);
-                  setAuthNotice(SUPABASE_URL_HINT);
-                  return;
-                }
                 setAuthNotice(message);
               }}
             />

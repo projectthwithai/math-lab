@@ -22,7 +22,7 @@ import GoalBackwardTree from './GoalBackwardTree';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
-import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT, SUPABASE_URL_HINT } from '@/lib/supabase/config';
+import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 
 interface ScoreResultModalProps {
@@ -86,9 +86,6 @@ export default function ScoreResultModal({
     try {
       const result = await signInWithGoogleOAuth();
       if (!result.ok) {
-        if (result.missingEnv) {
-          window.alert(result.error);
-        }
         setAuthNotice(result.error);
         setAuthBusy(false);
       }
@@ -97,8 +94,6 @@ export default function ScoreResultModal({
       if (isSupabaseNetworkError(error)) {
         activateLocalDeveloperFallback();
         setAuthNotice(SUPABASE_BOOTING_HINT);
-      } else {
-        setAuthNotice(SUPABASE_URL_HINT);
       }
       setAuthBusy(false);
     }

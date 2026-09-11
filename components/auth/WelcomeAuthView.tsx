@@ -10,7 +10,7 @@ import { Brain, Flame, RefreshCw, Sparkles, Swords } from 'lucide-react';
 
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
-import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT, SUPABASE_URL_HINT } from '@/lib/supabase/config';
+import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 
 interface WelcomeAuthViewProps {
@@ -48,9 +48,6 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
     try {
       const result = await signInWithGoogleOAuth();
       if (!result.ok) {
-        if (result.missingEnv) {
-          window.alert(result.error);
-        }
         setNotice(result.error);
         setBusy(false);
       }
@@ -59,8 +56,6 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
       if (isSupabaseNetworkError(error)) {
         activateLocalDeveloperFallback();
         setNotice(SUPABASE_BOOTING_HINT);
-      } else {
-        setNotice(SUPABASE_URL_HINT);
       }
       setBusy(false);
     }

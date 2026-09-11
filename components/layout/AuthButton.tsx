@@ -50,9 +50,6 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
     try {
       const result = await signInWithGoogleOAuth();
       if (!result.ok) {
-        if (result.missingEnv && !onNotice) {
-          window.alert(result.error);
-        }
         showNotice(result.error);
         setBusy(false);
       }
@@ -61,8 +58,6 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
       if (isSupabaseNetworkError(error)) {
         activateLocalDeveloperFallback();
         showNotice(SUPABASE_BOOTING_HINT);
-      } else {
-        showNotice('.env.localのSupabaseURLを確認してください');
       }
       setBusy(false);
     }
