@@ -15,6 +15,7 @@ import type { SolvedProblemRecord } from '@/types/mathLab';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { getOverdueDays, getReviewStageLabel, isDueForReview } from '@/lib/engine/forgettingCurve';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import KaTeXText from '@/components/workspace/KaTeXText';
 
 interface SolvedProblemCardProps {
@@ -60,7 +61,7 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
             {problem.unit}
           </span>
           <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
-            難易度 {problem.difficulty}/10
+            難易度 {formatStarDifficulty(problem.difficulty)}
           </span>
           {due && (
             <span className="flex items-center gap-1 rounded-full border border-amber-400/50 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">

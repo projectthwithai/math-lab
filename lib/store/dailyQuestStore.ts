@@ -1,82 +1,130 @@
 // ==========================================
 // Apex Suite: Math Lab - Daily Quest Store
 // ==========================================
-// 本日のデイリークエスト達成・報酬受け取りを日付キーで永続化する。
-// 日付が変わると completed / claimed をリセットする。
+// カスタムデイリークエスト（3〜10問）と、1日最大3回のEnergy報酬受け取りを永続化する。
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-import { DAILY_QUESTS, type DailyQuestId, type DailyQuestReward } from '@/data/dailyQuests';
+import type { CustomDailyQuest } from '@/types/mathLab';
+import {
+  MAX_DAILY_QUEST_REWARDS_PER_DAY,
+  DEFAULT_DAILY_QUEST_COUNT,
+  clampQuestCount,
+  createDefaultDailyQuests,
+  normalizeDailyQuests,
+} from '@/data/dailyQuests';
 import { getTodayISODate, useUserStore } from '@/lib/store/userStore';
+import { DAILY_QUEST_ENERGY_REWARD } from '@/lib/engine/energyCosts';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 
 export interface ClaimQuestResult {
-  reward: DailyQuestReward;
+  energyAmount: number;
   xpResult: XpGainResult | null;
+  rewardsClaimedToday: number;
 }
 
 interface DailyQuestState {
   dateISO: string;
-  completedIds: DailyQuestId[];
-  claimedIds: DailyQuestId[];
+  questCount: number;
+  quests: CustomDailyQuest[];
+  rewardsClaimedToday: number;
   hasHydrated: boolean;
   setHasHydrated: (value: boolean) => void;
   ensureToday: () => void;
-  completeQuest: (id: DailyQuestId) => void;
-  claimQuest: (id: DailyQuestId) => ClaimQuestResult | null;
+  saveQuestSettings: (questCount: number, quests: CustomDailyQuest[]) => void;
+  completeQuest: (id: string) => void;
+  claimQuest: (id: string) => ClaimQuestResult | null;
+}
+
+function resetDailyProgress(quests: CustomDailyQuest[]): CustomDailyQuest[] {
+  return quests.map((quest) => ({ ...quest, isCompleted: false, isRewardClaimed: false }));
 }
 
 export const useDailyQuestStore = create<DailyQuestState>()(
   persist(
     (set, get) => ({
       dateISO: '',
-      completedIds: [],
-      claimedIds: [],
+      questCount: DEFAULT_DAILY_QUEST_COUNT,
+      quests: createDefaultDailyQuests(),
+      rewardsClaimedToday: 0,
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
 
       ensureToday: () => {
         const today = getTodayISODate();
-        if (get().dateISO === today) return;
-        set({ dateISO: today, completedIds: [], claimedIds: [] });
+        const state = get();
+        if (state.dateISO === today) return;
+        set({
+          dateISO: today,
+          rewardsClaimedToday: 0,
+          quests: resetDailyProgress(normalizeDailyQuests(state.quests, state.questCount)),
+        });
+      },
+
+      saveQuestSettings: (questCount, quests) => {
+        get().ensureToday();
+        const nextCount = clampQuestCount(questCount);
+        const nextQuests = normalizeDailyQuests(quests, nextCount);
+        set({ questCount: nextCount, quests: nextQuests });
       },
 
       completeQuest: (id) => {
         get().ensureToday();
-        set((state) =>
-          state.completedIds.includes(id) ? state : { completedIds: [...state.completedIds, id] }
-        );
+        set((state) => ({
+          quests: state.quests.map((quest) =>
+            quest.id === id ? { ...quest, isCompleted: true } : quest
+          ),
+        }));
       },
 
       claimQuest: (id) => {
         get().ensureToday();
         const state = get();
-        if (!state.completedIds.includes(id) || state.claimedIds.includes(id)) return null;
+        const quest = state.quests.find((item) => item.id === id);
+        if (!quest || !quest.isCompleted || quest.isRewardClaimed) return null;
+        if (state.rewardsClaimedToday >= MAX_DAILY_QUEST_REWARDS_PER_DAY) return null;
 
-        const definition = DAILY_QUESTS.find((quest) => quest.id === id);
-        if (!definition) return null;
-
-        set({ claimedIds: [...state.claimedIds, id] });
+        const rewardsClaimedToday = state.rewardsClaimedToday + 1;
+        set({
+          rewardsClaimedToday,
+          quests: state.quests.map((item) =>
+            item.id === id ? { ...item, isRewardClaimed: true } : item
+          ),
+        });
 
         useUserStore.getState().restoreDailyQuestEnergy();
-
-        if (definition.reward.type === 'xp') {
-          const xpResult = useUserStore.getState().grantXp(definition.reward.amount);
-          return { reward: definition.reward, xpResult };
-        }
-
-        return { reward: definition.reward, xpResult: null };
+        return {
+          energyAmount: DAILY_QUEST_ENERGY_REWARD,
+          xpResult: null,
+          rewardsClaimedToday,
+        };
       },
     }),
     {
       name: 'math-lab:daily-quests',
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      merge: (persisted, current) => {
+        const incoming =
+          typeof persisted === 'object' && persisted ? (persisted as Partial<DailyQuestState>) : {};
+        const questCount = clampQuestCount(incoming.questCount ?? current.questCount);
+        return {
+          ...current,
+          ...incoming,
+          questCount,
+          quests: normalizeDailyQuests(incoming.quests, questCount),
+          rewardsClaimedToday:
+            typeof incoming.rewardsClaimedToday === 'number' ? incoming.rewardsClaimedToday : 0,
+          hasHydrated: false,
+        };
+      },
     }
   )
 );
 
-export function completeDailyQuest(id: DailyQuestId): void {
+export function completeDailyQuest(id: string): void {
   useDailyQuestStore.getState().completeQuest(id);
 }
+
+export type { CustomDailyQuest };

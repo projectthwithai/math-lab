@@ -87,7 +87,7 @@ export default function MockExamPlay() {
       answers: nextAnswers,
       elapsedSeconds,
       timeLimitSeconds: limit,
-      difficulty: config?.difficulty ?? 'standard',
+      difficulty: config?.difficulty ?? 2,
     });
     built.questions.forEach((item) => {
       recordAnswer({

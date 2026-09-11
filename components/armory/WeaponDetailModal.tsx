@@ -12,7 +12,6 @@ import { X, Target, ListChecks, Sparkles } from 'lucide-react';
 import type { WeaponItem } from '@/types/mathLab';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
-import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import KaTeXBlock from '@/components/workspace/KaTeXBlock';
 import DerivationAnimator from './DerivationAnimator';
 
@@ -25,7 +24,6 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
   const accent = SUBJECT_ACCENT[weapon.subject];
 
   useEffect(() => {
-    completeDailyQuest('check-weapon');
     useUserStore.getState().unlockWeapon(weapon.id);
   }, [weapon.id]);
 

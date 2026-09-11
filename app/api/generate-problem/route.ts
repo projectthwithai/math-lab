@@ -16,7 +16,13 @@ import { getUnitById } from '@/data/unitsData';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { pickPracticePattern } from '@/lib/engine/patternPool';
 import { stampCatalogProblem, stampDiscoveredProblem } from '@/lib/mock/stampDiscoveredProblem';
-import { getPatternDefaultDifficulty } from '@/data/patternsData';
+import { getPatternStarDifficulty } from '@/data/patternsData';
+import {
+  clampDifficulty,
+  DEFAULT_DIFFICULTY,
+  getDifficultyMeta,
+  getDifficultyTier,
+} from '@/lib/engine/difficultyScale';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType, VISUAL_TYPE_PROMPT_RULES } from '@/lib/engine/visualNeed';
@@ -35,7 +41,7 @@ function parseDifficulty(raw: unknown): number | undefined {
   if (raw === null || raw === undefined || raw === '') return undefined;
   const parsed = typeof raw === 'number' ? raw : Number(raw);
   if (Number.isNaN(parsed)) return undefined;
-  return Math.max(1, Math.min(10, Math.round(parsed)));
+  return clampDifficulty(parsed > 5 ? Math.ceil(parsed / 2) : parsed);
 }
 
 function normalizeId(raw: unknown): string | undefined {
@@ -96,24 +102,27 @@ function isValidLlmTemplatePayload(value: unknown): value is LlmTemplatePayload 
 
 async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedProblem | null> {
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
-  const difficulty = params.difficulty ?? 5;
-
-  const tier =
-    difficulty <= 3 ? 'basic' : difficulty <= 7 ? 'standard' : 'hard';
+  const difficulty = params.difficulty ?? DEFAULT_DIFFICULTY;
+  const meta = getDifficultyMeta(difficulty);
+  const tier = getDifficultyTier(difficulty);
   const tierGuide =
-    tier === 'basic'
-      ? '★1-3 基礎: 公式へ数値を直接代入する基本計算。場合分けや文字定数は使わない。解説は代入の手順を3ステップ程度で。'
-      : tier === 'standard'
-        ? '★4-7 標準・応用: 文字定数 a や定義域との場合分けを含む、標準的な入試問題。解説は場合分けの根拠を明示する。'
-        : [
-            '★8-10 難関・激ムズ: 基本計算（公式へ数値を代入するだけ）は禁止。',
-            '必ず次をすべて満たすこと:',
-            '(1) 文字定数 a,k,t などを残したまま議論する高度な関数・図形・ベクトル問題。',
-            '(2) 場合分けが3パターン以上（軸と定義域、パラメータの符号、交点個数、鋭角/直角/鈍角 など）。',
-            '(3) 初見の論理展開が必要な融合問題（2つ以上の定理の接続、条件の言い換え、存在条件）。',
-            '(4) 答えは単なる代入値ではなく、個数・範囲の端点・場合分け後の値のいずれか。',
-            '(5) 解説 stepByStep は論理の根拠を6ステップ以上で極めて詳細に書く。',
-          ].join(' ');
+    difficulty === 1
+      ? '★1 基礎: 公式へ数値を直接代入する基本計算。場合分けや文字定数は使わない。解説は代入の手順を3ステップ程度で。'
+      : difficulty === 2
+        ? '★2 標準: 定期テスト・共通テスト基礎レベル。典型的な1〜2ステップの変形を含む。'
+        : difficulty === 3
+          ? '★3 応用: 共通テスト標準・典型入試。文字定数や定義域との場合分けを含めてよい。'
+          : difficulty === 4
+            ? '★4 発展: 難関大・国公立・MARCH二次。場合分けと条件の言い換えが必要な問題。基本の代入計算だけは禁止。'
+            : [
+                '★5 最難関: 東大・京大・旧帝・医学部難問。基本計算（公式へ数値を代入するだけ）は禁止。',
+                '必ず次をすべて満たすこと:',
+                '(1) 文字定数 a,k,t などを残したまま議論する高度な関数・図形・ベクトル問題。',
+                '(2) 場合分けが3パターン以上（軸と定義域、パラメータの符号、交点個数、鋭角/直角/鈍角 など）。',
+                '(3) 初見の論理展開が必要な融合問題（2つ以上の定理の接続、条件の言い換え、存在条件）。',
+                '(4) 答えは単なる代入値ではなく、個数・範囲の端点・場合分け後の値のいずれか。',
+                '(5) 解説 stepByStep は論理の根拠を6ステップ以上で極めて詳細に書く。',
+              ].join(' ');
 
   const systemPrompt =
     'あなたは高校生向けの数学・物理・化学の問題作成AIです。' +
@@ -130,7 +139,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     'LaTeXのバックスラッシュ記法は使わず、Unicode数学記号（θ, π, °, ², √ 等）と' +
     'ASCII表記（^, /, ()）のみで数式を表現してください。' +
     '難易度指定に従い、問題の構造そのものを劇的に分岐させてください。' +
-    '★8以上では「計算するだけ」の問題を出してはいけない。' +
+    '★4以上では「計算するだけ」の問題を出してはいけない。' +
     (params.prompt ? 'ユーザーの作問リクエスト（userRequest）の単元・難易度・出題形式を最優先で反映してください。' : '') +
     tierGuide;
 
@@ -143,7 +152,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
     patternName: params.patternId,
     userRequest: params.prompt ?? '',
     outputSchema: {
-      title: 'string（先頭に ★基礎 / ★標準 / ★難関 を付ける）',
+      title: `string（先頭に ${meta.starLabel}${meta.label} を付ける）`,
       unit: 'string',
       subject: 'math | physics | chemistry',
       format: 'input | choice | descriptive',
@@ -240,7 +249,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
   const resolvedUnitId = params.unitId ?? picked.pattern?.unitId;
   const resolvedDifficulty =
     params.difficulty ??
-    (picked.pattern ? getPatternDefaultDifficulty(picked.pattern.level) : undefined);
+    (picked.pattern ? getPatternStarDifficulty(picked.pattern) : undefined);
   const resolvedPatternId = picked.pattern?.id ?? params.patternId;
 
   const generationParams: GenerateProblemParams = {

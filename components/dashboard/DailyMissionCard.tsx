@@ -9,7 +9,7 @@
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import type { SolutionPattern } from '@/types/mathLab';
-import { PATTERN_LEVEL_LABELS, getPatternDefaultDifficulty } from '@/data/patternsData';
+import { getPatternStarDifficulty, getPatternStarTypeLabel } from '@/data/patternsData';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 
 const SUBJECT_LABEL: Record<SolutionPattern['subject'], string> = {
@@ -31,7 +31,8 @@ export default function DailyMissionCard({ pattern, missionIndex }: DailyMission
     const params = new URLSearchParams();
     if (pattern.unitId) params.set('unitId', pattern.unitId);
     params.set('patternId', pattern.id);
-    params.set('difficulty', String(getPatternDefaultDifficulty(pattern.level)));
+    params.set('difficulty', String(getPatternStarDifficulty(pattern)));
+    if (pattern.subtopicId) params.set('subtopicId', pattern.subtopicId);
     router.push(`/workspace?${params.toString()}`);
   };
 
@@ -45,7 +46,7 @@ export default function DailyMissionCard({ pattern, missionIndex }: DailyMission
             ミッション {missionIndex + 1} ・ {SUBJECT_LABEL[pattern.subject]}
           </span>
           <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
-            {PATTERN_LEVEL_LABELS[pattern.level]}
+            {getPatternStarTypeLabel(pattern)}
           </span>
         </div>
         <p className="text-xs text-slate-500">{pattern.unit}</p>

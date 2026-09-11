@@ -4,6 +4,8 @@
 // 「共通テスト風のベクトルの難問を作って」などの自然文から
 // 単元IDと難易度を推定する（モック生成・即時バー用）。
 
+import { DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
+
 export interface PromptIntent {
   unitId: string;
   difficulty: number;
@@ -37,11 +39,12 @@ export function resolvePromptIntent(prompt: string): PromptIntent {
     UNIT_KEYWORDS.find((rule) => rule.keys.some((key) => text.includes(key.toLowerCase()) || prompt.includes(key)))
       ?.unitId ?? 'math-2bc-vectors';
 
-  let difficulty = 5;
-  if (/基礎|基本|易しい|簡単/.test(prompt)) difficulty = 2;
-  else if (/難問|難関|難しい|発展/.test(prompt)) difficulty = 8;
-  else if (/共通テスト|センター/.test(prompt)) difficulty = 6;
-  else if (/二次|難関大/.test(prompt)) difficulty = 9;
+  let difficulty = DEFAULT_DIFFICULTY;
+  if (/基礎|基本|易しい|簡単/.test(prompt)) difficulty = 1;
+  else if (/最難関|東大|京大|医学部/.test(prompt)) difficulty = 5;
+  else if (/難問|難関|難しい|発展/.test(prompt)) difficulty = 4;
+  else if (/応用|二次|難関大/.test(prompt)) difficulty = 3;
+  else if (/共通テスト|センター|標準/.test(prompt)) difficulty = 2;
 
   return { unitId, difficulty };
 }

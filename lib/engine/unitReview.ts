@@ -40,7 +40,7 @@ export function startUnitReviewExam(unitId: string): void {
   const patternIds = pickCoveringPatternIds(unitId, 5);
   saveMockExamConfig({
     unitIds: [unitId],
-    difficulty: 'standard',
+    difficulty: 2,
     minutes: 25,
     questionCount: Math.max(1, patternIds.length || 5),
     style: 'mixed',

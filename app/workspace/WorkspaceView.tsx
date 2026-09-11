@@ -21,12 +21,12 @@ import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStor
 import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
 import { useUserStore } from '@/lib/store/userStore';
 import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
-import { isQuadraticDailyQuestUnit } from '@/data/dailyQuests';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import {
   formatEnergyShortage,
   getGenerateEnergyCost,
 } from '@/lib/engine/energyCosts';
+import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 
 import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
@@ -44,6 +44,7 @@ import ScientificCalculator from '@/components/workspace/ScientificCalculator';
 import AISolutionChat from '@/components/workspace/AISolutionChat';
 import ScoreResultModal from '@/components/workspace/ScoreResultModal';
 import GoalBackwardTree from '@/components/workspace/GoalBackwardTree';
+import DynamicLoadingCircle from '@/components/ui/DynamicLoadingCircle';
 
 type WorkspaceTab = 'memo' | 'input' | 'hints' | 'chat';
 
@@ -57,13 +58,15 @@ const TABS: { id: WorkspaceTab; label: string; icon: typeof PenLine }[] = [
 interface WorkspaceViewProps {
   unitId?: string;
   patternId?: string;
-  /** パターン図鑑などから明示指定された初回難易度（1-10）。2問目以降はストアの適応難易度を使う */
+  /** パターン図鑑などから明示指定された初回難易度（1-5）。2問目以降はストアの適応難易度を使う */
   initialDifficulty?: number;
   /** ホームの即時生成バーから渡された作問プロンプト */
   prompt?: string;
   /** pending = 画像解析で作った完成済み問題を sessionStorage から読む */
   source?: string;
   subtopicId?: string;
+  /** デイリークエスト経由のとき、達成記録するクエストID */
+  questId?: string;
 }
 
 export default function WorkspaceView({
@@ -73,6 +76,7 @@ export default function WorkspaceView({
   prompt,
   source,
   subtopicId,
+  questId,
 }: WorkspaceViewProps) {
   const router = useRouter();
   const recordAnswer = useUserStore((state) => state.recordAnswer);
@@ -238,8 +242,8 @@ export default function WorkspaceView({
     setIsSolved(true);
     // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
     addSolvedProblemRecord(problem, isCorrect);
-    if (isQuadraticDailyQuestUnit(unitId, problem.unit)) {
-      completeDailyQuest('solve-quadratic');
+    if (source === 'daily-quest' && questId) {
+      completeDailyQuest(questId);
     }
   };
 
@@ -273,8 +277,8 @@ export default function WorkspaceView({
 
   if (isLoading || !problem) {
     return (
-      <div className="flex h-96 items-center justify-center text-sm text-slate-500">
-        問題を生成中...
+      <div className="flex min-h-[min(70vh,36rem)] items-center justify-center px-4 py-10">
+        <DynamicLoadingCircle size="lg" />
       </div>
     );
   }
@@ -298,8 +302,7 @@ export default function WorkspaceView({
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-medium ${accent.text}`}>
               <Star className="h-3 w-3" />
-              {problem.difficulty} / 10
-              {problem.difficulty <= 3 ? ' 基礎' : problem.difficulty <= 7 ? ' 標準' : ' 難関'}
+              {formatStarDifficulty(problem.difficulty)}
             </span>
             <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-[11px] text-slate-400">
               {problem.unit}

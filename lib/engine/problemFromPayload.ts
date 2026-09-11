@@ -6,6 +6,7 @@
 import type { GeneratedProblem, ProblemFormat, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
+import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
 import { cleanGeneratedProblem } from '@/lib/utils/mathFormatter';
 
 function isSubject(value: unknown): value is Subject {
@@ -69,8 +70,8 @@ export function problemFromPayload(
     title: readString(source.title) ?? '読み取った問題',
     difficulty:
       typeof source.difficulty === 'number' && Number.isFinite(source.difficulty)
-        ? Math.max(1, Math.min(10, Math.round(source.difficulty)))
-        : (fallback.difficulty ?? 5),
+        ? clampDifficulty(source.difficulty > 5 ? Math.ceil(source.difficulty / 2) : source.difficulty)
+        : clampDifficulty(fallback.difficulty ?? DEFAULT_DIFFICULTY),
     format: isFormat(source.format) ? source.format : 'input',
     questionText,
     visualType: 'none',

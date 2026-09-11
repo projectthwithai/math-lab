@@ -17,7 +17,6 @@ import { checkAnswer } from '@/lib/engine/answerChecker';
 import { markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
 import { getReviewStageLabel } from '@/lib/engine/forgettingCurve';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
-import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
 
 interface RetryProblemModalProps {
@@ -48,7 +47,6 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
     if (updated) {
       setResult({ isCorrect, updated });
       onReviewed(updated);
-      completeDailyQuest('review-library');
     }
   };
 

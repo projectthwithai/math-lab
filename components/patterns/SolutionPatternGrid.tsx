@@ -15,10 +15,11 @@ import type { Subject } from '@/types/mathLab';
 import type { SolutionPattern } from '@/types/mathLab';
 import {
   SOLUTION_PATTERNS,
-  PATTERN_LEVEL_LABELS,
   getSolutionPatternsByUnit,
   getSolutionPatternsBySubtopic,
-  getPatternDefaultDifficulty,
+  getPatternStarDifficulty,
+  getPatternStarTypeLabel,
+  PATTERN_STAR_TYPE_LABELS,
 } from '@/data/patternsData';
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitInfo } from '@/data/unitsData';
 import { getUnitIcon } from '@/components/unit/unitIcons';
@@ -36,13 +37,7 @@ import {
 
 const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
 const SUBJECT_FILTERS: Array<Subject | 'all'> = ['all', 'math', 'physics', 'chemistry'];
-const LEVEL_FILTERS: Array<SolutionPattern['level'] | 'all'> = ['all', 'basic', 'standard', 'advanced'];
-
-const LEVEL_STAR_LABEL: Record<SolutionPattern['level'], string> = {
-  basic: 'Lv.1–3 基礎',
-  standard: 'Lv.4–7 標準',
-  advanced: 'Lv.8–10 難関',
-};
+const STAR_FILTERS: Array<1 | 2 | 3 | 4 | 'all'> = ['all', 1, 2, 3, 4];
 
 interface PatternCardProps {
   pattern: SolutionPattern;
@@ -89,7 +84,7 @@ function PatternCard({
     if (pattern.unitId) params.set('unitId', pattern.unitId);
     if (pattern.subtopicId) params.set('subtopicId', pattern.subtopicId);
     params.set('patternId', pattern.id);
-    params.set('difficulty', String(getPatternDefaultDifficulty(pattern.level)));
+    params.set('difficulty', String(getPatternStarDifficulty(pattern)));
     router.push(`/workspace?${params.toString()}`);
   };
 
@@ -106,7 +101,7 @@ function PatternCard({
             {SUBJECT_LABEL[pattern.subject]}
           </span>
           <span className="rounded-full border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
-            {PATTERN_LEVEL_LABELS[pattern.level]} · {LEVEL_STAR_LABEL[pattern.level]}
+            {getPatternStarTypeLabel(pattern)}
           </span>
         </div>
         <button
@@ -313,7 +308,7 @@ export default function SolutionPatternGrid() {
   const appendDiscoveredPatterns = useUserStore((state) => state.appendDiscoveredPatterns);
 
   const [subjectFilter, setSubjectFilter] = useState<Subject | 'all'>('all');
-  const [levelFilter, setLevelFilter] = useState<SolutionPattern['level'] | 'all'>('all');
+  const [starFilter, setStarFilter] = useState<1 | 2 | 3 | 4 | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
@@ -368,15 +363,16 @@ export default function SolutionPatternGrid() {
       ...getSolutionPatternsBySubtopic(selectedSubtopicId),
     ];
     return merged.filter((pattern) => {
-      const matchesLevel = levelFilter === 'all' || pattern.level === levelFilter;
+      const matchesStar =
+        starFilter === 'all' || getPatternStarDifficulty(pattern) === starFilter;
       const matchesQuery =
         query.length === 0 ||
         pattern.patternName.toLowerCase().includes(query) ||
         pattern.exampleQuestion.toLowerCase().includes(query) ||
         pattern.strategyText.toLowerCase().includes(query);
-      return matchesLevel && matchesQuery;
+      return matchesStar && matchesQuery;
     });
-  }, [selectedUnitId, selectedSubtopicId, levelFilter, searchQuery, discovered]);
+  }, [selectedUnitId, selectedSubtopicId, starFilter, searchQuery, discovered]);
 
   const handleSaveOverride = (patternId: string, text: string) => {
     const saved = saveCustomStrategyText(patternId, text);
@@ -657,18 +653,18 @@ export default function SolutionPatternGrid() {
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              {LEVEL_FILTERS.map((level) => (
+              {STAR_FILTERS.map((star) => (
                 <button
-                  key={level}
+                  key={star}
                   type="button"
-                  onClick={() => setLevelFilter(level)}
+                  onClick={() => setStarFilter(star)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    levelFilter === level
+                    starFilter === star
                       ? 'border-fuchsia-400/60 bg-fuchsia-400/10 text-fuchsia-300'
                       : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-slate-500'
                   }`}
                 >
-                  {level === 'all' ? 'すべて' : `${PATTERN_LEVEL_LABELS[level]}（${LEVEL_STAR_LABEL[level]}）`}
+                  {star === 'all' ? 'すべて' : PATTERN_STAR_TYPE_LABELS[star]}
                 </button>
               ))}
             </div>

@@ -4,8 +4,9 @@
 
 import type { CustomSolutionNote, SolutionPattern } from '@/types/mathLab';
 import type { PatternOverride } from '@/lib/storage/patternStrategyStore';
-import { calculateLevelFromTotalXp } from '@/lib/engine/adaptiveEngine';
+import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
 import { DEFAULT_MAX_ENERGY } from '@/lib/engine/energyCosts';
+import { calculateLevelFromTotalXp } from '@/lib/engine/adaptiveEngine';
 
 export const USER_PROGRESS_TABLE = 'user_progress';
 
@@ -127,7 +128,7 @@ export function rowToSnapshot(row: UserProgressRow): UserProgressSnapshot {
     clearedPatternIds: Array.isArray(row.cleared_pattern_ids) ? row.cleared_pattern_ids : [],
     discoveredPatterns: Array.isArray(row.discovered_patterns) ? row.discovered_patterns : [],
     unlockedWeaponIds: Array.isArray(row.unlocked_weapon_ids) ? row.unlocked_weapon_ids : [],
-    currentDifficulty: row.current_difficulty ?? 5,
+    currentDifficulty: clampDifficulty(row.current_difficulty ?? DEFAULT_DIFFICULTY),
     consecutiveCorrect: row.consecutive_correct ?? 0,
     consecutiveIncorrect: row.consecutive_incorrect ?? 0,
     solutionNotes: row.solution_notes ?? {},
@@ -159,7 +160,11 @@ export function mergeProgress(
     clearedPatternIds: uniqueStrings([...local.clearedPatternIds, ...remote.clearedPatternIds]),
     discoveredPatterns: mergeDiscovered(local.discoveredPatterns, remote.discoveredPatterns),
     unlockedWeaponIds: uniqueStrings([...local.unlockedWeaponIds, ...remote.unlockedWeaponIds]),
-    currentDifficulty: Math.max(local.currentDifficulty, remote.currentDifficulty),
+    currentDifficulty: clampDifficulty(
+      Math.max(local.currentDifficulty, remote.currentDifficulty) > 5
+        ? Math.ceil(Math.max(local.currentDifficulty, remote.currentDifficulty) / 2)
+        : Math.max(local.currentDifficulty, remote.currentDifficulty)
+    ),
     consecutiveCorrect: Math.max(local.consecutiveCorrect, remote.consecutiveCorrect),
     consecutiveIncorrect: Math.max(local.consecutiveIncorrect, remote.consecutiveIncorrect),
     solutionNotes: mergeByUpdatedAt(local.solutionNotes, remote.solutionNotes),

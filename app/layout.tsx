@@ -26,8 +26,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apex Suite: Math Lab",
-  description: "ゲーミング学習OS - Math Lab",
+  title: "Math Lab | 理数AI学習OS by Apex",
+  description: "東大・難関大レベルまで、最短で思考力を覚醒させる理数AI学習OS",
 };
 
 export const viewport: Viewport = {

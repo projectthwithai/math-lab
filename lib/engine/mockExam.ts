@@ -8,13 +8,13 @@ import { generateMockProblem } from '@/lib/mock/generateMockProblem';
 import { checkAnswer } from '@/lib/engine/answerChecker';
 import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
 
-export type MockExamDifficultyPreset = 'basic' | 'standard' | 'advanced' | 'hard';
+export type MockExamDifficultyPreset = 1 | 2 | 3 | 4 | 5;
 export type MockExamStyle = 'common_test' | 'descriptive' | 'mixed';
 
 export const MOCK_EXAM_STORAGE_KEY = 'math-lab.mock-exam.config';
 
 export const MOCK_EXAM_DEFAULTS = {
-  difficulty: 'standard' as MockExamDifficultyPreset,
+  difficulty: 2 as MockExamDifficultyPreset,
   minutes: 60,
   questionCount: 5,
   style: 'common_test' as MockExamStyle,
@@ -52,16 +52,18 @@ export interface MockExamReport {
 }
 
 export function difficultyPresetToNumber(preset: MockExamDifficultyPreset): number {
-  switch (preset) {
-    case 'basic':
-      return 3;
-    case 'standard':
-      return 5;
-    case 'advanced':
-      return 7;
-    case 'hard':
-      return 9;
-  }
+  return preset;
+}
+
+function parseMockExamDifficulty(raw: unknown): MockExamDifficultyPreset {
+  if (raw === 1 || raw === 2 || raw === 3 || raw === 4 || raw === 5) return raw;
+  if (raw === 'basic') return 1;
+  if (raw === 'standard') return 2;
+  if (raw === 'advanced') return 3;
+  if (raw === 'hard') return 5;
+  const parsed = Number(raw);
+  if (parsed === 1 || parsed === 2 || parsed === 3 || parsed === 4 || parsed === 5) return parsed;
+  return MOCK_EXAM_DEFAULTS.difficulty;
 }
 
 export function saveMockExamConfig(config: MockExamConfig): void {
@@ -74,9 +76,12 @@ export function loadMockExamConfig(): MockExamConfig | null {
   const raw = sessionStorage.getItem(MOCK_EXAM_STORAGE_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as MockExamConfig;
+    const parsed = JSON.parse(raw) as MockExamConfig & { difficulty?: unknown };
     if (!Array.isArray(parsed.unitIds) || parsed.unitIds.length === 0) return null;
-    return parsed;
+    return {
+      ...parsed,
+      difficulty: parseMockExamDifficulty(parsed.difficulty),
+    };
   } catch {
     return null;
   }
@@ -209,7 +214,7 @@ export function buildMockExamReport(params: {
   const totalCount = questions.length || 1;
   const rate = correctCount / totalCount;
   const jitter = ((correctCount * 7 + totalCount * 13) % 9) / 10;
-  const difficultyBoost = (difficultyPresetToNumber(params.difficulty) - 5) * 1.1;
+  const difficultyBoost = (difficultyPresetToNumber(params.difficulty) - 3) * 1.8;
   const deviation = Math.round((38 + rate * 40 + difficultyBoost + jitter) * 10) / 10;
   const { grade, gradeLabel } = gradeFromDeviation(deviation);
 

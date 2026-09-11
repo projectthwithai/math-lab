@@ -33,7 +33,7 @@ export interface GeneratedProblem {
   subject: Subject;
   unit: string;
   title: string;
-  difficulty: number; // 1-10
+  difficulty: number; // 1-5
   format: ProblemFormat;
   questionText: string;
 
@@ -67,6 +67,21 @@ export interface GeneratedProblem {
 }
 
 // ------------------------------------------
+// CustomDailyQuest（カスタムデイリークエスト。演習特化）
+// ------------------------------------------
+
+export interface CustomDailyQuest {
+  id: string;
+  questNumber: number; // 1 ~ 10
+  title: string;
+  subjects: Subject[]; // 複数選択可
+  unitIds: string[]; // 複数選択可（選択した中からランダム出題）
+  difficulty: number; // 1 ~ 5
+  isCompleted: boolean;
+  isRewardClaimed: boolean;
+}
+
+// ------------------------------------------
 // SolutionPattern（本物の解法パターン図鑑）
 // ------------------------------------------
 // 単元ごとの「入試お決まりパターン」を、解答方針（strategyText）と
@@ -93,6 +108,8 @@ export interface SolutionPattern {
   exampleQuestion: string;
   /** Apexガイドが書いた、このパターンを見抜くコツ・解答方針 */
   strategyText: string;
+  /** ★1〜★5。図鑑の標準4型は ★1〜★4 */
+  difficulty?: number;
   /** 図鑑の「新パターン解析」で後から追加されたパターン */
   discovered?: boolean;
 }

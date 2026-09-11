@@ -11,6 +11,7 @@ import { Rocket, CheckSquare } from 'lucide-react';
 
 import { UNITS_DATA, UNIT_CATEGORIES, getUnitsBySubject, type UnitCategory } from '@/data/unitsData';
 import type { Subject } from '@/types/mathLab';
+import { DIFFICULTY_STAR_META } from '@/lib/engine/difficultyScale';
 import {
   MOCK_EXAM_DEFAULTS,
   saveMockExamConfig,
@@ -18,12 +19,11 @@ import {
   type MockExamStyle,
 } from '@/lib/engine/mockExam';
 
-const DIFFICULTY_OPTIONS: Array<{ id: MockExamDifficultyPreset; label: string; hint: string }> = [
-  { id: 'basic', label: '基礎（教科書）', hint: '★3' },
-  { id: 'standard', label: '標準（共通テストレベル）', hint: '★5' },
-  { id: 'advanced', label: '応用（二次・私大）', hint: '★7' },
-  { id: 'hard', label: '難関（最難関）', hint: '★9' },
-];
+const DIFFICULTY_OPTIONS = DIFFICULTY_STAR_META.map((meta) => ({
+  id: meta.value as MockExamDifficultyPreset,
+  label: `${meta.starLabel} ${meta.label}`,
+  hint: meta.hint,
+}));
 
 const TIME_OPTIONS = [30, 60, 90];
 const COUNT_OPTIONS = [3, 5, 10];

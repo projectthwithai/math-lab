@@ -2,7 +2,7 @@
 // Apex Suite: Math Lab - Units Master Data
 // ==========================================
 // 高校数学（数I / 数A / 数II / 数B / 数III / 数C）・物理・化学の
-// 全単元マスターデータ（34単元）。
+// 全単元マスターデータ（34単元）。サブトピック難易度は ★1〜★5。
 
 import type { Subject, SubtopicItem } from '@/types/mathLab';
 import { hydrateUnitSubtopics } from './subtopicsData';

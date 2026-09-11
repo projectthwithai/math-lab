@@ -8,11 +8,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
+import { Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
 
 import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
+import BrandMark from '@/components/layout/BrandMark';
 import { SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 
 interface NavTab {
@@ -52,12 +53,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:py-3 lg:px-10">
         <div className="flex items-center justify-between gap-2">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900 dark:text-white sm:text-base">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-cyan-500 dark:border-slate-800 dark:bg-slate-900 dark:text-cyan-400">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span className="hidden sm:inline">Apex Suite: Math Lab</span>
-            <span className="sm:hidden">Math Lab</span>
+          <Link href="/" className="flex min-w-0 items-center">
+            <BrandMark size="nav" />
           </Link>
 
           <div className="flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium sm:text-xs">

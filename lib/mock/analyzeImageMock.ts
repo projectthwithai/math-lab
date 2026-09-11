@@ -56,7 +56,7 @@ export function analyzeImageMock(seed = Date.now()): ImageAnalysisResult {
     subject: variantProblem.subject,
     unit: variantProblem.unit,
     unitId: intent.unitId,
-    level: intent.difficulty <= 3 ? 'basic' : intent.difficulty <= 7 ? 'standard' : 'advanced',
+    level: intent.difficulty <= 1 ? 'basic' : intent.difficulty <= 3 ? 'standard' : 'advanced',
     patternName: sample.patternName,
     exampleQuestion: variantProblem.questionText,
     strategyText: sample.strategyText,

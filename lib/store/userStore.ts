@@ -29,9 +29,11 @@ import {
   applyDailyEnergyRefill,
   applyEnergyReward,
 } from '@/lib/engine/energyCosts';
+import { clampDifficulty, DEFAULT_DIFFICULTY, DIFFICULTY_SCALE_VERSION, migrateStoredDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 
 export { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD };
+export type { CustomDailyQuest } from '@/types/mathLab';
 
 function stampProgress(): string {
   return new Date().toISOString();
@@ -108,7 +110,7 @@ function getYesterdayISODate(): string {
 
 export interface RecordAnswerParams {
   isCorrect: boolean;
-  /** 解いた問題の難易度（1〜10） */
+  /** 解いた問題の難易度（1〜5） */
   difficulty: number;
   hintsUsed?: number;
   /** 正解時、この解法パターンを「攻略済み」として記録する */
@@ -151,6 +153,8 @@ interface UserStoreState {
 
   // --- アダプティブ出題エンジン（難易度） ---
   currentDifficulty: number;
+  /** 難易度スケール版。未保存なら旧 1〜10 から写像する */
+  difficultyScaleVersion: number;
   consecutiveCorrect: number;
   consecutiveIncorrect: number;
 
@@ -215,7 +219,8 @@ export const useUserStore = create<UserStoreState>()(
       discoveredPatterns: [],
       unlockedWeaponIds: [],
 
-      currentDifficulty: 5,
+      currentDifficulty: DEFAULT_DIFFICULTY,
+      difficultyScaleVersion: DIFFICULTY_SCALE_VERSION,
       consecutiveCorrect: 0,
       consecutiveIncorrect: 0,
 
@@ -281,7 +286,7 @@ export const useUserStore = create<UserStoreState>()(
           level: xpResult.newLevel,
           xpIntoCurrentLevel: xpResult.xpIntoCurrentLevel,
           xpRequiredForNextLevel: xpResult.xpRequiredForNextLevel,
-          currentDifficulty: nextAdaptive.difficulty,
+          currentDifficulty: clampDifficulty(nextAdaptive.difficulty),
           consecutiveCorrect: nextAdaptive.consecutiveCorrect,
           consecutiveIncorrect: nextAdaptive.consecutiveIncorrect,
           clearedPatternIds: shouldClearPattern
@@ -401,11 +406,19 @@ export const useUserStore = create<UserStoreState>()(
         const incoming =
           typeof persisted === 'object' && persisted ? (persisted as Partial<UserStoreState>) : {};
         const energy = typeof incoming.energy === 'number' ? incoming.energy : current.energy;
+        const incomingScale =
+          typeof (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion === 'number'
+            ? (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion
+            : 0;
+        const incomingDifficulty =
+          typeof incoming.currentDifficulty === 'number' ? incoming.currentDifficulty : current.currentDifficulty;
         return {
           ...current,
           ...incoming,
           maxEnergy: DEFAULT_MAX_ENERGY,
           energy,
+          currentDifficulty: migrateStoredDifficulty(incomingDifficulty, incomingScale),
+          difficultyScaleVersion: DIFFICULTY_SCALE_VERSION,
           // 開発者フラグは Auth メール判定のみ。localStorage 改ざんは無効化する。
           isDeveloper: false,
           isGuestDemo: incoming.isGuestDemo === true,

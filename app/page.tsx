@@ -18,7 +18,7 @@ import { Target, BarChart3, Rocket } from 'lucide-react';
 import WelcomeAuthView from '@/components/auth/WelcomeAuthView';
 import InstantGeneratorBar from '@/components/dashboard/InstantGeneratorBar';
 import PlayerStatusPanel from '@/components/dashboard/PlayerStatusPanel';
-import DailyQuestBoard from '@/components/dashboard/DailyQuestBoard';
+import DailyMissionWidget from '@/components/dashboard/DailyMissionWidget';
 import DailyMissionCard from '@/components/dashboard/DailyMissionCard';
 import QuickLaunchGrid from '@/components/dashboard/QuickLaunchGrid';
 import WeaknessRadarChart from '@/components/patterns/WeaknessRadarChart';
@@ -29,7 +29,7 @@ import { selectDailyMissionPatterns } from '@/lib/engine/adaptiveEngine';
 import { SOLUTION_PATTERNS, getWeaknessRadarData, getCompletionSummary } from '@/data/patternsData';
 
 const GUEST_DEMO_WORKSPACE_HREF =
-  '/workspace?unitId=math-1a-numbers-and-expressions&patternId=sp-numbers-01&difficulty=3&source=guest-demo';
+  '/workspace?unitId=math-1a-numbers-and-expressions&subtopicId=st-num-expand&patternId=sp-num-expand-t3&difficulty=3&source=guest-demo';
 
 function DashboardHome() {
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
@@ -50,7 +50,7 @@ function DashboardHome() {
       <InstantGeneratorBar />
 
       {/* 1. デイリークエスト */}
-      <DailyQuestBoard />
+      <DailyMissionWidget />
 
       {/* 2. プレイヤーステータス */}
       <PlayerStatusPanel />

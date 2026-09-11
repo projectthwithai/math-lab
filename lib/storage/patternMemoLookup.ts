@@ -8,7 +8,7 @@ import type { PatternLinkedMemo } from '@/types/mathLab';
 import { getAllCustomSolutionNotes } from '@/lib/storage/customSolutionNotesStore';
 import { getPatternOverride } from '@/lib/storage/patternStrategyStore';
 import { getAllSolvedProblemRecords } from '@/lib/storage/solvedProblemsStore';
-import { SOLUTION_PATTERNS } from '@/data/patternsData';
+import { findSolutionPatternById } from '@/data/patternsData';
 
 export function findPatternLinkedMemo(patternId: string | undefined): PatternLinkedMemo | null {
   if (!patternId) return null;
@@ -57,5 +57,5 @@ export function findPatternLinkedMemo(patternId: string | undefined): PatternLin
 
 export function getPatternDisplayName(patternId: string | undefined): string | undefined {
   if (!patternId) return undefined;
-  return SOLUTION_PATTERNS.find((pattern) => pattern.id === patternId)?.patternName;
+  return findSolutionPatternById(patternId)?.patternName;
 }

@@ -5,7 +5,7 @@
 // patternId 指定時はそのパターンを優先。未指定時は均等抽選。
 
 import type { SolutionPattern } from '@/types/mathLab';
-import { SOLUTION_PATTERNS, getSolutionPatternsByUnit } from '@/data/patternsData';
+import { findSolutionPatternById, getSolutionPatternsByUnit } from '@/data/patternsData';
 
 export interface PickedPracticePattern {
   pattern: SolutionPattern | null;
@@ -25,7 +25,7 @@ export function findPatternInPools(
   if (fromDiscovered) {
     return { pattern: fromDiscovered, fromDiscovered: true };
   }
-  const fromCatalog = SOLUTION_PATTERNS.find((pattern) => pattern.id === patternId);
+  const fromCatalog = findSolutionPatternById(patternId);
   if (fromCatalog) {
     return { pattern: fromCatalog, fromDiscovered: isDiscoveredPattern(fromCatalog) };
   }

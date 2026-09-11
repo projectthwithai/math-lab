@@ -42,7 +42,7 @@ function renderReportImage(report: MockExamReport): Promise<Blob> {
 
   ctx.fillStyle = '#22d3ee';
   ctx.font = '600 28px "Noto Sans JP", sans-serif';
-  ctx.fillText('Apex Suite 全国統一 AI実践模試', 88, 130);
+  ctx.fillText('Math Lab 全国統一 AI実践模試', 88, 130);
 
   ctx.fillStyle = '#f8fafc';
   ctx.font = '700 64px "Noto Sans JP", sans-serif';
@@ -93,7 +93,7 @@ function renderReportImage(report: MockExamReport): Promise<Blob> {
 
   ctx.fillStyle = '#64748b';
   ctx.font = '400 20px "Noto Sans JP", sans-serif';
-  ctx.fillText('保護者共有レポート  /  Apex Suite: Math Lab', 88, height - 80);
+  ctx.fillText('保護者共有レポート  /  Math Lab | 理数AI学習OS by Apex', 88, height - 80);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -105,7 +105,7 @@ function renderReportImage(report: MockExamReport): Promise<Blob> {
 
 function reportSummaryText(report: MockExamReport): string {
   const lines = [
-    '【Apex Suite 全国統一AI実践模試】',
+    '【Math Lab 全国統一AI実践模試】',
     `予想偏差値 ${report.deviation.toFixed(1)} / ${report.grade}判定`,
     report.gradeLabel,
     `正答 ${report.correctCount}/${report.totalCount}`,

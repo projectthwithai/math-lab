@@ -20,15 +20,17 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   const rawPrompt = searchParams.prompt;
   const rawSource = searchParams.source;
   const rawSubtopicId = searchParams.subtopicId;
+  const rawQuestId = searchParams.questId;
 
   const unitId = typeof rawUnitId === 'string' ? rawUnitId : undefined;
   const patternId = typeof rawPatternId === 'string' ? rawPatternId : undefined;
   const prompt = typeof rawPrompt === 'string' ? rawPrompt : undefined;
   const source = typeof rawSource === 'string' ? rawSource : undefined;
   const subtopicId = typeof rawSubtopicId === 'string' ? rawSubtopicId : undefined;
+  const questId = typeof rawQuestId === 'string' ? rawQuestId : undefined;
   const parsedDifficulty = typeof rawDifficulty === 'string' ? Number(rawDifficulty) : NaN;
   const difficulty =
-    Number.isFinite(parsedDifficulty) && parsedDifficulty >= 1 && parsedDifficulty <= 10
+    Number.isFinite(parsedDifficulty) && parsedDifficulty >= 1 && parsedDifficulty <= 5
       ? Math.round(parsedDifficulty)
       : undefined;
 
@@ -36,13 +38,14 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
       <PageBackButton fallbackHref="/units" />
       <WorkspaceView
-        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${source ?? ''}`}
+        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${source ?? ''}::${questId ?? ''}`}
         unitId={unitId}
         patternId={patternId}
         initialDifficulty={difficulty}
         prompt={prompt}
         source={source}
         subtopicId={subtopicId}
+        questId={questId}
       />
     </main>
   );

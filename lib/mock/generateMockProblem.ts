@@ -5,7 +5,7 @@
 // 全34単元（数I・数A・数II・数B・数III・数C・物理・化学）それぞれに
 // 本格的な高校レベルの専用テンプレートを用意しており、
 // 「足し算・掛け算だけのダミー処理」には一切フォールバックしない。
-// `difficulty`(1-10) に応じて数値の範囲や複雑さをスケールさせる。
+// `difficulty`(1-5) に応じて数値の範囲や複雑さをスケールさせる。
 // 生成された問題は `templateConfig` を持ち、`regenerateProblemLocally` で
 // 「数字を変えて再生成（APIコスト0）」が可能。
 //
@@ -16,8 +16,8 @@
 import type { GeneratedProblem, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { getUnitById } from '@/data/unitsData';
-import { SOLUTION_PATTERNS } from '@/data/patternsData';
-import { clampDifficulty } from '@/lib/engine/adaptiveEngine';
+import { findSolutionPatternById, getPatternStarDifficulty } from '@/data/patternsData';
+import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/adaptiveEngine';
 import {
   difficultySpan,
   getDifficultyTier,
@@ -1511,17 +1511,16 @@ export function generateMockProblem({
   let resolvedDifficulty = difficulty;
 
   if (patternId) {
-    const pattern = SOLUTION_PATTERNS.find((candidate) => candidate.id === patternId);
+    const pattern = findSolutionPatternById(patternId);
     if (pattern) {
       resolvedUnitId = resolvedUnitId ?? pattern.unitId;
-      resolvedDifficulty =
-        resolvedDifficulty ?? (pattern.level === 'basic' ? 2 : pattern.level === 'standard' ? 5 : 8);
+      resolvedDifficulty = resolvedDifficulty ?? getPatternStarDifficulty(pattern);
     }
   }
 
   const unit = resolvedUnitId ? getUnitById(resolvedUnitId) : undefined;
   const subject: Subject = unit?.subject ?? 'math';
-  const finalDifficulty = clampDifficulty(resolvedDifficulty ?? 5);
+  const finalDifficulty = clampDifficulty(resolvedDifficulty ?? DEFAULT_DIFFICULTY);
 
   const patternKey: PatternKey =
     (resolvedUnitId ? UNIT_ID_PATTERN_MAP[resolvedUnitId] : undefined) ?? genericKeyForSubject(subject);

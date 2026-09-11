@@ -6,9 +6,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Flame, RefreshCw, Sparkles, Swords } from 'lucide-react';
+import { Brain, Flame, RefreshCw, Swords } from 'lucide-react';
 
 import ThemeToggle from '@/components/layout/ThemeToggle';
+import BrandMark from '@/components/layout/BrandMark';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
@@ -78,12 +79,7 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
 
       <div className="relative mx-auto flex min-h-full max-w-5xl flex-col px-4 py-6 sm:px-8 sm:py-10">
         <header className="mb-10 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-cyan-500 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:text-cyan-400">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-semibold tracking-tight sm:text-base">Apex Suite: Math Lab</span>
-          </div>
+          <BrandMark size="welcome" />
           <ThemeToggle />
         </header>
 
@@ -93,9 +89,10 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
           transition={{ duration: 0.5, ease: 'easeOut' }}
           className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center text-center"
         >
+          <BrandMark size="hero" className="mb-6 justify-center" />
           <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
             <Flame className="h-3.5 w-3.5 text-orange-400" />
-            Gamified AI Learning OS
+            理数AI学習OS
           </p>
           <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
             東大・難関大レベルまで、最短で思考力を覚醒させる理数AI学習OS

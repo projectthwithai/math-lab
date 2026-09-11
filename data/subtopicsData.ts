@@ -232,6 +232,10 @@ export const SUBTOPICS: SubtopicItem[] = RAW_SUBTOPICS.map(({ hints: _hints, ...
 
 const HINTS_BY_ID = new Map(RAW_SUBTOPICS.map((item) => [item.id, item.hints] as const));
 
+export function getSubtopicHints(subtopicId: string): string[] {
+  return HINTS_BY_ID.get(subtopicId) ?? [];
+}
+
 export function getSubtopicsForUnit(unitId: string): SubtopicItem[] {
   return SUBTOPICS.filter((item) => item.unitId === unitId).sort((left, right) => left.order - right.order);
 }

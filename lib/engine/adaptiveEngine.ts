@@ -11,13 +11,14 @@
 //    優先的に、日替わりで安定した3問を選ぶ。
 
 import type { SolutionPattern } from '@/types/mathLab';
+import {
+  clampDifficulty,
+  DEFAULT_DIFFICULTY,
+  MAX_DIFFICULTY,
+  MIN_DIFFICULTY,
+} from '@/lib/engine/difficultyScale';
 
-// ------------------------------------------
-// 1. 難易度の適応計算（Adaptive Difficulty）
-// ------------------------------------------
-
-export const MIN_DIFFICULTY = 1;
-export const MAX_DIFFICULTY = 10;
+export { clampDifficulty, DEFAULT_DIFFICULTY, MAX_DIFFICULTY, MIN_DIFFICULTY };
 
 /** 何連続の正解/不正解でレベルアップ/ダウンするかの閾値 */
 export const DEFAULT_STREAK_THRESHOLD = 2;
@@ -34,7 +35,7 @@ export interface AdaptiveDifficultyResult extends AdaptiveDifficultyState {
 }
 
 export function createInitialAdaptiveState(
-  startDifficulty: number = 5
+  startDifficulty: number = DEFAULT_DIFFICULTY
 ): AdaptiveDifficultyState {
   return {
     difficulty: clampDifficulty(startDifficulty),
@@ -92,10 +93,6 @@ export function advanceAdaptiveDifficulty(
   };
 }
 
-export function clampDifficulty(difficulty: number): number {
-  return Math.min(MAX_DIFFICULTY, Math.max(MIN_DIFFICULTY, Math.round(difficulty)));
-}
-
 // ------------------------------------------
 // 2. XP・レベル計算（Gamification）
 // ------------------------------------------
@@ -143,7 +140,7 @@ export function computeXpReward({
   hintsUsed = 0,
 }: ComputeXpRewardParams): number {
   if (!isCorrect) return 3;
-  const base = 10 + Math.max(1, Math.min(10, difficulty)) * 5;
+  const base = 10 + Math.max(1, Math.min(MAX_DIFFICULTY, difficulty)) * 8;
   const hintPenaltyRate = Math.min(0.6, Math.max(0, hintsUsed) * 0.2);
   return Math.max(5, Math.round(base * (1 - hintPenaltyRate)));
 }
