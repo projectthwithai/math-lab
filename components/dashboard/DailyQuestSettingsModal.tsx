@@ -1,13 +1,14 @@
 'use client';
 
 // ==========================================
-// Apex Suite: Math Lab - Daily Quest Settings Modal
+// Math Lab - Daily Quest Settings Modal
 // ==========================================
-// クエスト総数（3〜10）と、各クエストの教科・単元・難易度（★1〜★5）を編集する。
+// 全画面フルスクリーンで、クエスト総数と各クエストの教科・単元・難易度を編集する。
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { X, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X, Check, ChevronDown } from 'lucide-react';
 
 import type { CustomDailyQuest, Subject } from '@/types/mathLab';
 import { UNIT_CATEGORIES, UNITS_DATA } from '@/data/unitsData';
@@ -18,7 +19,7 @@ import {
   buildQuestTitle,
   normalizeDailyQuests,
 } from '@/data/dailyQuests';
-import { DIFFICULTY_STAR_META, clampDifficulty } from '@/lib/engine/difficultyScale';
+import { DIFFICULTY_STAR_META, clampDifficulty, formatStarDifficulty } from '@/lib/engine/difficultyScale';
 
 interface DailyQuestSettingsModalProps {
   questCount: number;
@@ -29,16 +30,33 @@ interface DailyQuestSettingsModalProps {
 
 const SUBJECTS: Subject[] = ['math', 'physics', 'chemistry'];
 
+const SUBJECT_CHIP: Record<Subject, string> = {
+  math: 'border-cyan-400/50 bg-cyan-400/15 text-cyan-200',
+  physics: 'border-violet-400/50 bg-violet-400/15 text-violet-200',
+  chemistry: 'border-emerald-400/50 bg-emerald-400/15 text-emerald-200',
+};
+
 export default function DailyQuestSettingsModal({
   questCount,
   quests,
   onClose,
   onSave,
 }: DailyQuestSettingsModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [count, setCount] = useState(questCount);
   const [drafts, setDrafts] = useState<CustomDailyQuest[]>(() => normalizeDailyQuests(quests, questCount));
+  const [openQuestNumber, setOpenQuestNumber] = useState(1);
 
   const visibleQuests = useMemo(() => normalizeDailyQuests(drafts, count), [drafts, count]);
+
+  useEffect(() => {
+    setMounted(true);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
 
   const updateQuest = (questNumber: number, patch: Partial<CustomDailyQuest>) => {
     setDrafts((current) =>
@@ -80,59 +98,61 @@ export default function DailyQuestSettingsModal({
     onClose();
   };
 
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
+  if (!mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[90] flex h-dvh w-full flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex h-full min-h-0 w-full flex-col"
-      >
-        <header className="shrink-0 border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-8">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
-              ⚙️ デイリークエストを編集
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。
-            </p>
-          </div>
+  return createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 backdrop-blur-lg">
+      <div className="relative mx-auto flex min-h-full max-w-5xl flex-col p-6 md:p-10">
+        <button
+          type="button"
+          onClick={handleDiscard}
+          className="absolute right-6 top-6 rounded-full border border-slate-700 bg-slate-900/80 p-2 text-slate-300 transition hover:border-slate-500 hover:text-white md:right-10 md:top-10"
+          aria-label="保存せずに閉じる"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <header className="pr-14">
+          <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
+            ⚙️ デイリークエストを編集
+          </h2>
+          <p className="mt-2 text-sm text-slate-400">
+            クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。
+          </p>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
-          <div className="mx-auto max-w-5xl pb-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">クエスト総数</p>
-            <span className="text-sm font-bold text-cyan-600 dark:text-cyan-300">{count}問</span>
+        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 md:p-8">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <p className="text-base font-semibold text-white">クエスト総数</p>
+            <span className="text-2xl font-bold text-cyan-300">{count}問</span>
           </div>
           <input
             type="range"
             min={MIN_DAILY_QUEST_COUNT}
             max={MAX_DAILY_QUEST_COUNT}
             value={count}
-            onChange={(event) => setCount(Number(event.target.value))}
+            onChange={(event) => {
+              const nextCount = Number(event.target.value);
+              setCount(nextCount);
+              if (openQuestNumber > nextCount) setOpenQuestNumber(1);
+            }}
             className="w-full accent-cyan-400"
           />
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-4 flex flex-wrap gap-2">
             {Array.from({ length: MAX_DAILY_QUEST_COUNT - MIN_DAILY_QUEST_COUNT + 1 }, (_, index) => {
               const value = MIN_DAILY_QUEST_COUNT + index;
               return (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setCount(value)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                  onClick={() => {
+                    setCount(value);
+                    if (openQuestNumber > value) setOpenQuestNumber(1);
+                  }}
+                  className={`min-w-11 rounded-full border px-3 py-1.5 text-sm font-semibold ${
                     count === value
-                      ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-700 dark:text-cyan-200'
-                      : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
+                      ? 'border-cyan-400/60 bg-cyan-400/15 text-cyan-200'
+                      : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                   }`}
                 >
                   {value}
@@ -140,109 +160,171 @@ export default function DailyQuestSettingsModal({
               );
             })}
           </div>
-        </div>
+        </section>
 
-        <ol className="mt-4 flex flex-col gap-3">
+        <ol className="mt-8 flex flex-1 flex-col gap-4">
           {visibleQuests.map((quest) => {
+            const isOpen = openQuestNumber === quest.questNumber;
             const unitPool = UNITS_DATA.filter(
               (unit) => quest.subjects.length === 0 || quest.subjects.includes(unit.subject)
             );
             return (
               <li
                 key={quest.id}
-                className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/50"
+                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70"
               >
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {String(quest.questNumber).padStart(2, '0')}. {quest.title}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setOpenQuestNumber(isOpen ? 0 : quest.questNumber)}
+                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left md:px-8"
+                  aria-expanded={isOpen}
+                >
+                  <span>
+                    <span className="block text-lg font-semibold text-white">
+                      クエスト {String(quest.questNumber).padStart(2, '0')}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-400">
+                      {quest.subjects.map((subject) => SUBJECT_LABEL[subject]).join('・') || '教科未選択'}
+                      {' / '}
+                      {formatStarDifficulty(quest.difficulty)}
+                      {' / '}
+                      単元 {quest.unitIds.length}件
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
 
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">教科</p>
-                <div className="mt-1.5 flex flex-wrap gap-3">
-                  {SUBJECTS.map((subject) => (
-                    <label key={subject} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                      <input
-                        type="checkbox"
-                        checked={quest.subjects.includes(subject)}
-                        onChange={() => toggleSubject(quest, subject)}
-                        className="h-3.5 w-3.5 accent-cyan-400"
-                      />
-                      {SUBJECT_LABEL[subject]}
-                    </label>
-                  ))}
-                </div>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-8 border-t border-slate-800 px-6 py-6 md:px-8 md:py-8">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">教科</p>
+                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            {SUBJECTS.map((subject) => {
+                              const checked = quest.subjects.includes(subject);
+                              return (
+                                <label
+                                  key={subject}
+                                  className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                                    checked
+                                      ? SUBJECT_CHIP[subject]
+                                      : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleSubject(quest, subject)}
+                                    className="h-4 w-4 accent-cyan-400"
+                                  />
+                                  {SUBJECT_LABEL[subject]}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
 
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">単元（複数選択・ランダム出題）</p>
-                <div className="mt-1.5 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  {UNIT_CATEGORIES.map((category) => {
-                    const units = unitPool.filter((unit) => unit.category === category);
-                    if (units.length === 0) return null;
-                    return (
-                      <div key={category} className="mb-2 last:mb-0">
-                        <p className="mb-1 text-[10px] font-bold text-slate-400">{category}</p>
-                        <div className="flex flex-col gap-1">
-                          {units.map((unit) => (
-                            <label key={unit.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-slate-700 dark:text-slate-200">
-                              <input
-                                type="checkbox"
-                                checked={quest.unitIds.includes(unit.id)}
-                                onChange={() => toggleUnit(quest, unit.id)}
-                                className="h-3.5 w-3.5 accent-cyan-400"
-                              />
-                              {unit.title}
-                            </label>
-                          ))}
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            単元（複数選択・ランダム出題）
+                          </p>
+                          <div className="mt-3 space-y-6">
+                            {UNIT_CATEGORIES.map((category) => {
+                              const units = unitPool.filter((unit) => unit.category === category);
+                              if (units.length === 0) return null;
+                              return (
+                                <div key={category}>
+                                  <p className="mb-3 text-sm font-bold text-slate-300">{category}</p>
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                    {units.map((unit) => {
+                                      const checked = quest.unitIds.includes(unit.id);
+                                      return (
+                                        <label
+                                          key={unit.id}
+                                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-snug transition ${
+                                            checked
+                                              ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
+                                              : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-600'
+                                          }`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleUnit(quest, unit.id)}
+                                            className="mt-0.5 h-4 w-4 shrink-0 accent-cyan-400"
+                                          />
+                                          {unit.title}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">難易度</p>
+                          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                            {DIFFICULTY_STAR_META.map((meta) => (
+                              <button
+                                key={meta.value}
+                                type="button"
+                                title={meta.hint}
+                                onClick={() =>
+                                  updateQuest(quest.questNumber, { difficulty: clampDifficulty(meta.value) })
+                                }
+                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                                  quest.difficulty === meta.value
+                                    ? 'border-amber-400/70 bg-amber-400/15 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.18)]'
+                                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                                }`}
+                              >
+                                {meta.starLabel}
+                                <span className="mt-1 block text-xs font-medium opacity-80">{meta.label}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">難易度</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {DIFFICULTY_STAR_META.map((meta) => (
-                    <button
-                      key={meta.value}
-                      type="button"
-                      title={meta.hint}
-                      onClick={() => updateQuest(quest.questNumber, { difficulty: clampDifficulty(meta.value) })}
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                        quest.difficulty === meta.value
-                          ? 'border-amber-400/60 bg-amber-400/15 text-amber-800 dark:text-amber-200'
-                          : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {meta.starLabel} {meta.label}
-                    </button>
-                  ))}
-                </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </li>
             );
           })}
         </ol>
-          </div>
-        </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 sm:px-8 sm:pt-4">
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={handleDiscard}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <X className="h-4 w-4" />
-              保存せずに閉じる
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-bold text-cyan-800 shadow-[0_0_28px_rgba(34,211,238,0.28)] transition hover:bg-cyan-400/25 dark:text-cyan-100"
-            >
-              <Check className="h-4 w-4" />
-              設定を保存して閉じる
-            </button>
-          </div>
+        <div className="mt-10 grid grid-cols-1 gap-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={handleDiscard}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900 py-4 text-sm font-semibold text-slate-200 transition hover:border-slate-400 hover:bg-slate-800"
+          >
+            <X className="h-4 w-4" />
+            保存せずに閉じる
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-400/60 bg-cyan-400/15 py-4 text-sm font-bold text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.35)] transition hover:bg-cyan-400/25"
+          >
+            <Check className="h-4 w-4" />
+            設定を保存して閉じる
+          </button>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }
