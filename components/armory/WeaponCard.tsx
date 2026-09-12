@@ -7,7 +7,7 @@
 
 import type { WeaponItem } from '@/types/mathLab';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
-import KaTeXBlock from '@/components/workspace/KaTeXBlock';
+import SafeKaTeX from '@/components/ui/SafeKaTeX';
 
 const RARITY_STYLES: Record<WeaponItem['rarity'], { label: string; badge: string }> = {
   common: { label: 'COMMON', badge: 'border-slate-600 text-slate-400' },
@@ -40,7 +40,7 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
         </span>
       </div>
       <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h3>
-      <KaTeXBlock content={weapon.formulaLaTeX} className="text-sm text-slate-700 dark:text-slate-300" />
+      <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-sm text-slate-700 dark:text-slate-300" />
     </button>
   );
 }

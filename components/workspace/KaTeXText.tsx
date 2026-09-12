@@ -4,9 +4,9 @@
 // Apex Suite: Math Lab - KaTeXText（インライン数式表示）
 // ==========================================
 // 文中の `$...$` 区間だけを数式としてインライン表示する。
+// 内部は SafeKaTeX に委譲し、破損LaTeXを修復してから描画する。
 
-import 'katex/dist/katex.min.css';
-import { renderMixedMathToHtml } from './katexUtils';
+import SafeKaTeX from '@/components/ui/SafeKaTeX';
 
 interface KaTeXTextProps {
   text: string;
@@ -14,6 +14,5 @@ interface KaTeXTextProps {
 }
 
 export default function KaTeXText({ text, className }: KaTeXTextProps) {
-  const html = renderMixedMathToHtml(text, false);
-  return <span className={`formula-surface ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <SafeKaTeX latex={text} className={className} />;
 }

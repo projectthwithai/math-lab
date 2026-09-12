@@ -4,10 +4,9 @@
 // Apex Suite: Math Lab - KaTeXBlock（ブロック数式表示）
 // ==========================================
 // 解説パネルの「鍵となる公式」等、ブロック単位で表示する数式。
-// 文中の `$...$` 区間はdisplayModeで数式表示し、それ以外はプレーンテキスト。
+// 内部は SafeKaTeX に委譲し、破損LaTeXを修復してから描画する。
 
-import 'katex/dist/katex.min.css';
-import { renderMixedMathToHtml } from './katexUtils';
+import SafeKaTeX from '@/components/ui/SafeKaTeX';
 
 interface KaTeXBlockProps {
   content: string;
@@ -15,8 +14,5 @@ interface KaTeXBlockProps {
 }
 
 export default function KaTeXBlock({ content, className }: KaTeXBlockProps) {
-  const html = renderMixedMathToHtml(content, true);
-  return (
-    <div className={`formula-surface ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: html }} />
-  );
+  return <SafeKaTeX latex={content} displayMode className={className} />;
 }

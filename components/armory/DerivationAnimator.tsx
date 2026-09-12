@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import KaTeXText from '@/components/workspace/KaTeXText';
+import SafeKaTeX from '@/components/ui/SafeKaTeX';
 
 interface DerivationAnimatorProps {
   steps: string[];
@@ -47,7 +47,7 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
               STEP {currentStep + 1} / {steps.length}
             </p>
             <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-              <KaTeXText text={steps[currentStep]} />
+              <SafeKaTeX latex={steps[currentStep]} />
             </p>
           </motion.div>
         </AnimatePresence>

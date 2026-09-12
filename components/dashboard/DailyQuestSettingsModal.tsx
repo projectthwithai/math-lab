@@ -101,7 +101,7 @@ export default function DailyQuestSettingsModal({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 backdrop-blur-lg">
+    <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl overflow-y-auto">
       <div className="relative mx-auto flex min-h-full max-w-5xl flex-col p-6 md:p-10">
         <button
           type="button"
@@ -305,14 +305,14 @@ export default function DailyQuestSettingsModal({
           })}
         </ol>
 
-        <div className="mt-10 grid grid-cols-1 gap-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:grid-cols-2">
+        <div className="sticky bottom-0 mt-10 grid grid-cols-2 gap-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pt-6 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={handleDiscard}
             className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900 py-4 text-sm font-semibold text-slate-200 transition hover:border-slate-400 hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
-            保存せずに閉じる
+            ✕ 保存せずに閉じる
           </button>
           <button
             type="button"
@@ -320,7 +320,7 @@ export default function DailyQuestSettingsModal({
             className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-400/60 bg-cyan-400/15 py-4 text-sm font-bold text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.35)] transition hover:bg-cyan-400/25"
           >
             <Check className="h-4 w-4" />
-            設定を保存して閉じる
+            ✓ 設定を保存して閉じる
           </button>
         </div>
       </div>

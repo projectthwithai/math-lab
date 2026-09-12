@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Gift, Settings, Sparkles, Target, Zap } from 'lucide-react';
+import { CheckCircle2, Gift, Sparkles, Target, Zap } from 'lucide-react';
 
 import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
 import {
@@ -69,8 +69,7 @@ export default function DailyMissionWidget() {
           onClick={() => setSettingsOpen(true)}
           className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-cyan-400/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
-          <Settings className="h-3.5 w-3.5" />
-          クエストを編集
+          ⚙️ クエストを編集
         </button>
       </div>
 

@@ -12,7 +12,7 @@ import { X, Target, ListChecks, Sparkles } from 'lucide-react';
 import type { WeaponItem } from '@/types/mathLab';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
-import KaTeXBlock from '@/components/workspace/KaTeXBlock';
+import SafeKaTeX from '@/components/ui/SafeKaTeX';
 import DerivationAnimator from './DerivationAnimator';
 
 interface WeaponDetailModalProps {
@@ -49,7 +49,7 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
         </span>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h2>
         <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4">
-          <KaTeXBlock content={weapon.formulaLaTeX} className="text-lg text-slate-900 dark:text-white" />
+          <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-lg text-slate-900 dark:text-white" />
         </div>
 
         {/* ① 使いどころ */}
