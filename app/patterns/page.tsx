@@ -46,7 +46,7 @@ function PatternsCatalogPage() {
           }`}
         >
           <BookOpen className="h-4 w-4 shrink-0" />
-          <span className="truncate">📚 解法パターン図鑑</span>
+          <span className="truncate">解法パターン図鑑</span>
         </button>
         <button
           type="button"
@@ -58,7 +58,7 @@ function PatternsCatalogPage() {
           }`}
         >
           <Shield className="h-4 w-4 shrink-0" />
-          <span className="truncate">🗡️ 定理・公式の武器庫</span>
+          <span className="truncate">定理・公式の武器庫</span>
         </button>
       </div>
 

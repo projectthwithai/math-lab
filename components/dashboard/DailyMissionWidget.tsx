@@ -61,7 +61,7 @@ export default function DailyMissionWidget() {
           </h2>
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-200">
             <Zap className="h-3.5 w-3.5" />
-            ⚡️ 本日のエネルギー報酬受取枠: {rewardsClaimedToday}/{MAX_DAILY_QUEST_REWARDS_PER_DAY}
+             本日のエネルギー報酬受取枠: {rewardsClaimedToday}/{MAX_DAILY_QUEST_REWARDS_PER_DAY}
           </p>
         </div>
         <button
@@ -70,7 +70,7 @@ export default function DailyMissionWidget() {
           className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-cyan-400/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
           <Settings className="h-3.5 w-3.5" />
-          ⚙️ クエストを編集
+          クエストを編集
         </button>
       </div>
 

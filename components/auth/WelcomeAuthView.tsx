@@ -21,19 +21,19 @@ interface WelcomeAuthViewProps {
 const FEATURES = [
   {
     icon: Swords,
-    title: '🗡️ 106個の武器庫',
+    title: '106個の武器庫',
     body: '成り立ちアニメーション付き定理・公式図鑑',
     accent: 'from-cyan-400/20 to-cyan-400/5 text-cyan-600 dark:text-cyan-300',
   },
   {
     icon: Brain,
-    title: '🧠 思考逆算ツリー',
+    title: '思考逆算ツリー',
     body: 'ゴールから条件への思考プロセスを完全可視化',
     accent: 'from-violet-400/20 to-violet-400/5 text-violet-600 dark:text-violet-300',
   },
   {
     icon: RefreshCw,
-    title: '🔄 完全0円無限演習',
+    title: '完全0円無限演習',
     body: '同じパターンの数字違い類題を一生解き放題',
     accent: 'from-emerald-400/20 to-emerald-400/5 text-emerald-600 dark:text-emerald-300',
   },
