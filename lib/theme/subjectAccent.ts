@@ -27,10 +27,10 @@ export interface SubjectAccent {
 export const SUBJECT_ACCENT: Record<Subject, SubjectAccent> = {
   math: {
     text: 'text-cyan-400',
-    border: 'border-slate-200 dark:border-slate-800',
+    border: 'border-slate-200 dark:border-zinc-800/60',
     borderHover: 'hover:border-cyan-400/40',
     shadowBase: 'shadow-none',
-    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-slate-900/80',
+    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-zinc-950/80',
     focusRingColor: 'focus-visible:ring-cyan-400/60',
     bg: 'bg-cyan-400',
     bgSoft: 'bg-cyan-400/10',
@@ -39,10 +39,10 @@ export const SUBJECT_ACCENT: Record<Subject, SubjectAccent> = {
   },
   physics: {
     text: 'text-violet-400',
-    border: 'border-slate-200 dark:border-slate-800',
+    border: 'border-slate-200 dark:border-zinc-800/60',
     borderHover: 'hover:border-violet-400/40',
     shadowBase: 'shadow-none',
-    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-slate-900/80',
+    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-zinc-950/80',
     focusRingColor: 'focus-visible:ring-violet-400/60',
     bg: 'bg-violet-400',
     bgSoft: 'bg-violet-400/10',
@@ -51,10 +51,10 @@ export const SUBJECT_ACCENT: Record<Subject, SubjectAccent> = {
   },
   chemistry: {
     text: 'text-emerald-400',
-    border: 'border-slate-200 dark:border-slate-800',
+    border: 'border-slate-200 dark:border-zinc-800/60',
     borderHover: 'hover:border-emerald-400/40',
     shadowBase: 'shadow-none',
-    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-slate-900/80',
+    shadowHover: 'hover:bg-slate-50/80 dark:hover:bg-zinc-950/80',
     focusRingColor: 'focus-visible:ring-emerald-400/60',
     bg: 'bg-emerald-400',
     bgSoft: 'bg-emerald-400/10',

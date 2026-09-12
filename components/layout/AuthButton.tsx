@@ -16,9 +16,10 @@ import { signOut } from '@/lib/supabase/authSync';
 
 interface AuthButtonProps {
   onNotice?: (message: string) => void;
+  onLogout?: () => Promise<void> | void;
 }
 
-export default function AuthButton({ onNotice }: AuthButtonProps) {
+export default function AuthButton({ onNotice, onLogout }: AuthButtonProps) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { user } = useAuthSession({
@@ -65,8 +66,16 @@ export default function AuthButton({ onNotice }: AuthButtonProps) {
 
   const handleLogout = async () => {
     setBusy(true);
-    await signOut();
-    setBusy(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+        return;
+      }
+      await signOut();
+      window.location.assign('/');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const toastNode = (

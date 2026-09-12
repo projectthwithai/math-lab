@@ -7,11 +7,10 @@
 import { Suspense, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, BarChart3, Shield } from 'lucide-react';
-import WeaknessRadarChart from '@/components/patterns/WeaknessRadarChart';
+import WeaknessRadarChart from '@/components/dashboard/WeaknessRadarChart';
 import SolutionPatternGrid from '@/components/patterns/SolutionPatternGrid';
 import ArmoryCatalog from '@/components/armory/ArmoryCatalog';
-import { getWeaknessRadarData, getCompletionSummary } from '@/data/patternsData';
-import { useUserStore } from '@/lib/store/userStore';
+import { selectLivePatternProgress, useUserStore } from '@/lib/store/userStore';
 
 type CatalogPane = 'patterns' | 'armory';
 
@@ -21,9 +20,18 @@ function PatternsCatalogPage() {
   const searchParams = useSearchParams();
   const pane: CatalogPane = searchParams.get('view') === 'armory' ? 'armory' : 'patterns';
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
+  const masteredPatterns = useUserStore((state) => state.masteredPatterns);
+  const discoveredPatterns = useUserStore((state) => state.discoveredPatterns);
 
-  const weaknessAxes = useMemo(() => getWeaknessRadarData(clearedPatternIds), [clearedPatternIds]);
-  const completionSummary = useMemo(() => getCompletionSummary(clearedPatternIds), [clearedPatternIds]);
+  const { summary: completionSummary, radarAxes: weaknessAxes } = useMemo(
+    () =>
+      selectLivePatternProgress({
+        clearedPatternIds,
+        masteredPatterns,
+        discoveredPatterns,
+      }),
+    [clearedPatternIds, masteredPatterns, discoveredPatterns]
+  );
 
   const setPane = (next: CatalogPane) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -35,13 +43,13 @@ function PatternsCatalogPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-10">
-      <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80">
         <button
           type="button"
           onClick={() => setPane('patterns')}
           className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:text-sm ${
             pane === 'patterns'
-              ? 'bg-white text-cyan-600 shadow-sm dark:bg-slate-950 dark:text-cyan-400'
+              ? 'bg-white text-cyan-600 shadow-sm dark:bg-black dark:text-cyan-400'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
@@ -53,7 +61,7 @@ function PatternsCatalogPage() {
           onClick={() => setPane('armory')}
           className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:text-sm ${
             pane === 'armory'
-              ? 'bg-white text-violet-600 shadow-sm dark:bg-slate-950 dark:text-violet-300'
+              ? 'bg-white text-violet-600 shadow-sm dark:bg-black dark:text-violet-300'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
@@ -64,24 +72,28 @@ function PatternsCatalogPage() {
 
       {pane === 'patterns' ? (
         <>
-          <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
             <BookOpen className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
             パターン図鑑
           </h1>
-          <p className="mb-6 text-sm text-slate-500">
+          <p className="mb-2 text-sm font-semibold tracking-tight text-cyan-700 dark:text-cyan-300">
+            全{completionSummary.totalCount}パターン中 {completionSummary.clearedCount}パターン撃破（
+            {completionSummary.completionPercent}% 制覇）
+          </p>
+          <p className="mb-6 text-sm text-slate-500 dark:text-zinc-400">
             単元 ➔ サブトピック ➔ 入試解法パターンの3層で探す。静的図鑑に加え、単元を開いて「新パターン解析（-10 Energy）」すると新しいパターンが追加されます。
           </p>
 
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
                 <BarChart3 className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
                 苦手分野レーダーチャート
               </h2>
-              <span className="text-xs text-slate-500">
-                全体攻略率:{' '}
-                <span className="font-bold text-cyan-300">{completionSummary.completionPercent}%</span>{' '}
-                ({completionSummary.clearedCount}/{completionSummary.totalCount}パターン)
+              <span className="text-xs text-slate-500 dark:text-zinc-400">
+                攻略達成率:{' '}
+                <span className="font-bold text-cyan-600 dark:text-cyan-300">{completionSummary.completionPercent}%</span>{' '}
+                ({completionSummary.clearedCount}/{completionSummary.totalCount})
               </span>
             </div>
             <WeaknessRadarChart axes={weaknessAxes} />

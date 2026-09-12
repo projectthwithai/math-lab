@@ -15,11 +15,12 @@ import type { Subject } from '@/types/mathLab';
 import type { SolutionPattern } from '@/types/mathLab';
 import {
   SOLUTION_PATTERNS,
-  getSolutionPatternsByUnit,
-  getSolutionPatternsBySubtopic,
   getPatternStarDifficulty,
   getPatternStarTypeLabel,
   PATTERN_STAR_TYPE_LABELS,
+  resolveMasteredPatternIds,
+  getCatalogPatternsForUnit,
+  getCatalogPatternsForSubtopic,
 } from '@/data/patternsData';
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitInfo } from '@/data/unitsData';
 import { getUnitIcon } from '@/components/unit/unitIcons';
@@ -93,7 +94,7 @@ function PatternCard({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex flex-col gap-3 rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md dark:bg-slate-900/60`}
+      className={`flex flex-col gap-3 rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md dark:bg-zinc-950/80`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -271,7 +272,7 @@ function UnitBranchCard({
       layout
       whileHover={{ y: -2 }}
       onClick={() => onSelect(unit.id)}
-      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-slate-900/60 ${accent.borderHover}`}
+      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-zinc-950/80 ${accent.borderHover}`}
     >
       <div>
         <div className="mb-2 flex items-start justify-between gap-2">
@@ -282,17 +283,17 @@ function UnitBranchCard({
             {unit.category}
           </span>
         </div>
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{unit.title}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{unit.description}</p>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">{unit.title}</h3>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{unit.description}</p>
       </div>
       <div className="mt-4">
-        <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
-          <span>パターン攻略</span>
+        <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400">
+          <span>攻略達成率 {progressPercent}%</span>
           <span>
             {clearedCount}/{totalCount}本
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800/80">
           <div className={`h-full rounded-full ${accent.bg}`} style={{ width: `${progressPercent}%` }} />
         </div>
         <p className={`mt-3 text-xs font-semibold ${accent.text}`}>この単元のパターンを見る →</p>
@@ -322,22 +323,15 @@ export default function SolutionPatternGrid() {
     setOverrides(getAllPatternOverrides());
   }, []);
 
-  const clearedSet = useMemo(() => new Set(clearedPatternIds), [clearedPatternIds]);
+  const clearedSet = useMemo(() => resolveMasteredPatternIds(clearedPatternIds), [clearedPatternIds]);
   const selectedUnit = selectedUnitId ? UNITS_DATA.find((unit) => unit.id === selectedUnitId) : undefined;
 
-  const patternsForUnit = (unitId: string): SolutionPattern[] => {
-    const staticOnes = getSolutionPatternsByUnit(unitId);
-    const extra = discovered.filter((pattern) => pattern.unitId === unitId);
-    return [...extra, ...staticOnes];
-  };
+  const patternsForUnit = (unitId: string): SolutionPattern[] => getCatalogPatternsForUnit(unitId, discovered);
 
   const unitsInView = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return UNITS_DATA.filter((unit) => {
-      const patterns = [
-        ...getSolutionPatternsByUnit(unit.id),
-        ...discovered.filter((pattern) => pattern.unitId === unit.id),
-      ];
+      const patterns = getCatalogPatternsForUnit(unit.id, discovered);
       if (patterns.length === 0) return false;
       const matchesSubject = subjectFilter === 'all' || unit.subject === subjectFilter;
       const matchesQuery =
@@ -356,12 +350,9 @@ export default function SolutionPatternGrid() {
   const filteredPatterns = useMemo(() => {
     if (!selectedUnitId || !selectedSubtopicId) return [];
     const query = searchQuery.trim().toLowerCase();
-    const merged = [
-      ...discovered.filter(
-        (pattern) => pattern.unitId === selectedUnitId && pattern.subtopicId === selectedSubtopicId
-      ),
-      ...getSolutionPatternsBySubtopic(selectedSubtopicId),
-    ];
+    const merged = getCatalogPatternsForSubtopic(selectedSubtopicId, discovered).filter(
+      (pattern) => !selectedUnitId || pattern.unitId === selectedUnitId
+    );
     return merged.filter((pattern) => {
       const matchesStar =
         starFilter === 'all' || getPatternStarDifficulty(pattern) === starFilter;
@@ -502,10 +493,7 @@ export default function SolutionPatternGrid() {
                     {unitsInView
                       .filter((unit) => unit.category === category)
                       .map((unit) => {
-                        const patterns = [
-                          ...getSolutionPatternsByUnit(unit.id),
-                          ...discovered.filter((pattern) => pattern.unitId === unit.id),
-                        ];
+                        const patterns = getCatalogPatternsForUnit(unit.id, discovered);
                         const clearedCount = patterns.filter((pattern) => clearedSet.has(pattern.id)).length;
                         return (
                           <UnitBranchCard
@@ -556,10 +544,7 @@ export default function SolutionPatternGrid() {
             </div>
             <div className="flex flex-col gap-2">
               {(selectedUnit?.subtopics ?? []).map((subtopic) => {
-                const patterns = [
-                  ...getSolutionPatternsBySubtopic(subtopic.id),
-                  ...discovered.filter((pattern) => pattern.subtopicId === subtopic.id),
-                ];
+                const patterns = getCatalogPatternsForSubtopic(subtopic.id, discovered);
                 const clearedCount = patterns.filter((pattern) => clearedSet.has(pattern.id)).length;
                 return (
                   <button

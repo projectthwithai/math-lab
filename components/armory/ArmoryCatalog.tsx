@@ -102,7 +102,7 @@ export default function ArmoryCatalog() {
         />
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid min-w-0 max-w-full grid-cols-1 gap-3 overflow-x-auto sm:grid-cols-2 lg:grid-cols-3">
         {filteredWeapons.map((weapon) => (
           <WeaponCard key={weapon.id} weapon={weapon} onClick={() => setSelectedWeapon(weapon)} />
         ))}

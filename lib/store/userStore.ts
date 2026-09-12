@@ -4,7 +4,7 @@
 // アプリ全体で共有する「ユーザー状態」の単一の情報源（Single Source of Truth）。
 // - 獲得XP・プレイヤーレベル
 // - 連続学習ストリーク（日数）
-// - Energy（スタミナ。1日1回リフィル。生成/解析/検証で消費）
+// - Energy（スタミナ。1日1回リフィル。同一端末での無料100の二重付与は deviceLock で防止）
 // - クリアした解法パターンIDリスト（パターン図鑑・デイリーミッションが参照する）
 // - 発掘パターン（discoveredPatterns。図鑑保存 → 単元演習の出題プール）
 // - アダプティブ出題エンジンの難易度状態
@@ -26,14 +26,27 @@ import {
 import {
   DEFAULT_MAX_ENERGY,
   DAILY_QUEST_ENERGY_REWARD,
-  applyDailyEnergyRefill,
   applyEnergyReward,
 } from '@/lib/engine/energyCosts';
+import {
+  resolveDeviceLockedDailyEnergy,
+  syncDeviceEnergyRemaining,
+} from '@/lib/engine/deviceLock';
 import { clampDifficulty, DEFAULT_DIFFICULTY, DIFFICULTY_SCALE_VERSION, migrateStoredDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
+import {
+  getCompletionSummary,
+  getWeaknessRadarData,
+  type PatternCompletionSummary,
+  type WeaknessRadarAxis,
+} from '@/data/patternsData';
 
 export { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD };
 export type { CustomDailyQuest } from '@/types/mathLab';
+
+function nextMasteredIds(ids: string[]): { clearedPatternIds: string[]; masteredPatterns: string[] } {
+  return { clearedPatternIds: ids, masteredPatterns: ids };
+}
 
 function stampProgress(): string {
   return new Date().toISOString();
@@ -143,7 +156,10 @@ interface UserStoreState {
   progressUpdatedAt: string | null;
 
   // --- パターン図鑑の攻略状況 ---
+  /** 制覇済みパターンID（user_pattern_progress / masteredPatterns の正本） */
   clearedPatternIds: string[];
+  /** 制覇済みパターンID。clearedPatternIds と同一 */
+  masteredPatterns: string[];
 
   // --- 発掘パターン（図鑑 → 単元演習の出題プール） ---
   discoveredPatterns: SolutionPattern[];
@@ -167,6 +183,8 @@ interface UserStoreState {
   startGuestDemo: () => void;
   /** アプリ起動時（クライアントマウント後）に1度呼び出し、ストリーク更新とEnergy日次リフィルを行う */
   touchDailyStreakAndEnergy: () => void;
+  /** ログイン後など、端末ロックをユーザーID付きで再適用する */
+  applyDeviceEnergyLock: (userId?: string | null) => void;
   /** 1問解答した結果を反映する（XP付与・難易度適応・パターン攻略記録。Energyは消費しない） */
   recordAnswer: (params: RecordAnswerParams) => XpGainResult;
   /** 明示的にパターンを攻略済みにする（recordAnswerを経由しないケース用） */
@@ -216,6 +234,7 @@ export const useUserStore = create<UserStoreState>()(
       progressUpdatedAt: null,
 
       clearedPatternIds: [],
+      masteredPatterns: [],
       discoveredPatterns: [],
       unlockedWeaponIds: [],
 
@@ -232,33 +251,62 @@ export const useUserStore = create<UserStoreState>()(
       touchDailyStreakAndEnergy: () => {
         const today = getTodayISODate();
         const yesterday = getYesterdayISODate();
+        const state = get();
+        const bypassLock = hasDeveloperPrivileges() || state.isDeveloper;
+        const resolved = resolveDeviceLockedDailyEnergy({
+          energy: state.energy,
+          lastEnergyRefillDateISO: state.lastEnergyRefillDateISO,
+          maxEnergy: DEFAULT_MAX_ENERGY,
+          isDeveloper: bypassLock,
+          today,
+        });
 
-        set((state) => {
-          let streakDays = state.streakDays;
-          if (state.lastActiveDateISO === today) {
+        set((current) => {
+          let streakDays = current.streakDays;
+          if (current.lastActiveDateISO === today) {
             // 本日すでに記録済み: 何もしない
-          } else if (state.lastActiveDateISO === yesterday) {
-            streakDays = state.streakDays + 1;
+          } else if (current.lastActiveDateISO === yesterday) {
+            streakDays = current.streakDays + 1;
           } else {
             streakDays = 1;
-          }
-
-          const maxEnergy = DEFAULT_MAX_ENERGY;
-          let energy = state.energy;
-          let lastEnergyRefillDateISO = state.lastEnergyRefillDateISO;
-          if (lastEnergyRefillDateISO !== today) {
-            energy = applyDailyEnergyRefill(state.energy, maxEnergy);
-            lastEnergyRefillDateISO = today;
           }
 
           return {
             streakDays,
             lastActiveDateISO: today,
-            energy,
-            maxEnergy,
-            lastEnergyRefillDateISO,
+            energy: resolved.energy,
+            maxEnergy: DEFAULT_MAX_ENERGY,
+            lastEnergyRefillDateISO: resolved.lastEnergyRefillDateISO,
             progressUpdatedAt: stampProgress(),
           };
+        });
+      },
+
+      applyDeviceEnergyLock: (userId = null) => {
+        const state = get();
+        if (hasDeveloperPrivileges() || state.isDeveloper) return;
+
+        const resolved = resolveDeviceLockedDailyEnergy({
+          energy: state.energy,
+          lastEnergyRefillDateISO: state.lastEnergyRefillDateISO,
+          maxEnergy: DEFAULT_MAX_ENERGY,
+          isDeveloper: false,
+          userId,
+        });
+
+        if (
+          resolved.energy === state.energy &&
+          resolved.lastEnergyRefillDateISO === state.lastEnergyRefillDateISO
+        ) {
+          syncDeviceEnergyRemaining(state.energy, userId);
+          return;
+        }
+
+        set({
+          energy: resolved.energy,
+          lastEnergyRefillDateISO: resolved.lastEnergyRefillDateISO,
+          maxEnergy: DEFAULT_MAX_ENERGY,
+          progressUpdatedAt: stampProgress(),
         });
       },
 
@@ -281,6 +329,10 @@ export const useUserStore = create<UserStoreState>()(
           isCorrect && patternId && !state.clearedPatternIds.includes(patternId)
         );
 
+        const nextCleared = shouldClearPattern
+          ? [...state.clearedPatternIds, patternId as string]
+          : state.clearedPatternIds;
+
         set({
           totalXp: xpResult.totalXp,
           level: xpResult.newLevel,
@@ -289,9 +341,7 @@ export const useUserStore = create<UserStoreState>()(
           currentDifficulty: clampDifficulty(nextAdaptive.difficulty),
           consecutiveCorrect: nextAdaptive.consecutiveCorrect,
           consecutiveIncorrect: nextAdaptive.consecutiveIncorrect,
-          clearedPatternIds: shouldClearPattern
-            ? [...state.clearedPatternIds, patternId as string]
-            : state.clearedPatternIds,
+          ...nextMasteredIds(nextCleared),
           progressUpdatedAt: stampProgress(),
         });
 
@@ -302,15 +352,17 @@ export const useUserStore = create<UserStoreState>()(
         set((state) =>
           state.clearedPatternIds.includes(patternId)
             ? state
-            : { clearedPatternIds: [...state.clearedPatternIds, patternId] }
+            : nextMasteredIds([...state.clearedPatternIds, patternId])
         );
       },
 
       toggleClearedPattern: (patternId) => {
         set((state) =>
-          state.clearedPatternIds.includes(patternId)
-            ? { clearedPatternIds: state.clearedPatternIds.filter((id) => id !== patternId) }
-            : { clearedPatternIds: [...state.clearedPatternIds, patternId] }
+          nextMasteredIds(
+            state.clearedPatternIds.includes(patternId)
+              ? state.clearedPatternIds.filter((id) => id !== patternId)
+              : [...state.clearedPatternIds, patternId]
+          )
         );
       },
 
@@ -318,7 +370,9 @@ export const useUserStore = create<UserStoreState>()(
         const state = get();
         if (hasDeveloperPrivileges() || amount <= 0) return true;
         if (state.energy < amount) return false;
-        set({ energy: state.energy - amount, progressUpdatedAt: stampProgress() });
+        const energy = state.energy - amount;
+        set({ energy, progressUpdatedAt: stampProgress() });
+        syncDeviceEnergyRemaining(energy);
         return true;
       },
 
@@ -347,10 +401,10 @@ export const useUserStore = create<UserStoreState>()(
       },
 
       restoreEnergy: (amount = 1) => {
-        set((state) => ({
-          energy: applyEnergyReward(state.energy, amount),
-          progressUpdatedAt: stampProgress(),
-        }));
+        if (hasDeveloperPrivileges()) return;
+        const energy = applyEnergyReward(get().energy, amount);
+        set({ energy, progressUpdatedAt: stampProgress() });
+        syncDeviceEnergyRemaining(energy);
       },
 
       restoreDailyQuestEnergy: () => {
@@ -412,6 +466,11 @@ export const useUserStore = create<UserStoreState>()(
             : 0;
         const incomingDifficulty =
           typeof incoming.currentDifficulty === 'number' ? incoming.currentDifficulty : current.currentDifficulty;
+        const incomingCleared = Array.isArray(incoming.clearedPatternIds)
+          ? incoming.clearedPatternIds
+          : Array.isArray(incoming.masteredPatterns)
+            ? incoming.masteredPatterns
+            : current.clearedPatternIds;
         return {
           ...current,
           ...incoming,
@@ -425,9 +484,30 @@ export const useUserStore = create<UserStoreState>()(
           unlockedWeaponIds: Array.isArray(incoming.unlockedWeaponIds)
             ? incoming.unlockedWeaponIds
             : current.unlockedWeaponIds,
+          ...nextMasteredIds(incomingCleared),
           hasHydrated: false,
         };
       },
     }
   )
 );
+
+export interface LivePatternProgress {
+  masteredPatterns: string[];
+  summary: PatternCompletionSummary;
+  radarAxes: WeaknessRadarAxis[];
+}
+
+/** レーダー・進捗バー用。静的図鑑 + 発掘 + 制覇IDからリアルタイム集計する */
+export function selectLivePatternProgress(state: {
+  clearedPatternIds: string[];
+  masteredPatterns?: string[];
+  discoveredPatterns: SolutionPattern[];
+}): LivePatternProgress {
+  const masteredPatterns = state.masteredPatterns ?? state.clearedPatternIds;
+  return {
+    masteredPatterns,
+    summary: getCompletionSummary(masteredPatterns, state.discoveredPatterns),
+    radarAxes: getWeaknessRadarData(masteredPatterns, state.discoveredPatterns),
+  };
+}

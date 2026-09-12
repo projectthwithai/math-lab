@@ -65,7 +65,7 @@ function collectLocalSnapshot(): UserProgressSnapshot {
   };
 }
 
-function applySnapshot(snapshot: UserProgressSnapshot): void {
+function applySnapshot(snapshot: UserProgressSnapshot, userId?: string | null): void {
   applyingRemote = true;
   try {
     const xp = levelFieldsFromXp(snapshot.totalXp);
@@ -78,6 +78,7 @@ function applySnapshot(snapshot: UserProgressSnapshot): void {
       lastEnergyRefillDateISO: snapshot.lastEnergyRefillDateISO,
       progressUpdatedAt: snapshot.progressUpdatedAt,
       clearedPatternIds: snapshot.clearedPatternIds,
+      masteredPatterns: snapshot.clearedPatternIds,
       discoveredPatterns: snapshot.discoveredPatterns,
       unlockedWeaponIds: snapshot.unlockedWeaponIds,
       currentDifficulty: snapshot.currentDifficulty,
@@ -86,6 +87,7 @@ function applySnapshot(snapshot: UserProgressSnapshot): void {
     });
     replaceAllCustomSolutionNotes(snapshot.solutionNotes);
     replaceAllPatternOverrides(snapshot.strategyOverrides);
+    useUserStore.getState().applyDeviceEnergyLock(userId ?? null);
   } finally {
     applyingRemote = false;
   }
@@ -128,9 +130,19 @@ async function pullMergeAndPush(user: User): Promise<void> {
     }
 
     const local = collectLocalSnapshot();
-    const merged = data ? mergeProgress(local, rowToSnapshot(data as UserProgressRow)) : local;
-    applySnapshot(merged);
-    await pushSnapshot(user, merged);
+    const remoteSnapshot = data ? rowToSnapshot(data as UserProgressRow) : null;
+    const merged = remoteSnapshot ? mergeProgress(local, remoteSnapshot) : local;
+    // Energy の日次付与判定は「このアカウント自身のリフィル日」を使う。
+    // 端末に残った別アカウントの lastEnergyRefillDateISO を引き継ぐと二重付与判定が崩れる。
+    applySnapshot(
+      {
+        ...merged,
+        energy: remoteSnapshot?.energy ?? local.energy,
+        lastEnergyRefillDateISO: remoteSnapshot?.lastEnergyRefillDateISO ?? null,
+      },
+      user.id
+    );
+    await pushSnapshot(user, collectLocalSnapshot());
   } catch (error) {
     console.warn('[authSync] 進捗同期をスキップしました（DNS/ネットワーク）', error);
     if (isSupabaseNetworkError(error)) {
@@ -182,16 +194,27 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
 
 export async function signOut(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return;
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('[authSync] ログアウトに失敗しました', error);
+  if (supabase) {
+    try {
+      const globalResult = await supabase.auth.signOut({ scope: 'global' });
+      if (globalResult.error) {
+        console.error('[authSync] グローバルログアウトに失敗したため、この端末のセッションのみ解除します', globalResult.error);
+        const localResult = await supabase.auth.signOut({ scope: 'local' });
+        if (localResult.error) {
+          console.error('[authSync] ログアウトに失敗しました', localResult.error);
+        }
+      }
+    } catch (error) {
+      console.warn('[authSync] ログアウトをスキップしました（DNS/ネットワーク）', error);
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (localError) {
+        console.warn('[authSync] ローカルセッション解除にも失敗しました', localError);
+      }
     }
-  } catch (error) {
-    console.warn('[authSync] ログアウトをスキップしました（DNS/ネットワーク）', error);
   }
   applyDeveloperFromUser(null);
+  useUserStore.setState({ isGuestDemo: false, isDeveloper: false });
 }
 
 export function startAuthSync(): void {

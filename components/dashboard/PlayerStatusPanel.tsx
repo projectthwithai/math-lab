@@ -25,11 +25,11 @@ export default function PlayerStatusPanel() {
       : 0;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
+    <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         {/* レベル & XP */}
         <div className="flex flex-1 items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 dark:border-zinc-800/60 dark:bg-[#0a0a0a]">
             <div className="text-center">
               <Trophy className="mx-auto h-4 w-4 text-cyan-500 dark:text-cyan-400" />
               <p className="text-sm font-semibold leading-none tracking-tight text-cyan-700 dark:text-cyan-300">Lv.{level}</p>
@@ -37,7 +37,7 @@ export default function PlayerStatusPanel() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-baseline justify-between text-xs">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">プレイヤーレベル</span>
+              <span className="font-semibold text-slate-700 dark:text-zinc-300">プレイヤーレベル</span>
               <span className="text-slate-500">
                 {xpIntoCurrentLevel} / {xpRequiredForNextLevel} XP
               </span>

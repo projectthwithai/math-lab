@@ -33,7 +33,7 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-zinc-800/60 dark:bg-[#0a0a0a]/95"
       >
         <button
           type="button"
@@ -48,7 +48,7 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
           {weapon.category}
         </span>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h2>
-        <div className="mt-3 w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white/80 p-4 scrollbar-none dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="mt-3 min-w-0 w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white/80 p-4 scrollbar-none dark:border-slate-800 dark:bg-slate-900/60">
           <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-lg text-slate-900 dark:text-white" />
         </div>
 

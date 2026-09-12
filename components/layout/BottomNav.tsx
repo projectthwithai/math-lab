@@ -43,7 +43,7 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="モバイルナビゲーション"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/80 bg-slate-950/85 pb-safe backdrop-blur-lg md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/85 pb-safe backdrop-blur-lg dark:border-zinc-800/60 dark:bg-black/85 md:hidden"
     >
       <div className="grid grid-cols-5">
         {TABS.map((tab) => {
@@ -55,7 +55,7 @@ export default function BottomNav() {
               href={tab.href}
               aria-current={isActive ? 'page' : undefined}
               className={`relative flex min-w-0 flex-col items-center gap-0.5 px-1 pt-2 pb-2.5 text-center ${
-                isActive ? 'font-semibold text-cyan-400' : 'text-slate-400'
+                isActive ? 'font-semibold text-cyan-400' : 'text-slate-500 dark:text-zinc-400'
               }`}
             >
               <Icon className="h-5 w-5" />

@@ -87,7 +87,7 @@ export interface CustomDailyQuest {
 // 単元ごとの「入試お決まりパターン」を、解答方針（strategyText）と
 // セットで管理する。パターンの攻略状態（isMastered）自体はこのファイルでは
 // 静的な初期値のみ持ち、実際のユーザーごとの攻略状況は
-// `lib/store/userStore.ts` の `clearedPatternIds` で管理する
+// `lib/store/userStore.ts` の `clearedPatternIds` / `masteredPatterns` で管理する
 // （静的データとユーザー状態を分離する設計）。
 
 export type PatternLevel = 'basic' | 'standard' | 'advanced';

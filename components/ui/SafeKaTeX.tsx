@@ -19,7 +19,7 @@ interface SafeKaTeXProps {
 export default function SafeKaTeX({ latex, className, displayMode = false }: SafeKaTeXProps) {
   const html = sanitizeAndRenderLatex(latex ?? '', displayMode);
   const Tag = displayMode ? 'div' : 'span';
-  const overflowClass = displayMode ? 'w-full max-w-full overflow-x-auto scrollbar-none' : '';
+  const overflowClass = displayMode ? 'min-w-0 w-full max-w-full overflow-x-auto scrollbar-none' : '';
   return (
     <Tag
       className={`formula-surface ${overflowClass} ${className ?? ''}`.trim()}

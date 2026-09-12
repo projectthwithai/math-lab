@@ -101,7 +101,7 @@ export default function DailyQuestSettingsModal({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl overflow-y-auto">
       <div className="relative mx-auto flex min-h-full max-w-5xl flex-col p-6 md:p-10">
         <button
           type="button"
@@ -305,7 +305,7 @@ export default function DailyQuestSettingsModal({
           })}
         </ol>
 
-        <div className="sticky bottom-0 mt-10 grid grid-cols-2 gap-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pt-6 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 mt-10 grid grid-cols-2 gap-3 bg-gradient-to-t from-black via-black/95 to-transparent pt-6 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={handleDiscard}

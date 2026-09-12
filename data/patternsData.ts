@@ -83,25 +83,71 @@ function categoryForUnitId(unitId: string | undefined): UnitCategory | null {
   return unit?.category ?? null;
 }
 
+function masteryPercent(clearedCount: number, totalCount: number): number {
+  if (totalCount <= 0) return 0;
+  return Math.round((clearedCount / totalCount) * 100);
+}
+
+/** 静的図鑑 + 発掘パターンを ID 重複なしで結合した実カタログ */
+export function collectPatternCatalog(discoveredPatterns: SolutionPattern[] = []): SolutionPattern[] {
+  const byId = new Map<string, SolutionPattern>();
+  for (const pattern of SOLUTION_PATTERNS) {
+    byId.set(pattern.id, pattern);
+  }
+  for (const pattern of discoveredPatterns) {
+    if (!pattern || typeof pattern.id !== 'string' || pattern.id.length === 0) continue;
+    if (byId.has(pattern.id)) continue;
+    byId.set(pattern.id, { ...pattern, discovered: true });
+  }
+  return [...byId.values()];
+}
+
+/** 制覇ID。旧図鑑エイリアスも現行IDへ正規化する */
+export function resolveMasteredPatternIds(clearedPatternIds: string[]): Set<string> {
+  const mastered = new Set<string>();
+  for (const id of clearedPatternIds) {
+    if (typeof id !== 'string' || id.length === 0) continue;
+    mastered.add(id);
+    const aliased = LEGACY_PATTERN_ALIASES[id];
+    if (aliased) mastered.add(aliased);
+  }
+  return mastered;
+}
+
+export function countMasteredInCatalog(
+  catalog: SolutionPattern[],
+  masteredIds: Set<string>
+): number {
+  return catalog.filter((pattern) => masteredIds.has(pattern.id)).length;
+}
+
 export interface WeaknessRadarAxis {
   label: UnitCategory;
-  /** そのカテゴリの攻略率(0-100) */
+  /** そのカテゴリの攻略達成率 (0-100) = 制覇数 / 総パターン数 * 100 */
   value: number;
   totalCount: number;
   clearedCount: number;
 }
 
-export function getWeaknessRadarData(clearedPatternIds: string[]): WeaknessRadarAxis[] {
-  const clearedSet = new Set(clearedPatternIds);
+export function getWeaknessRadarData(
+  clearedPatternIds: string[],
+  discoveredPatterns: SolutionPattern[] = []
+): WeaknessRadarAxis[] {
+  const catalog = collectPatternCatalog(discoveredPatterns);
+  const masteredIds = resolveMasteredPatternIds(clearedPatternIds);
 
   return UNIT_CATEGORIES.map((category) => {
-    const patternsInCategory = SOLUTION_PATTERNS.filter(
+    const patternsInCategory = catalog.filter(
       (pattern) => categoryForUnitId(pattern.unitId) === category
     );
     const totalCount = patternsInCategory.length;
-    const clearedCount = patternsInCategory.filter((pattern) => clearedSet.has(pattern.id)).length;
-    const value = totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0;
-    return { label: category, value, totalCount, clearedCount };
+    const clearedCount = countMasteredInCatalog(patternsInCategory, masteredIds);
+    return {
+      label: category,
+      value: masteryPercent(clearedCount, totalCount),
+      totalCount,
+      clearedCount,
+    };
   });
 }
 
@@ -111,12 +157,57 @@ export interface PatternCompletionSummary {
   completionPercent: number;
 }
 
-export function getCompletionSummary(clearedPatternIds: string[]): PatternCompletionSummary {
-  const clearedSet = new Set(clearedPatternIds);
-  const totalCount = SOLUTION_PATTERNS.length;
-  const clearedCount = SOLUTION_PATTERNS.filter((pattern) => clearedSet.has(pattern.id)).length;
-  const completionPercent = totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0;
-  return { totalCount, clearedCount, completionPercent };
+export function getCompletionSummary(
+  clearedPatternIds: string[],
+  discoveredPatterns: SolutionPattern[] = []
+): PatternCompletionSummary {
+  const catalog = collectPatternCatalog(discoveredPatterns);
+  const masteredIds = resolveMasteredPatternIds(clearedPatternIds);
+  const totalCount = catalog.length;
+  const clearedCount = countMasteredInCatalog(catalog, masteredIds);
+  return {
+    totalCount,
+    clearedCount,
+    completionPercent: masteryPercent(clearedCount, totalCount),
+  };
+}
+
+export interface UnitPatternStats {
+  unitId: string;
+  totalCount: number;
+  clearedCount: number;
+  completionPercent: number;
+}
+
+export function getUnitPatternStats(
+  unitId: string,
+  clearedPatternIds: string[],
+  discoveredPatterns: SolutionPattern[] = []
+): UnitPatternStats {
+  const catalog = collectPatternCatalog(discoveredPatterns).filter((pattern) => pattern.unitId === unitId);
+  const masteredIds = resolveMasteredPatternIds(clearedPatternIds);
+  const totalCount = catalog.length;
+  const clearedCount = countMasteredInCatalog(catalog, masteredIds);
+  return {
+    unitId,
+    totalCount,
+    clearedCount,
+    completionPercent: masteryPercent(clearedCount, totalCount),
+  };
+}
+
+export function getCatalogPatternsForUnit(
+  unitId: string,
+  discoveredPatterns: SolutionPattern[] = []
+): SolutionPattern[] {
+  return collectPatternCatalog(discoveredPatterns).filter((pattern) => pattern.unitId === unitId);
+}
+
+export function getCatalogPatternsForSubtopic(
+  subtopicId: string,
+  discoveredPatterns: SolutionPattern[] = []
+): SolutionPattern[] {
+  return collectPatternCatalog(discoveredPatterns).filter((pattern) => pattern.subtopicId === subtopicId);
 }
 
 export { PATTERN_STAR_ARCHETYPES };

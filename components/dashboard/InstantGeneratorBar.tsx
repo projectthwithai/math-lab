@@ -89,11 +89,11 @@ export default function InstantGeneratorBar() {
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60 sm:p-5">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-5">
         <div className="relative mb-3 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">即時問題生成</h2>
+            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-zinc-100">即時問題生成</h2>
             <p className="text-[11px] text-slate-500">
               テキスト作問 {isDeveloper ? '0 (Dev)' : ENERGY_COST_GENERATE_PROBLEM} Energy / 画像解析{' '}
               {isDeveloper ? '0 (Dev)' : ENERGY_COST_ANALYZE_IMAGE} Energy

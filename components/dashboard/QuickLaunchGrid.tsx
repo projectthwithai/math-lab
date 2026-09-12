@@ -68,15 +68,15 @@ export default function QuickLaunchGrid() {
           >
             <Link
               href={item.href}
-              className="group flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700"
+              className="group flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md transition-colors hover:border-slate-300 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:hover:border-zinc-700"
             >
-              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 ${item.accentText}`}>
+              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 dark:border-zinc-800/60 dark:bg-[#0a0a0a] ${item.accentText}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
+              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
                 {item.title}
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.description}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{item.description}</p>
             </Link>
           </motion.div>
         );

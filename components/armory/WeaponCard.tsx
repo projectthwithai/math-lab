@@ -34,7 +34,7 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-0 w-full max-w-full flex-col gap-2 overflow-hidden rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-slate-900/60 ${accent.borderHover}`}
+      className={`flex min-w-0 w-full max-w-full flex-col gap-2 overflow-x-auto scrollbar-none rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-zinc-950/80 ${accent.borderHover}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`rounded-full border ${accent.border} px-2 py-0.5 text-[10px] font-bold ${accent.text}`}>
@@ -44,8 +44,8 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
           {rarity.label}
         </span>
       </div>
-      <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h3>
-      <div className="w-full max-w-full overflow-x-auto scrollbar-none">
+      <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-100">{weapon.name}</h3>
+      <div className="min-w-0 w-full max-w-full overflow-x-auto scrollbar-none">
         <SafeKaTeX
           latex={weapon.formulaLaTeX}
           displayMode

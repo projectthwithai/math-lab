@@ -11,12 +11,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Crown, Play, Search, Star } from 'lucide-react';
 
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitCategory, type UnitInfo } from '@/data/unitsData';
-import { getSolutionPatternsBySubtopic, getSolutionPatternsByUnit } from '@/data/patternsData';
+import {
+  getCatalogPatternsForSubtopic,
+  getUnitPatternStats,
+  resolveMasteredPatternIds,
+} from '@/data/patternsData';
 import { getUnitIcon } from '@/components/unit/unitIcons';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
 import { startUnitReviewExam } from '@/lib/engine/unitReview';
-import type { SubtopicItem } from '@/types/mathLab';
+import type { SolutionPattern, SubtopicItem } from '@/types/mathLab';
 
 const ALL_CATEGORIES_LABEL = 'すべて';
 type CategoryFilter = UnitCategory | typeof ALL_CATEGORIES_LABEL;
@@ -24,11 +28,12 @@ type CategoryFilter = UnitCategory | typeof ALL_CATEGORIES_LABEL;
 export default function UnitSelectionGrid() {
   const router = useRouter();
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
+  const discoveredPatterns = useUserStore((state) => state.discoveredPatterns);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>(ALL_CATEGORIES_LABEL);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
 
-  const clearedSet = useMemo(() => new Set(clearedPatternIds), [clearedPatternIds]);
+  const clearedSet = useMemo(() => resolveMasteredPatternIds(clearedPatternIds), [clearedPatternIds]);
   const selectedUnit = UNITS_DATA.find((unit) => unit.id === selectedUnitId) ?? null;
 
   const filteredUnits = useMemo(() => {
@@ -102,7 +107,8 @@ export default function UnitSelectionGrid() {
               <UnitCard
                 key={unit.id}
                 unit={unit}
-                clearedSet={clearedSet}
+                clearedPatternIds={clearedPatternIds}
+                discoveredPatterns={discoveredPatterns}
                 onOpen={() => setSelectedUnitId(unit.id)}
               />
             ))}
@@ -161,6 +167,7 @@ export default function UnitSelectionGrid() {
                   unitId={selectedUnit.id}
                   subtopic={subtopic}
                   clearedSet={clearedSet}
+                  discoveredPatterns={discoveredPatterns}
                   onStart={handleStartSubtopic}
                 />
               ))}
@@ -177,45 +184,50 @@ export default function UnitSelectionGrid() {
 
 function UnitCard({
   unit,
-  clearedSet,
+  clearedPatternIds,
+  discoveredPatterns,
   onOpen,
 }: {
   unit: UnitInfo;
-  clearedSet: Set<string>;
+  clearedPatternIds: string[];
+  discoveredPatterns: SolutionPattern[];
   onOpen: () => void;
 }) {
   const Icon = getUnitIcon(unit.iconName);
   const accent = SUBJECT_ACCENT[unit.subject];
-  const patterns = getSolutionPatternsByUnit(unit.id);
-  const clearedCount = patterns.filter((pattern) => clearedSet.has(pattern.id)).length;
-  const totalCount = patterns.length;
-  const progressPercent = totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0;
+  const { clearedCount, totalCount, completionPercent } = getUnitPatternStats(
+    unit.id,
+    clearedPatternIds,
+    discoveredPatterns
+  );
 
   return (
     <div
-      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-slate-900/60`}
+      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-zinc-950/80`}
     >
       <div>
         <div className="mb-2 flex items-start justify-between gap-2">
           <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent.bgSoft} ${accent.text}`}>
             <Icon className="h-4.5 w-4.5" />
           </span>
-          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] text-slate-400 dark:border-slate-700">
+          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] text-slate-400 dark:border-zinc-800/60">
             {unit.recommendedGrade}
           </span>
         </div>
         <p className={`text-[10px] font-bold uppercase tracking-wide ${accent.text}`}>{unit.category}</p>
-        <h3 className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{unit.title}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{unit.description}</p>
+        <h3 className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-100">{unit.title}</h3>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{unit.description}</p>
         <p className="mt-2 text-[10px] text-slate-400">サブトピック {unit.subtopics.length} 本</p>
       </div>
       <div className="mt-4">
-        <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500">
-          <span>攻略度</span>
-          <span>{totalCount > 0 ? `${clearedCount}/${totalCount}パターン` : `全${unit.patternCount}パターン`}</span>
+        <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400">
+          <span>攻略達成率 {completionPercent}%</span>
+          <span>
+            {clearedCount}/{totalCount}パターン
+          </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-          <div className={`h-full rounded-full ${accent.bg}`} style={{ width: `${progressPercent}%` }} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800/80">
+          <div className={`h-full rounded-full ${accent.bg}`} style={{ width: `${completionPercent}%` }} />
         </div>
         <button
           type="button"
@@ -233,19 +245,23 @@ function SubtopicCard({
   unitId,
   subtopic,
   clearedSet,
+  discoveredPatterns,
   onStart,
 }: {
   unitId: string;
   subtopic: SubtopicItem;
   clearedSet: Set<string>;
+  discoveredPatterns: SolutionPattern[];
   onStart: (unitId: string, subtopicId: string) => void;
 }) {
-  const patterns = getSolutionPatternsBySubtopic(subtopic.id);
+  const patterns = getCatalogPatternsForSubtopic(subtopic.id, discoveredPatterns);
+  const clearedCount = patterns.filter((pattern) => clearedSet.has(pattern.id)).length;
   const cleared = patterns.length > 0 && patterns.every((pattern) => clearedSet.has(pattern.id));
   const started = patterns.some((pattern) => clearedSet.has(pattern.id));
+  const completionPercent = patterns.length > 0 ? Math.round((clearedCount / patterns.length) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-4 dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <span
@@ -254,7 +270,7 @@ function SubtopicCard({
             }`}
             title={cleared ? '攻略済み' : started ? '演習中' : '未演習'}
           />
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{subtopic.title}</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">{subtopic.title}</h3>
           <span className="inline-flex items-center gap-0.5 text-[11px] text-amber-400">
             {Array.from({ length: 5 }, (_, index) => (
               <Star
@@ -264,9 +280,9 @@ function SubtopicCard({
             ))}
           </span>
         </div>
-        <p className="text-xs leading-relaxed text-slate-500">{subtopic.description}</p>
+        <p className="text-xs leading-relaxed text-slate-500 dark:text-zinc-400">{subtopic.description}</p>
         <p className="mt-1 text-[10px] text-slate-400">
-          {cleared ? '攻略済み' : started ? '演習中' : '未演習'} · パターン {patterns.length} 本
+          {cleared ? '攻略済み' : started ? '演習中' : '未演習'} · {clearedCount}/{patterns.length}パターン（{completionPercent}%）
         </p>
       </div>
       <button

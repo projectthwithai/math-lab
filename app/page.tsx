@@ -21,18 +21,19 @@ import PlayerStatusPanel from '@/components/dashboard/PlayerStatusPanel';
 import DailyMissionWidget from '@/components/dashboard/DailyMissionWidget';
 import DailyMissionCard from '@/components/dashboard/DailyMissionCard';
 import QuickLaunchGrid from '@/components/dashboard/QuickLaunchGrid';
-import WeaknessRadarChart from '@/components/patterns/WeaknessRadarChart';
+import WeaknessRadarChart from '@/components/dashboard/WeaknessRadarChart';
 
 import { useAuthSession } from '@/lib/auth/useAuthSession';
-import { useUserStore, getTodayISODate } from '@/lib/store/userStore';
+import { selectLivePatternProgress, useUserStore, getTodayISODate } from '@/lib/store/userStore';
 import { selectDailyMissionPatterns } from '@/lib/engine/adaptiveEngine';
-import { SOLUTION_PATTERNS, getWeaknessRadarData, getCompletionSummary } from '@/data/patternsData';
+import { SOLUTION_PATTERNS } from '@/data/patternsData';
 
 const GUEST_DEMO_WORKSPACE_HREF =
   '/workspace?unitId=math-1a-numbers-and-expressions&subtopicId=st-num-expand&patternId=sp-num-expand-t3&difficulty=3&source=guest-demo';
 
 function DashboardHome() {
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
+  const discoveredPatterns = useUserStore((state) => state.discoveredPatterns);
 
   const todayISO = useMemo(() => getTodayISODate(), []);
 
@@ -41,8 +42,10 @@ function DashboardHome() {
     [clearedPatternIds, todayISO]
   );
 
-  const weaknessAxes = useMemo(() => getWeaknessRadarData(clearedPatternIds), [clearedPatternIds]);
-  const completionSummary = useMemo(() => getCompletionSummary(clearedPatternIds), [clearedPatternIds]);
+  const { summary: completionSummary, radarAxes: weaknessAxes } = useMemo(
+    () => selectLivePatternProgress({ clearedPatternIds, discoveredPatterns }),
+    [clearedPatternIds, discoveredPatterns]
+  );
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-10">
@@ -59,8 +62,8 @@ function DashboardHome() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <Target className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">本日のデイリーミッション</h2>
-          <span className="text-xs text-slate-500">未攻略パターンから厳選した3問</span>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">本日のデイリーミッション</h2>
+          <span className="text-xs text-slate-500 dark:text-zinc-400">未攻略パターンから厳選した3問</span>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {dailyMissions.map((pattern, index) => (
@@ -70,15 +73,16 @@ function DashboardHome() {
       </section>
 
       {/* 4. 弱点自動分析アナリティクス */}
-      <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
-            <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">弱点自動分析アナリティクス</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">弱点自動分析アナリティクス</h2>
           </div>
-          <span className="text-xs text-slate-500">
-            全体攻略率: <span className="font-bold text-cyan-300">{completionSummary.completionPercent}%</span>
-            {' '}({completionSummary.clearedCount}/{completionSummary.totalCount}パターン)
+          <span className="text-xs text-slate-500 dark:text-zinc-400">
+            全{completionSummary.totalCount}パターン中 {completionSummary.clearedCount}パターン撃破（
+            <span className="font-bold text-cyan-600 dark:text-cyan-300">{completionSummary.completionPercent}%</span>
+            {' '}制覇）
           </span>
         </div>
         <WeaknessRadarChart axes={weaknessAxes} />
@@ -88,7 +92,7 @@ function DashboardHome() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <Rocket className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Quick Launch</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">Quick Launch</h2>
         </div>
         <QuickLaunchGrid />
       </section>

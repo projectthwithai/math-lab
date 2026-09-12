@@ -48,11 +48,11 @@ export default function DailyMissionWidget() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60 sm:p-7">
+    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-7">
       <div className="relative mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Daily Quest</p>
-          <h2 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+          <h2 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100 sm:text-3xl">
             <Target className="h-6 w-6 text-amber-500 dark:text-amber-400" />
             本日のデイリークエスト
             <span className="text-lg font-medium text-slate-400">

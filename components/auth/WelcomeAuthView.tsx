@@ -63,7 +63,7 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
   };
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-50 text-slate-900 dark:bg-black dark:text-zinc-100">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:64px_64px] dark:bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)]"
@@ -90,14 +90,14 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
           className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center text-center"
         >
           <BrandMark size="hero" className="mb-6 justify-center" />
-          <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+          <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-wide text-slate-500 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-zinc-400">
             <Flame className="h-3.5 w-3.5 text-orange-400" />
             理数AI学習OS
           </p>
-          <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
+          <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl dark:text-zinc-100">
             東大・難関大レベルまで、最短で思考力を覚醒させる理数AI学習OS
           </h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base dark:text-slate-400">
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base dark:text-zinc-300">
             武器庫・逆算ツリー・ゼロコスト無限演習で、解法パターンを身体に染み込ませる。
           </p>
 
@@ -110,7 +110,7 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.12 + index * 0.08, duration: 0.4 }}
-                  className={`rounded-2xl border border-slate-200 bg-gradient-to-b ${feature.accent} p-4 text-left backdrop-blur-md dark:border-slate-800`}
+                  className={`rounded-2xl border border-slate-200 bg-gradient-to-b ${feature.accent} p-4 text-left backdrop-blur-md dark:border-zinc-800/60`}
                 >
                   <Icon className="mb-3 h-5 w-5" />
                   <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{feature.title}</h2>

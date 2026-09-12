@@ -12,9 +12,13 @@
 }
 
 .dark {
-  --background: #020617; /* slate-950 */
-  --foreground: #f1f5f9; /* slate-100 */
+  --background: #000000; /* True Black */
+  --foreground: #f4f4f5; /* zinc-100 */
   color-scheme: dark;
+  --color-slate-950: #000000;
+  --color-slate-900: #0a0a0a;
+  --color-slate-800: #27272a;
+  --color-zinc-950: #0a0a0a;
 }
 
 @theme inline {
@@ -53,20 +57,15 @@ input[type="text"].font-mono {
   font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* KaTeX は公式ウェブフォントを維持。周囲の数式領域だけ Mono を補助 */
+/* KaTeX は公式ウェブフォントを維持。コンテナの font-family で上書きしない */
 .katex-display,
 .katex {
   text-rendering: optimizeLegibility;
 }
 
 .formula-surface {
-  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   max-width: 100%;
-}
-
-.formula-surface .katex,
-.formula-surface .katex-display {
-  font-family: KaTeX_Main, KaTeX_Math, "KaTeX_AMS", var(--font-jetbrains-mono), serif;
+  min-width: 0;
 }
 
 .formula-surface .katex-display {
@@ -105,4 +104,16 @@ input[type="text"].font-mono {
 
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility glass-panel {
+  border-width: 1px;
+  border-color: rgb(226 232 240);
+  background-color: rgb(255 255 255 / 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  border-color: rgb(39 39 42 / 0.6);
+  background-color: rgb(10 10 10 / 0.8);
 }

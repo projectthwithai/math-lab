@@ -1836,7 +1836,7 @@ export const MATH_WEAPONS: WeaponItem[] = [
     id: 'w-vector-dot-product',
     category: '数C・ベクトル',
     name: 'ベクトルの内積',
-    formulaLaTeX: '$\\vec{a} \\cdot \\vec{b} = |\\vec{a}||\\vec{b}|\\cos\\theta = a_1 b_1 + a_2 b_2$',
+    formulaLaTeX: '$\\vec{a}\\cdot\\vec{b}=|\\vec{a}|\\,|\\vec{b}|\\cos\\theta=a_1b_1+a_2b_2$',
     usageScenario: 'なす角・垂直条件・成分計算の最重要ツール。',
     triggerConditions: ['なす角', '垂直・平行'],
     derivationVisualType: 'vector_geometry',
