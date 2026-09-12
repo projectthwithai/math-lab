@@ -129,14 +129,14 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
               disabled={busy}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_40px_rgba(34,211,238,0.18)] transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
             >
-              🔥 Googleアカウントで今すぐ始める
+              Googleアカウントで今すぐ始める
             </button>
             <button
               type="button"
               onClick={onStartGuestDemo}
               className="text-sm font-medium text-cyan-700 underline-offset-4 hover:underline dark:text-cyan-300"
             >
-              👉 ログインせずに1問だけ体験してみる
+              ログインせずに1問だけ体験してみる
             </button>
             {notice && (
               <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
