@@ -69,7 +69,7 @@ export default function DailyMissionWidget() {
           onClick={() => setSettingsOpen(true)}
           className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-cyan-400/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
-          ⚙️ クエストを編集
+           クエストを編集
         </button>
       </div>
 
