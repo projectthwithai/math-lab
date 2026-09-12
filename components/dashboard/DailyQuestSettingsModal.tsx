@@ -114,7 +114,7 @@ export default function DailyQuestSettingsModal({
 
         <header className="pr-14">
           <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-            ⚙️ デイリークエストを編集
+             デイリークエストを編集
           </h2>
           <p className="mt-2 text-sm text-slate-400">
             クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。

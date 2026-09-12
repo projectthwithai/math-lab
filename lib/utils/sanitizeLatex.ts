@@ -356,7 +356,8 @@ function renderKatexHtml(math: string, displayMode: boolean): string {
     const html = katex.renderToString(math, {
       throwOnError: false,
       errorColor: '#64748b',
-      strict: 'ignore',
+      strict: false,
+      trust: true,
       displayMode,
       output: 'html',
     });

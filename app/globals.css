@@ -61,11 +61,27 @@ input[type="text"].font-mono {
 
 .formula-surface {
   font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  max-width: 100%;
 }
 
 .formula-surface .katex,
 .formula-surface .katex-display {
   font-family: KaTeX_Main, KaTeX_Math, "KaTeX_AMS", var(--font-jetbrains-mono), serif;
+}
+
+.formula-surface .katex-display {
+  margin: 0.35em 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes graph-neon-reveal {

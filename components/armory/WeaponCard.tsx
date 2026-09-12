@@ -21,6 +21,11 @@ interface WeaponCardProps {
   onClick: () => void;
 }
 
+function formulaTextSize(latex: string): 'text-sm' | 'text-xs' {
+  const compact = latex.replace(/\$/g, '').replace(/\\[a-zA-Z]+/g, 'X').replace(/[{}^_]/g, '');
+  return compact.length >= 36 ? 'text-xs' : 'text-sm';
+}
+
 export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
   const accent = SUBJECT_ACCENT[weapon.subject];
   const rarity = RARITY_STYLES[weapon.rarity];
@@ -29,18 +34,24 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col gap-2 rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-slate-900/60 ${accent.borderHover}`}
+      className={`flex min-w-0 w-full max-w-full flex-col gap-2 overflow-hidden rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-slate-900/60 ${accent.borderHover}`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className={`rounded-full border ${accent.border} px-2 py-0.5 text-[10px] font-bold ${accent.text}`}>
           {weapon.category}
         </span>
-        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold ${rarity.badge}`}>
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold ${rarity.badge}`}>
           {rarity.label}
         </span>
       </div>
       <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h3>
-      <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-sm text-slate-700 dark:text-slate-300" />
+      <div className="w-full max-w-full overflow-x-auto scrollbar-none">
+        <SafeKaTeX
+          latex={weapon.formulaLaTeX}
+          displayMode
+          className={`${formulaTextSize(weapon.formulaLaTeX)} text-slate-700 dark:text-slate-300`}
+        />
+      </div>
     </button>
   );
 }

@@ -887,7 +887,8 @@ export const CHEMISTRY_WEAPONS: WeaponItem[] = [
     id: 'w-condensation-polymer',
     category: '有機化学',
     name: '縮合重合',
-    formulaLaTeX: '$\\text{ナイロン66：ヘキサメチレンジアミン＋アジピン酸（$-H_2O$）}$',
+    formulaLaTeX:
+      '$n\\,\\mathrm{H_2N}\\text{-}(CH_2)_6\\text{-}\\mathrm{NH_2}+n\\,\\mathrm{HOOC}\\text{-}(CH_2)_4\\text{-}\\mathrm{COOH}\\rightarrow\\text{ナイロン66}+(2n-1)\\,\\mathrm{H_2O}$',
     usageScenario: '水などが取れてつながる。ポリエステル・ナイロン・タンパク質。',
     triggerConditions: ['二官能性モノマー', 'ペプチド結合'],
     derivationVisualType: 'algebraic_steps',

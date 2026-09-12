@@ -48,7 +48,7 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
           {weapon.category}
         </span>
         <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h2>
-        <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4">
+        <div className="mt-3 w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white/80 p-4 scrollbar-none dark:border-slate-800 dark:bg-slate-900/60">
           <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-lg text-slate-900 dark:text-white" />
         </div>
 

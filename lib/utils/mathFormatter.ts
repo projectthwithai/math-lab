@@ -10,10 +10,11 @@ import type { GeneratedProblem } from '@/types/mathLab';
 const AFTER_ONE = '(?:[A-Za-zθπΔδλμσω]|\\\\[A-Za-z]+|\\()';
 
 function cleanOnce(source: string): string {
+  // 下付き `_1x` や `{1}` の 1 は係数ではないので消さない（x_1x_2 → x_x_2 を防止）
   return source
-    .replace(new RegExp(`(^|[^0-9.])-1(?=${AFTER_ONE})`, 'g'), '$1-')
-    .replace(new RegExp(`(^|[^0-9.])\\+1(?=${AFTER_ONE})`, 'g'), '$1+')
-    .replace(new RegExp(`(^|[^0-9.])1(?=${AFTER_ONE})`, 'g'), '$1');
+    .replace(new RegExp(`(^|[^0-9._])-1(?=${AFTER_ONE})`, 'g'), '$1-')
+    .replace(new RegExp(`(^|[^0-9._])\\+1(?=${AFTER_ONE})`, 'g'), '$1+')
+    .replace(new RegExp(`(^|[^0-9._])1(?=${AFTER_ONE})`, 'g'), '$1');
 }
 
 /**
