@@ -4,9 +4,11 @@
 // Apex Suite: Math Lab - KaTeXText（インライン数式表示）
 // ==========================================
 // 文中の `$...$` 区間だけを数式としてインライン表示する。
-// 内部は SafeKaTeX に委譲し、破損LaTeXを修復してから描画する。
+// `$` の外側に剥き出しの `\text{}` / `\mathrm{}` / `\frac{}{}` があれば
+// wrapBareLatexOutsideMath で自動的に `$...$` へ包んでから描画する。
 
 import SafeKaTeX from '@/components/ui/SafeKaTeX';
+import { wrapBareLatexOutsideMath } from '@/lib/utils/sanitizeLatex';
 
 interface KaTeXTextProps {
   text: string;
@@ -14,5 +16,5 @@ interface KaTeXTextProps {
 }
 
 export default function KaTeXText({ text, className }: KaTeXTextProps) {
-  return <SafeKaTeX latex={text} className={className} />;
+  return <SafeKaTeX latex={wrapBareLatexOutsideMath(text ?? '')} className={className} />;
 }

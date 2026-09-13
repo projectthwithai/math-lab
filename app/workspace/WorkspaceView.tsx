@@ -6,11 +6,12 @@
 // [左] 問題文・難易度バッジ・タイマー・「数字を変えて再生成」ボタン
 // [右] タブ切り替え（手書きメモ / 解答入力・テンキー / 3段階ヒント / Apexガイド壁打ち）
 // 「解答を送信する」で採点結果モーダル(ScoreResultModal)を表示する。
+// 提出後は「解説を見る」で同モーダルを再表示でき、「次の問題へ」で出題を進める。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator } from 'lucide-react';
+import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator, BookOpen } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -99,6 +100,8 @@ export default function WorkspaceView({
   const [isVisualOpen, setIsVisualOpen] = useState(false);
   /** 同一問題への再送信による二重XPを防ぐ。モーダルを閉じても解除しない */
   const [isSubmitted, setIsSubmitted] = useState(false);
+  /** 採点モーダル。「閉じる」後も submission を残し、解説を見る で再表示する */
+  const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const isSubmittedRef = useRef(false);
   const fetchingRef = useRef(false);
@@ -139,6 +142,7 @@ export default function WorkspaceView({
     setIsSolved(false);
     setIsVisualOpen(false);
     setIsSubmitted(false);
+    setIsScoreModalOpen(false);
     isSubmittedRef.current = false;
   }, []);
 
@@ -240,6 +244,7 @@ export default function WorkspaceView({
       patternId: problem.patternId ?? patternId,
     });
     setSubmission({ isCorrect, xpResult });
+    setIsScoreModalOpen(true);
     setIsSolved(true);
     // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
     addSolvedProblemRecord(problem, isCorrect);
@@ -250,9 +255,15 @@ export default function WorkspaceView({
 
   const handleNextProblem = () => {
     if (fetchingRef.current || isLoading) return;
+    setIsScoreModalOpen(false);
     setSubmission(null);
     void fetchProblem();
     router.refresh();
+  };
+
+  const handleReopenExplanation = () => {
+    if (!submission) return;
+    setIsScoreModalOpen(true);
   };
 
   const formattedTime = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(
@@ -482,14 +493,24 @@ export default function WorkspaceView({
         </div>
 
         {isSubmitted ? (
-          <button
-            type="button"
-            onClick={handleNextProblem}
-            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-cyan-400/50 bg-cyan-400/10 py-3 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
-          >
-            <ArrowRight className="h-4 w-4" />
-            ➡️ 次の問題へ
-          </button>
+          <div className="mt-auto flex gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleReopenExplanation}
+              className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-400/10 px-2 py-3 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
+            >
+              <BookOpen className="h-4 w-4 shrink-0" />
+              解説を見る
+            </button>
+            <button
+              type="button"
+              onClick={handleNextProblem}
+              className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-2 py-3 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
+            >
+              <ArrowRight className="h-4 w-4 shrink-0" />
+              次の問題へ
+            </button>
+          </div>
         ) : (
           <button
             type="button"
@@ -532,12 +553,12 @@ export default function WorkspaceView({
         </div>
       )}
 
-      {submission && (
+      {submission && isScoreModalOpen && (
         <ScoreResultModal
           problem={problem}
           isCorrect={submission.isCorrect}
           xpResult={submission.xpResult}
-          onClose={() => setSubmission(null)}
+          onClose={() => setIsScoreModalOpen(false)}
           onNextProblem={handleNextProblem}
         />
       )}

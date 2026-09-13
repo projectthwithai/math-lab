@@ -322,8 +322,183 @@ function restoreMissingBackslashes(math: string): string {
   return math.replace(MISSING_COMMAND_RE, '\\$1');
 }
 
+/**
+ * `\text{[m/s^2]}` のように単位として書かれた `\text{}` を `\mathrm{}` へ直す。
+ * `\text` 内の `^` は KaTeX でエラーになり生コードが露出するため。
+ */
+function rewriteTextUnitsToMathrm(math: string): string {
+  return math.replace(/\\text\{([^{}]*)\}/g, (full, body: string) => {
+    const looksLikeUnit =
+      /[\^_]/.test(body) ||
+      /\//.test(body) ||
+      /^\s*\[[^\]]+\]\s*$/.test(body);
+    if (!looksLikeUnit) return full;
+    return `\\mathrm{${body}}`;
+  });
+}
+
 function sanitizeMathSegment(math: string): string {
-  return restoreMissingBackslashes(restoreDroppedDCommands(restoreControlEscapes(math)));
+  return restoreMissingBackslashes(
+    rewriteTextUnitsToMathrm(restoreDroppedDCommands(restoreControlEscapes(math)))
+  );
+}
+
+/** `$` で包む対象。単位・分数・化学式が問題文の生テキストとして漏れないようにする */
+const WRAP_BRACE_COMMANDS = new Set([
+  'text',
+  'mathrm',
+  'mathbf',
+  'mathit',
+  'mathsf',
+  'mathtt',
+  'mathbb',
+  'mathcal',
+  'mathfrak',
+  'textrm',
+  'textbf',
+  'textit',
+  'mbox',
+  'frac',
+  'dfrac',
+  'tfrac',
+  'cfrac',
+  'binom',
+  'dbinom',
+  'sqrt',
+  'overline',
+  'underline',
+  'overrightarrow',
+  'overleftarrow',
+  'vec',
+  'hat',
+  'bar',
+  'dot',
+  'ddot',
+  'tilde',
+  'operatorname',
+  'boldsymbol',
+]);
+
+const SKIP_WRAP_COMMANDS = new Set([
+  'begin',
+  'end',
+  'left',
+  'right',
+  'bigl',
+  'bigr',
+  'Bigl',
+  'Bigr',
+  'big',
+  'Big',
+]);
+
+function skipHorizontalSpace(source: string, start: number): number {
+  let index = start;
+  while (index < source.length && /[ \t]/.test(source[index] ?? '')) {
+    index += 1;
+  }
+  return index;
+}
+
+function readBalancedGroup(source: string, start: number, open: '{' | '[', close: '}' | ']'): number {
+  if (source[start] !== open) return start;
+  let depth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '\\') {
+      index += 1;
+      continue;
+    }
+    if (char === open) depth += 1;
+    else if (char === close) {
+      depth -= 1;
+      if (depth === 0) return index + 1;
+    }
+  }
+  return source.length;
+}
+
+function readSupSubSuffix(source: string, start: number): number {
+  let index = start;
+  while (index < source.length && (source[index] === '^' || source[index] === '_')) {
+    index += 1;
+    if (source[index] === '{') {
+      index = readBalancedGroup(source, index, '{', '}');
+      continue;
+    }
+    if (source[index] === '\\') {
+      const command = source.slice(index).match(/^\\[A-Za-z]+/);
+      index += command ? command[0].length : 1;
+      continue;
+    }
+    if (index < source.length) index += 1;
+  }
+  return index;
+}
+
+function readWrapableLatex(source: string, start: number): number {
+  if (source[start] !== '\\') return start;
+  const match = source.slice(start).match(/^\\([A-Za-z]+)/);
+  if (!match) return start;
+  const name = match[1];
+  if (SKIP_WRAP_COMMANDS.has(name)) return start;
+
+  let index = start + match[0].length;
+  index = skipHorizontalSpace(source, index);
+
+  let hadOptionalBrackets = false;
+  if (source[index] === '[') {
+    index = readBalancedGroup(source, index, '[', ']');
+    hadOptionalBrackets = true;
+  }
+
+  let groups = 0;
+  for (;;) {
+    const next = skipHorizontalSpace(source, index);
+    if (source[next] !== '{') break;
+    index = readBalancedGroup(source, next, '{', '}');
+    groups += 1;
+  }
+
+  const shouldWrap = groups > 0 || (WRAP_BRACE_COMMANDS.has(name) && hadOptionalBrackets);
+  if (!shouldWrap) return start;
+
+  return readSupSubSuffix(source, index);
+}
+
+function wrapBareLatexInPlainText(text: string): string {
+  let result = '';
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] === '\\') {
+      const end = readWrapableLatex(text, index);
+      if (end > index) {
+        result += `$${text.slice(index, end)}$`;
+        index = end;
+        continue;
+      }
+    }
+    result += text[index];
+    index += 1;
+  }
+  return result;
+}
+
+/**
+ * `$` の外側にある `\text{}` / `\mathrm{}` / `\frac{}{}` などを `$...$` で包む。
+ * 既に数式区間内にあるコマンドは触らない（再実行しても冪等）。
+ */
+export function wrapBareLatexOutsideMath(source: string): string {
+  if (!source) return source;
+  return source
+    .split(/(\$[^$]*\$)/g)
+    .map((part) => {
+      if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
+        return part;
+      }
+      return wrapBareLatexInPlainText(part);
+    })
+    .join('');
 }
 
 /**
@@ -333,14 +508,15 @@ export function sanitizeLatex(source: string): string {
   if (!source) return source;
   const cleaned = cleanLatexFormula(source);
   const restored = restoreDroppedDCommands(restoreControlEscapes(cleaned));
-  if (!/\$/.test(restored)) {
-    const hasCjk = /[\u3040-\u30ff\u3400-\u9fff]/.test(restored);
-    const looksLikeLatex = /\\[A-Za-z]+|[_^]|[=<>]/.test(restored);
-    if (!hasCjk || looksLikeLatex) return restoreMissingBackslashes(restored);
-    return restored;
+  const wrapped = wrapBareLatexOutsideMath(restored);
+  if (!/\$/.test(wrapped)) {
+    const hasCjk = /[\u3040-\u30ff\u3400-\u9fff]/.test(wrapped);
+    const looksLikeLatex = /\\[A-Za-z]+|[_^]|[=<>]/.test(wrapped);
+    if (!hasCjk || looksLikeLatex) return restoreMissingBackslashes(wrapped);
+    return wrapped;
   }
 
-  return restored
+  return wrapped
     .split(/(\$[^$]*\$)/g)
     .map((part) => {
       if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
@@ -371,6 +547,7 @@ function renderKatexHtml(math: string, displayMode: boolean): string {
 
 /**
  * `$...$` 混在テキスト、または純LaTeXを安全にHTML化する。
+ * `$` の外側の剥き出し単位（`\text{[m/s^2]}` 等）は自動で数式化する。
  * 赤文字の KaTeX エラーは出さない。
  */
 export function sanitizeAndRenderLatex(text: string, displayMode: boolean): string {

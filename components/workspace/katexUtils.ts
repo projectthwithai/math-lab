@@ -5,4 +5,8 @@
 // それ以外はプレーンテキストとして安全にエスケープするユーティリティ。
 // 描画前に SafeKaTeX と同じサニタイズを通し、赤文字エラーを出さない。
 
-export { sanitizeAndRenderLatex as renderMixedMathToHtml, sanitizeLatex } from '@/lib/utils/sanitizeLatex';
+export {
+  sanitizeAndRenderLatex as renderMixedMathToHtml,
+  sanitizeLatex,
+  wrapBareLatexOutsideMath,
+} from '@/lib/utils/sanitizeLatex';

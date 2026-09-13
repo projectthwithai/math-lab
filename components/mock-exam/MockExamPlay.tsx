@@ -371,7 +371,7 @@ export default function MockExamPlay() {
             onClick={goNext}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
           >
-            ➡️ 次の問題へ
+            次の問題へ
             <ChevronRight className="h-4 w-4" />
           </button>
         )}

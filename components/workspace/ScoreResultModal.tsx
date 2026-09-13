@@ -317,7 +317,7 @@ export default function ScoreResultModal({
             }}
             className="flex-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 py-2.5 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
           >
-            ➡️ 次の問題へ
+            次の問題へ
           </button>
         </div>
       </motion.div>
