@@ -310,7 +310,7 @@ export default function ScratchpadCanvas({
                   : correction.overall === 'empty'
                     ? '途中式が不足しています'
                     : '直すべき行があります'}
-                {correction.source === 'local' ? ' · ローカル添削' : ''}
+                {correction.source === 'local' ? ' · 通信エラー時の予備添削' : ' · Gemini Vision'}
               </p>
 
               <ul className="mt-4 flex flex-col gap-2">

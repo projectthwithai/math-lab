@@ -12,9 +12,11 @@ import type { ImageAnalysisResult, ImageLogicSummary, SolutionPattern, Subject }
 import { analyzeImageMock } from '@/lib/mock/analyzeImageMock';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
-import { completeLlmJson } from '@/lib/llm/completeJson';
+import { completeGeminiJson } from '@/lib/llm/completeJson';
 
 const MAX_IMAGE_CHARS = 6_000_000;
+
+export const maxDuration = 45;
 
 interface ParsedImage {
   base64: string;
@@ -114,26 +116,27 @@ function sanitizeOriginalCopy(result: ImageAnalysisResult): ImageAnalysisResult 
 
 async function analyzeViaVision(image: ParsedImage): Promise<ImageAnalysisResult | null> {
   const systemPrompt =
-    'あなたは高校の数学・物理・化学の「解法構造」だけを抽出する教師です。' +
-    '著作権遵守が最優先。画像内の問題文・文章・固有の設定・数値・図表の文言を' +
-    '書き写す・引用する・言い換えて再現することは禁止。' +
-    '抽出してよいのは抽象的なロジックだけ（単元、手法名、条件の種類）。' +
+    'あなたは高校の数学・物理・化学の問題写真を Vision で解析する作問者です。' +
+    '写真から単元・解法ロジック・条件の種類を読み取る。' +
+    '著作権遵守: 画像内の原問テキスト・固有設定・数値を書き写して再現してはならない。' +
     '出力はJSONのみ。キーは logic, variantProblem, pattern。' +
-    'extractedText / originalProblem / 原問の全文は絶対に出力しない。' +
-    'logic は { subject, unit, techniques[] }。techniques は「平方完成」「内積=0」など一般名詞のみ。' +
-    'variantProblem は完全オリジナルの新規創作問題。物語・数値・記号・設問文を画像と一致させない。' +
+    'logic は { subject, unit, techniques[] }。techniques は一般的な手法名のみ。' +
+    'variantProblem は完全オリジナルの類題。数値・物語・記号を写真と一致させない。' +
+    'questionText / templateText / hints / keyFormula / commonMistakes / explanation.stepByStep には $...$ の LaTeX を含める。' +
     'variantProblem は title, unit, subject, difficulty, format, questionText, templateText, ' +
     'variables, calcLogicJS, hints, keyFormula, commonMistakes を持つ。' +
-    'pattern はオリジナルの patternName と strategyText と exampleQuestion（新規問題の要約）を持つ。' +
-    '数式は Unicode（θ, π, ², √）と $...$ のみ。calcLogicJS は vars を受け取り ' +
-    '{ vars, correctAnswer, explanationSteps } を返す関数本体。';
+    'calcLogicJS は vars を受け取り { vars, correctAnswer, explanationSteps } を返す関数本体。' +
+    'pattern は動的に新規生成する patternName, strategyText, exampleQuestion（類題の要約、LaTeX可）。';
 
   try {
-    const parsedRaw = await completeLlmJson({
+    const parsedRaw = await completeGeminiJson({
       systemPrompt,
       userPrompt:
-        '画像から解法構造だけを抽出し、原問は書き写さず、完全オリジナルの類題とパターンをJSONで返してください。',
+        '写真をVisionで解析し、単元と解法ロジックを抽出したうえで、完全オリジナルの類題（LaTeX付き）と新規パターンカードをJSONで返してください。原問は書き写さない。',
       image: { mimeType: image.mimeType, base64: image.base64 },
+      temperature: 0.45,
+      timeoutMs: 25000,
+      maxGeminiAttempts: 3,
     });
     if (!parsedRaw || typeof parsedRaw !== 'object') return null;
     const parsed = parsedRaw as Record<string, unknown>;

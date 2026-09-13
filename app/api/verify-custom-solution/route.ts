@@ -1,12 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Custom Solution Verify API
 // ==========================================
-// 自分流の解法メモ / パターン方針が
-// - 数学的に正しいか
-// - 類似問題全体に汎用できるか
-// - 反例・落ちやすい罠はないか
-// を検証する。
-// .cursorrules: Gemini 1.5 Flash 優先、未設定・失敗時はローカル検証。
+// 自分流の解法メモを Gemini が熟読し、類似問題への汎用性と罠を判定する。
+// GEMINI_API_KEY 最優先。未設定・タイムアウト時のみローカル検証。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -15,12 +11,14 @@ import type {
   CustomSolutionVerifyStatus,
 } from '@/types/mathLab';
 import { verifyCustomSolutionMock } from '@/lib/mock/verifyCustomSolution';
-import { completeLlmJson } from '@/lib/llm/completeJson';
+import { completeGeminiJson } from '@/lib/llm/completeJson';
 
 interface VerifyRequestBody {
   customText?: unknown;
   context?: unknown;
 }
+
+export const maxDuration = 30;
 
 const STATUSES: CustomSolutionVerifyStatus[] = ['perfect', 'warning', 'invalid'];
 
@@ -81,15 +79,15 @@ async function verifyViaLlm(
   context: CustomSolutionVerifyContext
 ): Promise<CustomSolutionVerifyResult | null> {
   const systemPrompt =
-    'あなたは高校生に寄り添う数学・物理・化学の解法コーチです。' +
-    'ユーザーが書いた自分流の解法メモ（またはパターン方針）を検証し、JSONのみで返す。' +
-    '余計な文章は書かない。キーは status, feedback, edgeCaseNote。' +
-    'status は perfect / warning / invalid のいずれか。' +
-    'perfect: 数学的に正しく、数字を変えた類似問題にもそのまま適用できる。' +
-    'warning: 大筋は良いが条件漏れ・適用範囲の限定不足・落ちやすい罠がある。' +
+    'あなたは高校の数学・物理・化学の解法を厳格に審査する教師です。' +
+    'ユーザーが書いた解法メモを熟読し、単語マッチではなく論理で判定する。' +
+    '出力はJSONのみ。キーは status, feedback, edgeCaseNote。' +
+    'status は perfect / warning / invalid。' +
+    'perfect: その解き方が数字を変えた全類似問題に通用し、除外点・場合分けの漏れがない。' +
+    'warning: 大筋は正しいが、落ちやすい罠（除外点、定義域、符号、端点、適用条件）がある。' +
     'invalid: 誤り、過一般化、または論理の飛躍がある。' +
     'feedback は親身で具体的な日本語（2〜4文）。edgeCaseNote は反例や罠を1文。' +
-    '数式は Unicode または $...$ で書いてよい。褒めつつ、直すべき点をはっきり伝える。';
+    '数式は $...$ の LaTeX で書いてよい。';
 
   const userPrompt = JSON.stringify({
     customText,
@@ -102,7 +100,13 @@ async function verifyViaLlm(
   });
 
   try {
-    const parsed = await completeLlmJson({ systemPrompt, userPrompt });
+    const parsed = await completeGeminiJson({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.25,
+      timeoutMs: 18000,
+      maxGeminiAttempts: 3,
+    });
     if (!isVerifyResult(parsed)) return null;
 
     return {

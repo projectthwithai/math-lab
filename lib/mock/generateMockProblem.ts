@@ -187,79 +187,73 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
 
     case 'data_analysis': {
       return {
-        title: 'データの分散',
+        title: '変量変換の分散',
         unit: 'データの分析',
         subject: 'math',
         format: 'input',
         variables: {
-          x1: { min: 1, max: 10, step: 1 },
-          x2: { min: 1, max: 10, step: 1 },
-          x3: { min: 1, max: 10, step: 1 },
-          x4: { min: 1, max: 10, step: 1 },
+          a: { min: 2, max: 5, step: 1 },
+          v: { min: 3, max: 12, step: 1 },
+          b: { min: -4, max: 6, step: 1 },
         },
         templateText:
-          '4つのデータ {{x1}}, {{x2}}, {{x3}}, {{x4}} の分散を求めよ（小数第2位まで）。',
+          '変量 x の分散が {{v}} である。y = {{a}}x + {{b}} とするとき、変量 y の分散を求めよ。',
         calcLogicJS: `
-          const values = [vars.x1, vars.x2, vars.x3, vars.x4];
-          const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-          const meanOfSquares = values.reduce((sum, v) => sum + v * v, 0) / values.length;
-          const variance = Math.round((meanOfSquares - mean * mean) * 100) / 100;
+          const a = vars.a, v = vars.v, b = vars.b;
+          const answer = a * a * v;
           return {
-            vars: { x1: values[0], x2: values[1], x3: values[2], x4: values[3] },
-            correctAnswer: variance,
+            vars: { a, v, b },
+            correctAnswer: answer,
             explanationSteps: [
-              '平均値を求める: 平均 = (' + values.join('+') + ') / 4 = ' + (Math.round(mean*100)/100) + '。',
-              '(2乗の平均) - (平均の2乗) の公式で分散を計算する。',
-              '分散 = ' + (Math.round(meanOfSquares*100)/100) + ' - ' + (Math.round(mean*mean*100)/100) + ' = ' + variance + '。',
+              '定数項 b は偏差を変えない。係数 a は偏差を a 倍する。',
+              '分散は偏差の2乗平均なので a² 倍になる。',
+              'V(y) = (' + a + ')² × ' + v + ' = ' + answer + '。',
             ],
           };
         `,
         hints: [
-          'まず平均値を求める。',
-          '分散は「(各データの2乗の平均) - (平均の2乗)」で計算できる。',
-          '偏差(各データ-平均)を先に2乗してから平均する方法でも同じ結果になる。',
+          '分散の定義 V = (偏差の2乗の平均) に戻る。',
+          'y = ax+b では偏差が a 倍。',
+          '答えは a² V(x)。b は不要。',
         ],
-        keyFormula: '分散 V = (x²の平均) - (xの平均)²',
-        commonMistakes: '平均の2乗と2乗の平均を混同してしまうミスが多い。',
+        keyFormula: 'V(ax+b) = a² V(x)',
+        commonMistakes: 'a 倍だけして a² を忘れる。b を分散に足す。',
       };
     }
 
     case 'numbers': {
-      const range = difficultySpan(difficulty, -6, 6);
       return {
-        title: '展開と定数項',
+        title: '対称式と整数条件',
         unit: '数と式',
         subject: 'math',
         format: 'input',
         variables: {
-          a: { min: range.min, max: range.max, step: 1 },
-          b: { min: range.min, max: range.max, step: 1 },
+          s: { min: 4, max: 9, step: 1 },
+          p: { min: 3, max: 12, step: 1 },
         },
         templateText:
-          '(x{{aTerm}})(x{{bTerm}}) を展開したときの定数項を求めよ。',
+          '実数 x, y が x + y = {{s}}, xy = {{p}} を満たす。x³ + y³ の値を求めよ。',
         calcLogicJS: `
-          const a = vars.a === 0 ? 1 : vars.a, b = vars.b === 0 ? -1 : vars.b;
-          function term(v) { return v >= 0 ? ('+' + v) : String(v); }
-          const aTerm = term(a), bTerm = term(b);
-          const constantTerm = a * b;
-          const middleTerm = a + b;
+          const s = vars.s, p = vars.p;
+          const answer = s * s * s - 3 * s * p;
+          const D = s * s - 4 * p;
           return {
-            vars: { aTerm, bTerm },
-            correctAnswer: constantTerm,
+            vars: { s, p },
+            correctAnswer: answer,
             explanationSteps: [
-              '(x+a)(x+b) = x^2 + (a+b)x + ab の公式を使う。',
-              '定数項は a×b = (' + a + ')×(' + b + ') = ' + constantTerm + '。',
-              '参考: xの係数（a+b）は ' + middleTerm + '。',
+              'x³+y³ = (x+y)(x²-xy+y²) = (x+y)((x+y)²-3xy)。',
+              '代入して (' + s + ')((' + s + ')² - 3·' + p + ') = ' + answer + '。',
+              '参考: x,y が実数である条件は判別式 D=(x+y)²-4xy=' + D + (D >= 0 ? ' ≥ 0 で実数解あり。' : ' < 0 で実数解なしだが、対称式の値自体は定義できる。'),
             ],
           };
         `,
         hints: [
-          '(x+a)(x+b)を展開すると x^2+(a+b)x+ab になる公式を使おう。',
-          '定数項はaとbを掛けた値になる。',
-          '符号（負の数どうしの積は正になる等）に注意する。',
+          'x³+y³ を x+y と xy の対称式に直す。',
+          'x²+y² = (x+y)²-2xy も途中で使う。',
+          '公式 x³+y³=(x+y)³-3xy(x+y)。',
         ],
-        keyFormula: '(x+a)(x+b) = x^2 + (a+b)x + ab',
-        commonMistakes: '負の数同士の掛け算の符号を誤るミスが多い。',
+        keyFormula: 'x³ + y³ = (x+y)³ - 3xy(x+y)',
+        commonMistakes: '(x+y)³ だけを答えて -3xy(x+y) を落とす。',
       };
     }
 
@@ -267,45 +261,41 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
     // 数A
     // ============================================================
     case 'combinatorics': {
-      const nRange = difficultySpan(difficulty, 5, 10);
       return {
-        title: '組合せの数 nCr',
+        title: '条件付き確率',
         unit: '場合の数と確率',
         subject: 'math',
         format: 'input',
         variables: {
-          n: { min: Math.max(4, nRange.min), max: Math.max(6, nRange.max), step: 1 },
-          r: { min: 2, max: 4, step: 1 },
+          k: { min: 4, max: 6, step: 1 },
         },
         templateText:
-          '{{n}}人の中から{{r}}人を選ぶ組合せの数 {{n}}C{{r}} を求めよ。',
+          '2個のさいころを同時に投げる。出目の和が偶数であるとき、少なくとも一方が {{k}} である条件付き確率を小数第2位まで求めよ。',
         calcLogicJS: `
-          const n = vars.n, r = Math.min(vars.r, n - 1);
-          function combination(n, r) {
-            let result = 1;
-            for (let i = 0; i < r; i++) {
-              result = result * (n - i) / (i + 1);
-            }
-            return Math.round(result);
+          const k = vars.k;
+          let even = 0, both = 0;
+          for (let i = 1; i <= 6; i++) for (let j = 1; j <= 6; j++) {
+            if ((i + j) % 2 !== 0) continue;
+            even += 1;
+            if (i === k || j === k) both += 1;
           }
-          const answer = combination(n, r);
+          const answer = Math.round((both / even) * 100) / 100;
           return {
-            vars: { n, r },
+            vars: { k },
             correctAnswer: answer,
             explanationSteps: [
-              'nCr = n! / (r!(n-r)!) の公式を使う。',
-              n + 'C' + r + ' = (' + n + '×(' + n + '-1)×...) / ' + r + '! を計算する。',
-              '計算結果は ' + answer + ' 通り。',
+              '偶数和が ' + even + ' 通り。うち少なくとも一方が ' + k + ' は ' + both + ' 通り。',
+              '条件付き確率 $P(A\\\\mid B)=' + answer + '$。',
             ],
           };
         `,
         hints: [
-          '「選ぶだけ（順序を区別しない）」なので組合せnCrを使う。',
-          'nCr = n! / (r!(n-r)!) の公式に当てはめる。',
-          '分子はnから始めてr個の連続する数の積、分母はr!。',
+          '分母は「和が偶数」。',
+          '偶奇が同じ組が偶数和。',
+          '$P(A\\mid B)=n(A\\cap B)/n(B)$。',
         ],
-        keyFormula: 'nCr = n! / (r!(n-r)!)',
-        commonMistakes: '順列nPrと組合せnCrを混同してしまうミスが最も多い。',
+        keyFormula: '$P(A\\mid B)=\\dfrac{P(A\\cap B)}{P(B)}$',
+        commonMistakes: '全36通りで割ってしまう。',
       };
     }
 
@@ -1500,12 +1490,15 @@ export interface GenerateMockProblemParams {
   unitId?: string;
   patternId?: string;
   difficulty?: number;
+  /** 模試フォールバック: 基礎ドリル用 extra を混ぜず、単元の本問テンプレートのみ */
+  examQuality?: boolean;
 }
 
 export function generateMockProblem({
   unitId,
   patternId,
   difficulty,
+  examQuality,
 }: GenerateMockProblemParams): GeneratedProblem {
   let resolvedUnitId = unitId;
   let resolvedDifficulty = difficulty;
@@ -1529,11 +1522,11 @@ export function generateMockProblem({
   const primary = buildBlueprint(patternKey, finalDifficulty, unitTitle);
   // ★8-10 では基本計算の extra バリアントを混ぜず、難関テンプレートだけを出す。
   const extras =
-    getDifficultyTier(finalDifficulty) === 'hard'
+    examQuality || getDifficultyTier(finalDifficulty) === 'hard'
       ? []
       : getExtraBlueprints(resolvedUnitId, finalDifficulty, unitTitle);
   // 図鑑から patternId 指定時は主テンプレートを維持。単元指定のみのときは複数パターンから抽選。
-  const pool = patternId ? [primary] : [primary, ...extras];
+  const pool = patternId || examQuality ? [primary] : [primary, ...extras];
   const seed = createVariantSeed();
   const blueprint = pickBlueprint(pool, seed);
 

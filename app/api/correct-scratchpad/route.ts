@@ -1,9 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Scratchpad Red-Pen API
 // ==========================================
-// 手書きキャンバス画像（base64）を Vision で解析し、
-// 「◯行目の展開で符号ミス」「条件の見落とし」型の赤ペン指導を返す。
-// .cursorrules: Gemini 1.5 Flash 優先。未設定・失敗時はローカル mock。
+// 手書きキャンバス画像（base64）を Gemini 1.5 Flash Vision で OCR・赤ペン添削する。
+// GEMINI_API_KEY 最優先。未設定・タイムアウト時のみローカル mock。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -13,7 +12,7 @@ import type {
   ScratchpadCorrectionResult,
 } from '@/types/mathLab';
 import { correctScratchpadMock } from '@/lib/mock/correctScratchpadMock';
-import { completeLlmJson } from '@/lib/llm/completeJson';
+import { completeGeminiJson } from '@/lib/llm/completeJson';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 const OVERALLS: ScratchpadCorrectionOverall[] = ['good', 'needs_fix', 'empty'];
@@ -109,23 +108,26 @@ function isCorrectionResult(value: unknown): value is ScratchpadCorrectionResult
   );
 }
 
+export const maxDuration = 45;
+
 async function correctViaVision(
   image: ParsedImage,
   context: CorrectionContext
 ): Promise<ScratchpadCorrectionResult | null> {
   const systemPrompt =
-    'あなたは高校生の途中式を赤ペンで添削する数学教師です。' +
+    'あなたは高校生の手書き途中式を赤ペンで添削する数学・物理・化学の教師です。' +
+    '画像をOCRし、書かれている文字・数式・計算ステップを実際に読み取る。読めない部分は断定しない。' +
     '出力はJSONのみ。キーは overall, summary, comments。' +
     'overall は good / needs_fix / empty。' +
     'comments は { line?, severity, text } の配列。severity は error / warning / ok。' +
-    'text は必ず「◯行目の展開で符号ミスがあります」「〜の条件を見落としています」のように、' +
-    '行番号または具体的な式変形を指して赤ペン指導する日本語（1〜2文）。' +
-    '正解そのものを先に教えず、どこが論理的に危ういかを指摘する。' +
-    '文字が読めない行は推測で断定せず、warning で書き方の助言にする。' +
-    '空欄・ほぼ白紙なら overall=empty。数式は Unicode または $...$ で書いてよい。';
+    'text は必ずピンポイントな赤ペン指導にする。例:' +
+    '「2行目の計算で符号が逆です」「余弦定理への辺の代入ミスです」' +
+    '「考え方は完璧です。計算を最後まで進めましょう」。' +
+    '正解の最終値を先に教えず、どこが論理的・計算的に危ういかを具体的に指す。' +
+    '空欄・ほぼ白紙なら overall=empty。数式は $...$ の LaTeX で書いてよい。';
 
   const userText = JSON.stringify({
-    task: '手書き途中式を赤ペン添削してください',
+    task: '手書き画像をOCRしたうえで赤ペン添削してください。行番号が読み取れるなら line を付ける。',
     problem: {
       title: context.title ?? '',
       unit: context.unit ?? '',
@@ -142,10 +144,13 @@ async function correctViaVision(
   });
 
   try {
-    const parsed = await completeLlmJson({
+    const parsed = await completeGeminiJson({
       systemPrompt,
       userPrompt: userText,
       image: { mimeType: image.mimeType, base64: image.base64 },
+      temperature: 0.2,
+      timeoutMs: 22000,
+      maxGeminiAttempts: 3,
     });
     if (!isCorrectionResult(parsed)) return null;
 

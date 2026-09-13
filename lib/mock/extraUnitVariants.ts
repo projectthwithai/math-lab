@@ -38,30 +38,55 @@ const EXTRA_BY_UNIT: Record<string, ExtraFactory> = {
     const r = difficultySpan(d, 2, 8);
     return [
       mathInput(
-        '絶対値方程式 |x-a| = b',
+        '絶対値の和の不等式の整数解',
         unit,
-        '方程式 |x - {{a}}| = {{b}} の解のうち、大きい方を求めよ。',
-        { a: { min: r.min, max: r.max, step: 1 }, b: { min: 1, max: 6, step: 1 } },
-        `const a = vars.a, b = Math.abs(vars.b);
-         return { vars: { a, b }, correctAnswer: a + b,
-           explanationSteps: ['|x-a|=b ⇔ x=a+b または x=a-b。', '大きい方は a+b = '+(a+b)+'。'] };`,
-        ['絶対値の定義で場合分けする。', '中身が正のときと負のときを両方書く。', '大きい方の解を答える。'],
-        '|x-a| = b ⇔ x = a±b',
-        '絶対値を外すとき符号を片方だけにするミス。'
+        '不等式 |x - {{a}}| + |x - {{c}}| ≤ {{b}} を満たす整数 x の個数を求めよ。',
+        {
+          a: { min: Math.max(1, r.min), max: Math.max(3, r.max), step: 1 },
+          c: { min: 6, max: 10, step: 1 },
+          b: { min: 6, max: 12, step: 1 },
+        },
+        `const a = vars.a, c = vars.c, b = vars.b;
+         const lo = Math.min(a, c) - b;
+         const hi = Math.max(a, c) + b;
+         let count = 0;
+         for (let x = lo; x <= hi; x++) {
+           if (Math.abs(x - a) + Math.abs(x - c) <= b) count += 1;
+         }
+         return { vars: { a, c, b }, correctAnswer: count,
+           explanationSteps: [
+             '|x-p|+|x-q| は区間 [min(p,q), max(p,q)] 上で定数 |p-q|、外側では傾き ±2。',
+             '|a-c|=' + Math.abs(a - c) + '。b=' + b + ' と比較して整数を数える。',
+             '個数は ' + count + '。',
+           ] };`,
+        ['2つの絶対値の和は、2点の間で定数。', 'b が2点間距離以上でないと解なし。', '外側は1次不等式。'],
+        '|x-p|+|x-q| ≥ |p-q|（三角不等式）',
+        '区間の内側だけ見て外側の整数を落とす。'
       ),
       mathInput(
-        '1次不等式の解',
+        '文字定数を含む1次不等式の整数解の個数',
         unit,
-        '不等式 {{a}}x + {{b}} > {{c}} を満たす整数 x のうち最小のものを求めよ。',
-        { a: { min: 2, max: 5, step: 1 }, b: { min: -4, max: 4, step: 1 }, c: { min: 1, max: 10, step: 1 } },
-        `const a = vars.a, b = vars.b, c = vars.c;
-         const bound = (c - b) / a;
-         const answer = Math.floor(bound) + 1;
-         return { vars: { a, b, c }, correctAnswer: answer,
-           explanationSteps: ['ax+b>c より x>(c-b)/a = '+bound+'。', '最小の整数は '+answer+'。'] };`,
-        ['まず x について始める。', '不等号の向きに注意（今回 a>0）。', '境界を含まないので次の整数。'],
-        'ax+b > c ⇔ x > (c-b)/a  (a>0)',
-        '等号の有無と切り上げ・切り捨てを混同する。'
+        '不等式 {{a}} < {{p}}x + {{q}} ≤ {{b}} を満たす整数 x の個数を求めよ（係数 {{p}}>0）。',
+        {
+          a: { min: -2, max: 3, step: 1 },
+          b: { min: 8, max: 14, step: 1 },
+          p: { min: 2, max: 4, step: 1 },
+          q: { min: -3, max: 3, step: 1 },
+        },
+        `const a = vars.a, b = vars.b, p = vars.p, q = vars.q;
+         const lo = (a - q) / p;
+         const hi = (b - q) / p;
+         const start = Math.floor(lo) + 1;
+         const end = Math.floor(hi);
+         const answer = Math.max(0, end - start + 1);
+         return { vars: { a, b, p, q }, correctAnswer: answer,
+           explanationSteps: [
+             a + ' < ' + p + 'x + ' + q + ' ≤ ' + b + ' より ' + lo + ' < x ≤ ' + hi + '。',
+             '整数は ' + start + ' から ' + end + '。個数 ' + answer + '。',
+           ] };`,
+        ['定数項を移項してから係数で割る。', '左は等号なし、右は等号あり。', '端の整数の入り方に注意。'],
+        'a < px+q ≤ b  (p>0)  ⇔  (a-q)/p < x ≤ (b-q)/p',
+        '不等号の開閉を揃えて個数を1つずらす。'
       ),
     ];
   },
@@ -133,63 +158,67 @@ const EXTRA_BY_UNIT: Record<string, ExtraFactory> = {
     const r = difficultySpan(d, 2, 12);
     return [
       mathInput(
-        '平均値',
+        '変量変換後の平均',
         unit,
-        'データ {{a}}, {{b}}, {{c}}, {{d}} の平均値を求めよ。',
-        { a: { min: r.min, max: r.max, step: 1 }, b: { min: r.min, max: r.max, step: 1 }, c: { min: r.min, max: r.max, step: 1 }, d: { min: r.min, max: r.max, step: 1 } },
-        `const vals = [vars.a, vars.b, vars.c, vars.d];
-         const mean = vals.reduce((s,v)=>s+v,0) / 4;
-         return { vars: { a: vars.a, b: vars.b, c: vars.c, d: vars.d }, correctAnswer: Math.round(mean*100)/100,
-           explanationSteps: ['合計 '+vals.reduce((s,v)=>s+v,0)+' を 4 で割る。', '平均は '+mean+'。'] };`,
-        ['平均は合計÷個数。', '4個のデータを足す。', '必要なら小数第2位まで。'],
-        '平均 = (x1+…+xn)/n',
-        '合計を n-1 で割ってしまう。'
+        '変量 x の平均が {{m}} のとき、y = {{a}}x + {{b}} の平均を求めよ。',
+        { m: { min: r.min, max: r.max, step: 1 }, a: { min: 2, max: 5, step: 1 }, b: { min: -4, max: 8, step: 1 } },
+        `const m = vars.m, a = vars.a, b = vars.b;
+         const answer = a * m + b;
+         return { vars: { m, a, b }, correctAnswer: answer,
+           explanationSteps: ['平均は線形。ȳ = a m + b = ' + answer + '。'] };`,
+        ['平均は1次変換で同じ変換を受ける。', '分散の公式と混同しない。', 'ȳ = a x̄ + b。'],
+        'ȳ = a x̄ + b',
+        '分散の a² 倍を平均に使ってしまう。'
       ),
       mathInput(
-        '分散',
+        '外れ値を除いたあとの平均',
         unit,
-        'データ {{a}}, {{b}}, {{c}} の分散（標本ではなくデータの散らばり: 平均からの偏差平方の平均）を求めよ。',
-        { a: { min: 1, max: 6, step: 1 }, b: { min: 2, max: 8, step: 1 }, c: { min: 3, max: 10, step: 1 } },
-        `const xs = [vars.a, vars.b, vars.c];
-         const mean = xs.reduce((s,v)=>s+v,0)/3;
-         const variance = xs.reduce((s,v)=>s+(v-mean)**2,0)/3;
-         return { vars: { a: vars.a, b: vars.b, c: vars.c }, correctAnswer: Math.round(variance*100)/100,
-           explanationSteps: ['平均 = '+mean+'。', '偏差平方の平均（分散）= '+variance+'。'] };`,
-        ['まず平均を出す。', '各偏差を2乗して平均する。', '今回は /n（母分散型）。'],
-        's² = Σ(xi-x̄)² / n',
-        '/(n-1) と /n を取り違える。'
+        'n={{n}} 個の平均が {{m}} のデータから、値 {{x}} を1つ除いたときの新しい平均を小数第2位まで求めよ。',
+        { n: { min: 5, max: 9, step: 1 }, m: { min: 8, max: 16, step: 1 }, x: { min: 1, max: 6, step: 1 } },
+        `const n = vars.n, m = vars.m, x = vars.x;
+         const answer = Math.round(((n * m - x) / (n - 1)) * 100) / 100;
+         return { vars: { n, m, x }, correctAnswer: answer,
+           explanationSteps: [
+             '合計は n m = ' + (n * m) + '。',
+             '1つ除くと合計 ' + (n * m - x) + '、個数 ' + (n - 1) + '。',
+             '新しい平均は ' + answer + '。',
+           ] };`,
+        ['元の合計 = n × 平均。', '外れ値を引いて (n-1) で割る。', '小数第2位まで。'],
+        '新しい平均 = (n m - x) / (n-1)',
+        'n のまま割る、または外れ値を足してしまう。'
       ),
     ];
   },
 
   'math-1a-combinatorics-probability': (_d, unit) => [
     mathInput(
-      '順列',
+      '条件付き確率の基本',
       unit,
-      '{{n}} 人から {{r}} 人を並べる順列の総数を求めよ。',
-      { n: { min: 5, max: 8, step: 1 }, r: { min: 2, max: 3, step: 1 } },
-      `function fact(k){ let p=1; for(let i=2;i<=k;i++) p*=i; return p; }
-       const n = vars.n, r = Math.min(vars.r, vars.n);
-       const ans = fact(n) / fact(n-r);
-       return { vars: { n, r }, correctAnswer: ans,
-         explanationSteps: ['P(n,r)=n!/(n-r)! = '+ans+'。'] };`,
-      ['順列は P(n,r)=n!/(n-r)!。', '順番が区別される。', '電卓なしでも順に掛けてよい。'],
-      'P(n,r) = n! / (n-r)!',
-      '組合せ C と順列 P を取り違える。'
+      '袋に赤 {{r}} 個、白 {{w}} 個。1個取り出したところ赤だった。残りからさらに1個取るとき再び赤である確率を小数第2位まで求めよ。',
+      { r: { min: 3, max: 7, step: 1 }, w: { min: 2, max: 6, step: 1 } },
+      `const r=vars.r, w=vars.w;
+       const p=Math.round(((r-1)/(r+w-1))*100)/100;
+       return { vars:{r,w}, correctAnswer: p, explanationSteps: [
+         '条件より袋は赤 ' + (r-1) + '、全体 ' + (r+w-1) + '。',
+         '条件付き確率 $' + p + '$。',
+       ]};`,
+      ['赤が出たあとで残りを数える。', '分母は n-1。', '独立試行と混同しない。'],
+      '$P(\\text{2回目赤}\\mid \\text{1回目赤})=\\dfrac{r-1}{r+w-1}$',
+      '復元抽出のまま r/(r+w) と答える。'
     ),
     mathInput(
-      '組合せ',
+      '期待値（得点）',
       unit,
-      '{{n}} 個から {{r}} 個を選ぶ組合せの総数を求めよ。',
-      { n: { min: 6, max: 10, step: 1 }, r: { min: 2, max: 3, step: 1 } },
-      `function fact(k){ let p=1; for(let i=2;i<=k;i++) p*=i; return p; }
-       const n = vars.n, r = Math.min(vars.r, vars.n);
-       const ans = fact(n) / (fact(r)*fact(n-r));
-       return { vars: { n, r }, correctAnswer: ans,
-         explanationSteps: ['C(n,r)=n!/(r!(n-r)!) = '+ans+'。'] };`,
-      ['組合せは順番を区別しない。', 'C(n,r)=n!/(r!(n-r)!)。', '約分して計算する。'],
-      'C(n,r) = n! / (r!(n-r)!)',
-      '分母の r! を忘れる。'
+      '1回の試行で {{a}} 点が出る確率 1/2、0 点が出る確率 1/2。{{n}} 回独立に行った得点合計の期待値を求めよ。',
+      { a: { min: 2, max: 6, step: 1 }, n: { min: 3, max: 8, step: 1 } },
+      `const a=vars.a, n=vars.n;
+       const ans = a * n / 2;
+       return { vars:{a,n}, correctAnswer: ans, explanationSteps: [
+         '1回の期待値は $' + a + '/2$。線形性より $n$ 倍して $' + ans + '$。',
+       ]};`,
+      ['期待値の線形性。', '独立である必要はない。', '分散は問われていない。'],
+      '$E[X_1+\\cdots+X_n]=n E[X_1]$',
+      '分散を n 倍して期待値と混同する。'
     ),
   ],
 

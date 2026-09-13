@@ -16,14 +16,21 @@ export interface CompleteJsonParams {
   systemPrompt: string;
   userPrompt: string;
   image?: LlmImagePart;
+  temperature?: number;
+  /** true のとき OpenAI へ落とさず Gemini のみ */
+  geminiOnly?: boolean;
+  /** 1モデルあたりの待ち時間（ms） */
+  timeoutMs?: number;
+  /** 試す Gemini モデル数の上限 */
+  maxGeminiAttempts?: number;
 }
 
 const GEMINI_MODEL_CANDIDATES = [
   'gemini-1.5-flash',
+  'gemini-2.0-flash',
   'gemini-1.5-flash-latest',
   'gemini-flash-latest',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
   'gemini-3.5-flash',
   'gemini-2.5-flash-lite',
 ];
@@ -70,11 +77,27 @@ function geminiHeaders(apiKey: string): HeadersInit {
   };
 }
 
-async function listGeminiFlashModel(apiKey: string): Promise<string | null> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
-      headers: geminiHeaders(apiKey),
-    });
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function listGeminiFlashModel(apiKey: string, timeoutMs: number): Promise<string | null> {
+  try {
+    const response = await fetchWithTimeout(
+      'https://generativelanguage.googleapis.com/v1beta/models',
+      { headers: geminiHeaders(apiKey) },
+      Math.min(8000, timeoutMs)
+    );
     if (!response.ok) return null;
     const data = (await response.json()) as { models?: Array<{ name?: string }> };
     const names = (data.models ?? [])
@@ -100,15 +123,17 @@ async function listGeminiFlashModel(apiKey: string): Promise<string | null> {
 async function requestGeminiModel(
   apiKey: string,
   model: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  timeoutMs: number
 ): Promise<unknown | null> {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: 'POST',
       headers: geminiHeaders(apiKey),
       body: JSON.stringify(body),
-    }
+    },
+    timeoutMs
   );
   if (!response.ok) return null;
   const data = (await response.json()) as {
@@ -125,6 +150,8 @@ async function requestGeminiModel(
 async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | null> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) return null;
+  const timeoutMs = params.timeoutMs ?? 25000;
+  const maxAttempts = params.maxGeminiAttempts ?? GEMINI_MODEL_CANDIDATES.length;
 
   const parts: Array<Record<string, unknown>> = [{ text: params.userPrompt }];
   if (params.image) {
@@ -140,20 +167,20 @@ async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | 
     systemInstruction: { parts: [{ text: params.systemPrompt }] },
     contents: [{ role: 'user', parts }],
     generationConfig: {
-      temperature: 0.4,
+      temperature: params.temperature ?? 0.4,
       responseMimeType: 'application/json',
     },
   };
 
-  const listed = cachedGeminiModel ?? (await listGeminiFlashModel(apiKey));
+  const listed = cachedGeminiModel ?? (await listGeminiFlashModel(apiKey, timeoutMs));
   const models = [
     ...(listed ? [listed] : []),
     ...GEMINI_MODEL_CANDIDATES.filter((model) => model !== listed),
-  ];
+  ].slice(0, Math.max(1, maxAttempts));
 
   for (const model of models) {
     try {
-      const parsed = await requestGeminiModel(apiKey, model, body);
+      const parsed = await requestGeminiModel(apiKey, model, body, timeoutMs);
       if (parsed && typeof parsed === 'object') {
         cachedGeminiModel = model;
         console.info(`[llm] Gemini (${model}) で JSON を生成しました`);
@@ -215,8 +242,19 @@ export async function completeLlmJson(params: CompleteJsonParams): Promise<unkno
   if (!getGeminiApiKey() && !getOpenAiApiKey()) return null;
   const viaGemini = await completeViaGemini(params);
   if (viaGemini !== null) return viaGemini;
+  if (params.geminiOnly) {
+    if (hasGeminiApiKey()) {
+      console.error('[llm] Gemini 呼び出しに失敗したため、ローカル模試フォールバックへ落とします');
+    }
+    return null;
+  }
   if (hasGeminiApiKey()) {
     console.error('[llm] Gemini 呼び出しに失敗したため、次のフォールバックを試します');
   }
   return completeViaOpenAi(params);
+}
+
+/** 模試など Gemini 直通専用。失敗時は null（呼び出し元が高品質ローカル模試へ）。 */
+export async function completeGeminiJson(params: CompleteJsonParams): Promise<unknown | null> {
+  return completeLlmJson({ ...params, geminiOnly: true });
 }

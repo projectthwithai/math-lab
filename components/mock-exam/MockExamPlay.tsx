@@ -16,6 +16,7 @@ import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
 import GeometrySvgPlotter from '@/components/visuals/GeometrySvgPlotter';
 import PhysicsCanvasSim from '@/components/visuals/PhysicsCanvasSim';
 import ChemistryCanvasSim from '@/components/visuals/ChemistryCanvasSim';
+import DynamicLoadingCircle from '@/components/ui/DynamicLoadingCircle';
 import MockReportModal from '@/components/mock-exam/MockReportModal';
 import { resolveMathGraphModel } from '@/lib/engine/mathGraphVisual';
 import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
@@ -48,20 +49,54 @@ export default function MockExamPlay() {
   answersRef.current = answers;
   const scratchpadRef = useRef<ScratchpadCanvasHandle>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     const config = loadMockExamConfig();
     if (!config) {
       router.replace('/mock-exam');
       return;
     }
-    const generated = buildMockExamProblems(config);
+
+    let cancelled = false;
     const timeLimit = config.minutes * 60;
-    setProblems(generated);
-    setAnswers(Array.from({ length: generated.length }, () => ''));
-    setScratchpads(Array.from({ length: generated.length }, () => ''));
-    setRemaining(timeLimit);
-    setLimit(timeLimit);
-    setElapsed(0);
+
+    const applyProblems = (generated: GeneratedProblem[]) => {
+      if (cancelled || generated.length === 0) return;
+      setProblems(generated);
+      setAnswers(Array.from({ length: generated.length }, () => ''));
+      setScratchpads(Array.from({ length: generated.length }, () => ''));
+      setRemaining(timeLimit);
+      setLimit(timeLimit);
+      setElapsed(0);
+    };
+
+    (async () => {
+      try {
+        const response = await fetch('/api/mock-exam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        });
+        const data = (await response.json()) as { problems?: GeneratedProblem[]; error?: string };
+        if (cancelled) return;
+        if (Array.isArray(data.problems) && data.problems.length > 0) {
+          applyProblems(data.problems);
+          setLoadError(null);
+          return;
+        }
+        throw new Error(data.error || '模試の生成に失敗しました');
+      } catch (error) {
+        if (cancelled) return;
+        console.error('[mock-exam] API 呼び出しに失敗したため、高校レベルフォールバックを使います', error);
+        applyProblems(buildMockExamProblems(config));
+        setLoadError('通信エラーのため、高校数I水準の予備問題で模試を開始します。');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -131,7 +166,17 @@ export default function MockExamPlay() {
     visualEnabled && Boolean(geometryScene || graphModel || physicsScene || chemistryScene);
 
   if (!problems || !problem) {
-    return <div className="py-20 text-center text-sm text-slate-500">模試を準備しています...</div>;
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-6 px-4 py-16">
+        <DynamicLoadingCircle
+          size="lg"
+          label="Gemini が難関大レベルの大問を構成しています"
+        />
+        <p className="max-w-md text-center text-sm text-zinc-400">
+          模試APIが gemini-1.5-flash / gemini-2.0-flash で5問を生成します。中学の展開ドリルは使いません。
+        </p>
+      </div>
+    );
   }
 
   const isLast = index === problems.length - 1;
@@ -167,6 +212,11 @@ export default function MockExamPlay() {
 
   return (
     <div className="flex flex-col gap-4">
+      {loadError && (
+        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+          {loadError}
+        </p>
+      )}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">

@@ -25,8 +25,9 @@ import {
 } from '@/lib/engine/difficultyScale';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
-import { parseVisualType, VISUAL_TYPE_PROMPT_RULES } from '@/lib/engine/visualNeed';
+import { parseVisualType } from '@/lib/engine/visualNeed';
 import { completeLlmJson } from '@/lib/llm/completeJson';
+import { buildDifficultyGuide, buildProblemSystemPrompt } from '@/lib/llm/examPrompts';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -105,43 +106,14 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
   const difficulty = params.difficulty ?? DEFAULT_DIFFICULTY;
   const meta = getDifficultyMeta(difficulty);
   const tier = getDifficultyTier(difficulty);
-  const tierGuide =
-    difficulty === 1
-      ? '★1 基礎: 公式へ数値を直接代入する基本計算。場合分けや文字定数は使わない。解説は代入の手順を3ステップ程度で。'
-      : difficulty === 2
-        ? '★2 標準: 定期テスト・共通テスト基礎レベル。典型的な1〜2ステップの変形を含む。'
-        : difficulty === 3
-          ? '★3 応用: 共通テスト標準・典型入試。文字定数や定義域との場合分けを含めてよい。'
-          : difficulty === 4
-            ? '★4 発展: 難関大・国公立・MARCH二次。場合分けと条件の言い換えが必要な問題。基本の代入計算だけは禁止。'
-            : [
-                '★5 最難関: 東大・京大・旧帝・医学部難問。基本計算（公式へ数値を代入するだけ）は禁止。',
-                '必ず次をすべて満たすこと:',
-                '(1) 文字定数 a,k,t などを残したまま議論する高度な関数・図形・ベクトル問題。',
-                '(2) 場合分けが3パターン以上（軸と定義域、パラメータの符号、交点個数、鋭角/直角/鈍角 など）。',
-                '(3) 初見の論理展開が必要な融合問題（2つ以上の定理の接続、条件の言い換え、存在条件）。',
-                '(4) 答えは単なる代入値ではなく、個数・範囲の端点・場合分け後の値のいずれか。',
-                '(5) 解説 stepByStep は論理の根拠を6ステップ以上で極めて詳細に書く。',
-              ].join(' ');
+  const tierGuide = buildDifficultyGuide(difficulty, unit?.subject ?? 'math');
 
-  const systemPrompt =
-    'あなたは高校生向けの数学・物理・化学の問題作成AIです。' +
-    '出力は必ずJSON形式のみとし、余計な説明文を含めないでください。' +
-    '再利用可能なテンプレート（変数の範囲・計算ロジックJS・テンプレート文）を生成してください。' +
-    'calcLogicJSはJavaScriptの関数本体の文字列で、引数varsを受け取り、' +
-    '{ vars: object, correctAnswer: string | number, explanationSteps?: string[] } を返してください。' +
-    '2次関数・一次関数・三角関数のグラフ問題では、クライアント側SVG描画のため vars に係数を必ず含める。' +
-    'quadratic は a,b,c または a,p,q。linear は m,b。sine は amplitude,frequency。画像生成は使わない。' +
-    '三角形・円・接線・ベクトル・点と直線の問題では geometryScene を必ず付ける。' +
-    'geometryScene は { points:[{id,x,y,label}], segments:[{from,to,dashed?,label?}], circles:[{cx,cy,r,dashed?,label?}], ' +
-    'angles:[{vertex,from,to,label}], vectors:[{from,to,label}], tangents:[{from,to}], caption }。座標は -10〜10 程度。' +
-    VISUAL_TYPE_PROMPT_RULES +
-    'LaTeXのバックスラッシュ記法は使わず、Unicode数学記号（θ, π, °, ², √ 等）と' +
-    'ASCII表記（^, /, ()）のみで数式を表現してください。' +
-    '難易度指定に従い、問題の構造そのものを劇的に分岐させてください。' +
-    '★4以上では「計算するだけ」の問題を出してはいけない。' +
-    (params.prompt ? 'ユーザーの作問リクエスト（userRequest）の単元・難易度・出題形式を最優先で反映してください。' : '') +
-    tierGuide;
+  const systemPrompt = buildProblemSystemPrompt({
+    difficulty,
+    subject: unit?.subject ?? 'math',
+    unitTitle: unit?.title,
+    userRequest: Boolean(params.prompt),
+  });
 
   const userPrompt = JSON.stringify({
     subject: unit?.subject ?? 'math',
@@ -159,8 +131,8 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       variables: '{ [name]: { min: number, max: number, step: number } }',
       templateText: 'string (プレースホルダーは {{varName}} 形式)',
       calcLogicJS: 'string (function body)',
-      hints: '[string, string, string]',
-      keyFormula: 'string',
+      hints: '[string, string, string]（途中の着眼を $...$ 可）',
+      keyFormula: 'string（$...$ の LaTeX）',
       commonMistakes: 'string',
       visualType: 'none | math_graph | geometry_svg | physics_simulation | chemistry_animation',
       visualConfig: '{ type: string, params: object }  （none のときは type:"none", params:{}）',

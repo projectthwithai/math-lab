@@ -6,6 +6,7 @@
 // - standard (★4-7): 文字定数や場合分けを含む標準入試
 // - hard (★8-10): 難関大二次・融合問題。解説は論理展開を詳細に出す
 
+import { buildRemainingExamBlueprint } from '@/lib/mock/remainingExamBlueprints';
 import type { PatternKey, TemplateBlueprint } from '@/lib/mock/blueprintTypes';
 import { difficultySpan, type DifficultyTier } from '@/lib/mock/blueprintTypes';
 
@@ -16,6 +17,10 @@ export function buildTieredBlueprint(
   unitTitle: string
 ): TemplateBlueprint | null {
   switch (patternKey) {
+    case 'numbers':
+      return numbersByTier(tier, difficulty);
+    case 'data_analysis':
+      return dataAnalysisByTier(tier, difficulty);
     case 'quadratic':
       return quadraticByTier(tier, difficulty);
     case 'trigonometry':
@@ -44,8 +49,253 @@ export function buildTieredBlueprint(
     case 'gas_law_physics':
       return gasLawByTier(tier, difficulty, unitTitle, patternKey === 'gas_law_physics' ? 'physics' : 'chemistry');
     default:
-      return null;
+      return buildRemainingExamBlueprint(patternKey, tier, difficulty, unitTitle);
   }
+}
+
+function numbersByTier(tier: DifficultyTier, difficulty: number): TemplateBlueprint {
+  if (tier === 'basic') {
+    const aRange = difficultySpan(difficulty, 1, 6);
+    return {
+      title: '★基礎: 絶対値不等式の整数解の個数',
+      unit: '数と式',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        a: { min: Math.max(1, aRange.min), max: Math.max(3, aRange.max), step: 1 },
+        b: { min: 2, max: 5, step: 1 },
+      },
+      templateText:
+        '不等式 |x - {{a}}| ≤ {{b}} を満たす整数 x の個数を求めよ。',
+      calcLogicJS: `
+        const a = vars.a, b = Math.abs(vars.b);
+        const lo = a - b;
+        const hi = a + b;
+        const start = Math.ceil(lo);
+        const end = Math.floor(hi);
+        const answer = Math.max(0, end - start + 1);
+        return {
+          vars: { a, b },
+          correctAnswer: answer,
+          explanationSteps: [
+            '|x-a|≤b は数直線上で a-b 以上 a+b 以下。',
+            '今回は ' + lo + ' ≤ x ≤ ' + hi + '。',
+            '整数は ' + start + ' から ' + end + ' まで、個数は ' + answer + '。',
+          ],
+        };
+      `,
+      hints: [
+        '|x-a|≤b を不等式 a-b ≤ x ≤ a+b に直す。',
+        '両端が整数かどうかで切り上げ・切り捨てする。',
+        '個数は (上端の整数) - (下端の整数) + 1。',
+      ],
+      keyFormula: '|x-a| ≤ b  ⇔  a-b ≤ x ≤ a+b',
+      commonMistakes: '端点を数え落とす、または不等号を厳密にして個数を1つ減らす。',
+    };
+  }
+
+  if (tier === 'standard') {
+    return {
+      title: '★標準: 2次不等式の正の整数解の個数',
+      unit: '数と式',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        k: { min: 6, max: 10, step: 1 },
+        m: { min: 5, max: 12, step: 1 },
+      },
+      templateText:
+        '不等式 n² - {{k}}n + {{m}} ≤ 0 を満たす正の整数 n の個数を求めよ。',
+      calcLogicJS: `
+        const k = vars.k, m = vars.m;
+        const D = k * k - 4 * m;
+        let answer = 0;
+        let lo = 0, hi = -1;
+        if (D >= 0) {
+          lo = (k - Math.sqrt(D)) / 2;
+          hi = (k + Math.sqrt(D)) / 2;
+          const start = Math.max(1, Math.ceil(lo));
+          const end = Math.floor(hi);
+          answer = Math.max(0, end - start + 1);
+        }
+        return {
+          vars: { k, m },
+          correctAnswer: answer,
+          explanationSteps: [
+            'f(n)=n²-' + k + 'n+' + m + ' ≤ 0。判別式 D=' + D + '。',
+            D < 0 ? 'D<0 かつ上に凸でない（a>0）ので不等式は成立しない。個数0。'
+              : '解の範囲は約 ' + lo.toFixed(2) + ' ≤ n ≤ ' + hi.toFixed(2) + '。',
+            '正の整数に制限して個数を数えると ' + answer + '。',
+          ],
+        };
+      `,
+      hints: [
+        'まず対応する2次方程式の判別式と解を求める。',
+        'a>0 なので解と解の間（両端含む）で不等式が成り立つ。',
+        'その区間に入る正の整数だけを数える。',
+      ],
+      keyFormula: 'n² - kn + m ≤ 0 の整数解は、2実数解の閉区間内の整数',
+      commonMistakes: '正の整数条件を忘れ 0 や負を含める。端点が等式で入るのに除外する。',
+    };
+  }
+
+  return {
+    title: '★難関: 3つの絶対値の和が上限以下となる整数解の個数',
+    unit: '数と式',
+    subject: 'math',
+    format: 'input',
+    variables: {
+      a: { min: 2, max: 5, step: 1 },
+      b: { min: 7, max: 11, step: 1 },
+      s: { min: 12, max: 16, step: 1 },
+    },
+    templateText:
+      '不等式 |x| + |x - {{a}}| + |x - {{b}}| ≤ {{s}} を満たす整数 x の個数を求めよ。',
+    calcLogicJS: `
+      const a = vars.a, b = vars.b, s = vars.s;
+      const lo = Math.min(0, a, b) - s;
+      const hi = Math.max(0, a, b) + s;
+      let count = 0;
+      const samples = [];
+      for (let x = lo; x <= hi; x++) {
+        const val = Math.abs(x) + Math.abs(x - a) + Math.abs(x - b);
+        if (val <= s) {
+          count += 1;
+          if (samples.length < 3) samples.push(x);
+        }
+      }
+      return {
+        vars: { a, b, s },
+        correctAnswer: count,
+        explanationSteps: [
+          '折れ線 f(x)=|x|+|x-' + a + '|+|x-' + b + '| の傾きは、区切り点 0,' + a + ',' + b + ' で変化する。',
+          '各区間で1次式に直し、f(x)≤' + s + ' を解く（または有限区間を走査する）。',
+          '整数解の例: ' + (samples.join(', ') || 'なし') + ' ... 個数は ' + count + '。',
+          '最小値は区間 [' + Math.min(a, b) + ',' + Math.max(a, b) + '] 上で |a-b| + 中点側の寄与。',
+        ],
+      };
+    `,
+    hints: [
+      '絶対値の区切り点 0, a, b で数直線を4区間に分ける。',
+      '各区間で符号を外して1次不等式にする。',
+      '4区間の整数解を重複なく足す。',
+    ],
+    keyFormula: '|x-p|+|x-q| は [p,q] 上で定数 |p-q|、外側では傾き ±2',
+    commonMistakes: '区切り点を1つ忘れて場合分けが足りなくなる。境界の整数を二重に数える。',
+  };
+}
+
+function dataAnalysisByTier(tier: DifficultyTier, difficulty: number): TemplateBlueprint {
+  if (tier === 'basic') {
+    return {
+      title: '★基礎: 変量変換と分散',
+      unit: 'データの分析',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        v: { min: 2, max: 9, step: 1 },
+        b: { min: -5, max: 8, step: 1 },
+      },
+      templateText:
+        '変量 x の分散が {{v}} である。y = x + {{b}} とするとき、変量 y の分散を求めよ。',
+      calcLogicJS: `
+        const v = vars.v, b = vars.b;
+        return {
+          vars: { v, b },
+          correctAnswer: v,
+          explanationSteps: [
+            'y = x + b はすべてのデータに同じ定数を加える変換。',
+            '偏差 y_i - ȳ = (x_i + b) - (m+b) = x_i - m となり、偏差は不変。',
+            'したがって分散も ' + v + ' のまま。平行移動は散らばりを変えない。',
+          ],
+        };
+      `,
+      hints: [
+        '分散は「平均からのずれ」の2乗平均。',
+        '全部に同じ数を足しても、ずれの大きさは変わらない。',
+        '定数 b の値は答えに現れない。',
+      ],
+      keyFormula: 'V(x+b) = V(x)',
+      commonMistakes: '平均が b だけ増えるので分散も増えると誤解する。',
+    };
+  }
+
+  if (tier === 'standard') {
+    return {
+      title: '★標準: 1次変換の分散',
+      unit: 'データの分析',
+      subject: 'math',
+      format: 'input',
+      variables: {
+        a: { min: 2, max: 5, step: 1 },
+        v: { min: 3, max: 12, step: 1 },
+        b: { min: -4, max: 6, step: 1 },
+      },
+      templateText:
+        '変量 x の分散が {{v}} である。y = {{a}}x + {{b}} とするとき、変量 y の分散を求めよ。',
+      calcLogicJS: `
+        const a = vars.a, v = vars.v, b = vars.b;
+        const answer = a * a * v;
+        return {
+          vars: { a, v, b },
+          correctAnswer: answer,
+          explanationSteps: [
+            'y = ax+b より偏差は a 倍になる（定数 b は消える）。',
+            '分散は偏差の2乗平均なので a² 倍。',
+            'V(y) = (' + a + ')² × ' + v + ' = ' + answer + '。',
+          ],
+        };
+      `,
+      hints: [
+        '定数項 b は分散に影響しない。',
+        '係数 a は偏差を a 倍するので、分散は a² 倍。',
+        'a が負でも a² は正。',
+      ],
+      keyFormula: 'V(ax+b) = a² V(x)',
+      commonMistakes: 'a 倍だけして a² を忘れる。b を分散に足してしまう。',
+    };
+  }
+
+  const nRange = difficultySpan(difficulty, 6, 10);
+  return {
+    title: '★難関: 外れ値を1つ加えたあとの分散',
+    unit: 'データの分析',
+    subject: 'math',
+    format: 'input',
+    variables: {
+      n: { min: Math.max(5, nRange.min), max: Math.max(7, nRange.max), step: 1 },
+      m: { min: 8, max: 14, step: 1 },
+      v: { min: 2, max: 6, step: 1 },
+      x: { min: 20, max: 30, step: 1 },
+    },
+    templateText:
+      'n={{n}} 個の変量 x の平均が {{m}}、分散が {{v}} である。新たに値 {{x}} を1つ加えたとき、新しい分散を小数第2位まで求めよ。',
+    calcLogicJS: `
+      const n = vars.n, m = vars.m, v = vars.v, x = vars.x;
+      const sumSq = n * (v + m * m) + x * x;
+      const newN = n + 1;
+      const newMean = (n * m + x) / newN;
+      const newVar = Math.round((sumSq / newN - newMean * newMean) * 100) / 100;
+      return {
+        vars: { n, m, v, x },
+        correctAnswer: newVar,
+          explanationSteps: [
+            '定義より Sigma x = n m = ' + (n * m) + '、Sigma x^2 = n(v+m^2) = ' + (n * (v + m * m)) + '。',
+            '1個加えて新しい合計は ' + (n * m + x) + '、新しい2乗和は ' + (n * (v + m * m) + x * x) + '、個数 ' + newN + '。',
+            '新しい平均 m_new = ' + newMean + '。',
+            '新しい分散 = (新しい2乗和)/' + newN + ' - (m_new)^2 = ' + newVar + '。',
+            '外れ値が平均から離れるほど分散は増える。',
+          ],
+      };
+    `,
+    hints: [
+      '分散の定義から Σx² = n(V + m²) を復元する。',
+      '新しい平均は (元の合計 + 追加値)/(n+1)。',
+      '新しい分散は (新しい2乗平均) - (新しい平均)²。',
+    ],
+    keyFormula: 'V = (Σx²)/n - m²  ⇔  Σx² = n(V+m²)',
+    commonMistakes: '追加後も元の平均のまま偏差を計算する。n と n+1 を混同する。',
+  };
 }
 
 function quadraticByTier(tier: DifficultyTier, difficulty: number): TemplateBlueprint {
@@ -232,42 +482,43 @@ function trigRatioByTier(tier: DifficultyTier): TemplateBlueprint {
   }
 
   return {
-    title: '★難関: 余弦定理と三角形の形状判定の融合',
+    title: '★難関: 円に内接する四角形の面積（ブラーマグプタ）',
     unit: '図形と計量（三角比）',
     subject: 'math',
     format: 'input',
     variables: {
-      b: { min: 5, max: 8, step: 1 },
+      a: { min: 5, max: 8, step: 1 },
+      b: { min: 6, max: 9, step: 1 },
       c: { min: 5, max: 8, step: 1 },
-      extra: { min: 0, max: 2, step: 1 },
+      d: { min: 6, max: 9, step: 1 },
     },
     templateText:
-      '三角形 ABC で $AB={{c}}$，$AC={{b}}$，$BC={{a}}$ とする。∠A が鋭角なら 1、直角なら 2、鈍角なら 3 を答えよ。',
+      '円に内接する四角形 ABCD の辺が AB={{a}}, BC={{b}}, CD={{c}}, DA={{d}} である。この四角形の面積を小数第2位まで求めよ。対角の和が 180° であることも用いてよい。',
     calcLogicJS: `
-      const b = vars.b, c = vars.c, extra = vars.extra;
-      const a = extra === 0 ? Math.abs(b - c) + 1 : extra === 1 ? Math.round(Math.sqrt(b*b + c*c)) : b + c - 1;
-      const cosA = (b*b + c*c - a*a) / (2*b*c);
-      const kind = cosA > 1e-9 ? 1 : Math.abs(cosA) <= 1e-9 ? 2 : 3;
+      const a = vars.a, b = vars.b, c = vars.c, d = vars.d;
+      const s = (a + b + c + d) / 2;
+      const prod = (s - a) * (s - b) * (s - c) * (s - d);
+      const area = Math.round(Math.sqrt(Math.max(0, prod)) * 100) / 100;
       return {
-        vars: { a, b, c },
-        correctAnswer: kind,
+        vars: { a, b, c, d },
+        correctAnswer: area,
         explanationSteps: [
-          '3辺が与えられているので余弦定理 cosA=(b^2+c^2-a^2)/(2bc) を使う。',
-          '分子の符号だけで鋭・直・鈍が決まる（分母 2bc>0）。',
-          'b^2+c^2-a^2 = ' + (b*b + c*c - a*a) + ' なので cosA ' + (kind === 1 ? '>0（鋭角）' : kind === 2 ? '=0（直角）' : '<0（鈍角）') + '。',
-          '答えは ' + kind + '。三角形不等式 ' + b + '+' + c + '>' + a + ' も満たすことを確認する。',
-          '続く融合では sinA=√(1-cos^2A)>0 を取り、正弦定理で 2R に進む。',
-          '面積は (1/2)bc sinA。鈍角でも sin は正なので面積公式の符号を落とさない。',
+          '円に内接する四角形では対角の和が 180° なので、2三角形に分けた正弦面積公式で sin が打ち消し合い、ブラーマグプタの公式になる。',
+          '半周長 s = (a+b+c+d)/2 = ' + s + '。',
+          '面積 = √((s-a)(s-b)(s-c)(s-d)) = √' + prod + ' ≈ ' + area + '。',
+          '対角が補角なので cos D = -cos B。余弦定理で対角線を二通りに書いて一致することを検算できる。',
+          '三角形に分割した場合も (1/2)ab sinB + (1/2)cd sinD で sinD=sinB となり同じ値。',
+          '円に内接しない四角形ではこの公式は使えない（ブレートシュナイダーが一般）。',
         ],
       };
     `,
     hints: [
-      '余弦定理の分子 b^2+c^2-a^2 の符号を見る。',
-      '正なら鋭角、0なら直角、負なら鈍角。',
-      '三角形不等式を満たす辺の組になっているかも検算する。',
+      '円に内接 ⇔ 対角の和が 180°。',
+      '半周長 s を出してブラーマグプタの公式。',
+      '√ の中が負なら辺の組が四角形をなしていない。',
     ],
-    keyFormula: 'cosA の符号 ⇔ ∠A の鋭・直・鈍',
-    commonMistakes: '余弦定理の辺の対応を取り違える。鈍角なのに正弦定理で鈍角解を落とす。',
+    keyFormula: 'K = √((s-a)(s-b)(s-c)(s-d))（円に内接する四角形）',
+    commonMistakes: '内接条件を無視してヘロンを4辺に無理矢理使う。s を周長のまま使う。',
   };
 }
 

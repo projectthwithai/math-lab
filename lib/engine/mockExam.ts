@@ -1,12 +1,15 @@
 // ==========================================
 // Apex Suite: Math Lab - 全国統一 AI実践模試
 // ==========================================
-// 設定・共通テスト型への整形・偏差値判定。問題生成はローカルエンジン（API 0）。
+// 設定・共通テスト型への整形・偏差値判定。
+// 本番の出題は `app/api/mock-exam` が Gemini 直通で生成し、
+// 本モジュールの `buildMockExamProblems` は通信エラー時の高校レベルフォールバック。
 
 import type { GeneratedProblem, ProblemFormat } from '@/types/mathLab';
 import { generateMockProblem } from '@/lib/mock/generateMockProblem';
 import { checkAnswer } from '@/lib/engine/answerChecker';
 import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
+import { isLowQualityDummyQuestion } from '@/lib/llm/examPrompts';
 
 export type MockExamDifficultyPreset = 1 | 2 | 3 | 4 | 5;
 export type MockExamStyle = 'common_test' | 'descriptive' | 'mixed';
@@ -66,6 +69,34 @@ function parseMockExamDifficulty(raw: unknown): MockExamDifficultyPreset {
   return MOCK_EXAM_DEFAULTS.difficulty;
 }
 
+export function parseMockExamConfigFromUnknown(raw: unknown): MockExamConfig | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const parsed = raw as MockExamConfig & { difficulty?: unknown };
+  if (!Array.isArray(parsed.unitIds) || parsed.unitIds.length === 0) return null;
+  const unitIds = parsed.unitIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  if (unitIds.length === 0) return null;
+  const questionCountRaw = Number(parsed.questionCount);
+  const minutesRaw = Number(parsed.minutes);
+  const style =
+    parsed.style === 'common_test' || parsed.style === 'descriptive' || parsed.style === 'mixed'
+      ? parsed.style
+      : MOCK_EXAM_DEFAULTS.style;
+  const patternIds = Array.isArray(parsed.patternIds)
+    ? parsed.patternIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : undefined;
+  return {
+    unitIds,
+    difficulty: parseMockExamDifficulty(parsed.difficulty),
+    minutes: Number.isFinite(minutesRaw) && minutesRaw > 0 ? Math.min(180, Math.round(minutesRaw)) : MOCK_EXAM_DEFAULTS.minutes,
+    questionCount:
+      Number.isFinite(questionCountRaw) && questionCountRaw > 0
+        ? Math.min(12, Math.max(1, Math.round(questionCountRaw)))
+        : MOCK_EXAM_DEFAULTS.questionCount,
+    style,
+    patternIds: patternIds && patternIds.length > 0 ? patternIds : undefined,
+  };
+}
+
 export function saveMockExamConfig(config: MockExamConfig): void {
   if (typeof window === 'undefined') return;
   sessionStorage.setItem(MOCK_EXAM_STORAGE_KEY, JSON.stringify(config));
@@ -77,11 +108,7 @@ export function loadMockExamConfig(): MockExamConfig | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as MockExamConfig & { difficulty?: unknown };
-    if (!Array.isArray(parsed.unitIds) || parsed.unitIds.length === 0) return null;
-    return {
-      ...parsed,
-      difficulty: parseMockExamDifficulty(parsed.difficulty),
-    };
+    return parseMockExamConfigFromUnknown(parsed);
   } catch {
     return null;
   }
@@ -152,6 +179,17 @@ export function toCommonTestProblem(problem: GeneratedProblem): GeneratedProblem
   });
 }
 
+export function applyMockExamStyle(
+  problem: GeneratedProblem,
+  config: MockExamConfig,
+  index: number
+): GeneratedProblem {
+  if (config.style === 'common_test' || (config.style === 'mixed' && index % 2 === 0)) {
+    return toCommonTestProblem(problem);
+  }
+  return problem;
+}
+
 export function buildMockExamProblems(config: MockExamConfig): GeneratedProblem[] {
   const difficulty = difficultyPresetToNumber(config.difficulty);
   const problems: GeneratedProblem[] = [];
@@ -165,16 +203,16 @@ export function buildMockExamProblems(config: MockExamConfig): GeneratedProblem[
         unitId,
         patternId,
         difficulty,
+        examQuality: true,
       })
     );
-    if (seen.has(problem.questionText)) {
-      problem = cleanGeneratedProblem(generateMockProblem({ unitId, difficulty }));
+    if (seen.has(problem.questionText) || isLowQualityDummyQuestion(problem.questionText, difficulty)) {
+      problem = cleanGeneratedProblem(
+        generateMockProblem({ unitId, difficulty, examQuality: true })
+      );
     }
     seen.add(problem.questionText);
-
-    if (config.style === 'common_test' || (config.style === 'mixed' && i % 2 === 0)) {
-      problem = toCommonTestProblem(problem);
-    }
+    problem = applyMockExamStyle(problem, config, i);
 
     problems.push({
       ...problem,

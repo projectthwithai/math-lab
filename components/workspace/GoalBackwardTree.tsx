@@ -69,7 +69,9 @@ export default function GoalBackwardTree({ problem, compact = false }: GoalBackw
             body={
               <ul className="list-disc space-y-1 pl-4">
                 {tree.missingConditions.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>
+                    <KaTeXText text={item} />
+                  </li>
                 ))}
               </ul>
             }
