@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import type { MockExamReport } from '@/lib/engine/mockExam';
 import { formatExamClock } from '@/lib/engine/mockExam';
+import { formatCorrectAnswerForDisplay } from '@/lib/engine/correctAnswer';
 
 interface MockReportModalProps {
   report: MockExamReport;
@@ -217,7 +218,10 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
                     <p className="mt-1 text-[11px] text-slate-500">
                       解答: {item.userAnswer ? <KaTeXText text={item.userAnswer} /> : '未解答'}
                       {' ／ 正解: '}
-                      <KaTeXText text={String(item.problem.correctAnswer)} />
+                      <KaTeXText
+                        text={formatCorrectAnswerForDisplay(item.problem)}
+                        className="inline font-black text-cyan-500 dark:text-cyan-300"
+                      />
                     </p>
                   </div>
                 </div>

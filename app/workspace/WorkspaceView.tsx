@@ -16,6 +16,7 @@ import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { checkAnswer } from '@/lib/engine/answerChecker';
+import { ensureProblemHasCorrectAnswer, resolveCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { addSolvedProblemRecord } from '@/lib/storage/solvedProblemsStore';
 import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
@@ -129,7 +130,7 @@ export default function WorkspaceView({
   const patternName = getPatternDisplayName(problem?.patternId);
 
   const applyNewProblem = useCallback((next: GeneratedProblem) => {
-    setProblem(next);
+    setProblem(ensureProblemHasCorrectAnswer(next));
     setAnswerInput('');
     setRevealedHintCount(0);
     setElapsedSeconds(0);
@@ -231,7 +232,7 @@ export default function WorkspaceView({
     if (!problem || isSubmitted || isSubmittedRef.current) return;
     isSubmittedRef.current = true;
     setIsSubmitted(true);
-    const isCorrect = checkAnswer(answerInput, problem.correctAnswer);
+    const isCorrect = checkAnswer(answerInput, resolveCorrectAnswer(problem));
     const xpResult = recordAnswer({
       isCorrect,
       difficulty: problem.difficulty,

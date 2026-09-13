@@ -20,6 +20,7 @@ import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { formatCorrectAnswerForDisplay } from '@/lib/engine/correctAnswer';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
@@ -136,8 +137,13 @@ export default function ScoreResultModal({
               <h2 className={`text-base font-semibold leading-tight tracking-tight ${isCorrect ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-500 dark:text-red-300'}`}>
                 {isCorrect ? '正解！' : '不正解...'}
               </h2>
-              <p className="text-[11px] text-slate-500">
-                正解: <KaTeXText text={String(problem.correctAnswer)} />
+              <p className="mt-1 text-base font-black tracking-tight text-cyan-500 [text-shadow:0_0_12px_rgba(34,211,238,0.7)] dark:text-cyan-300">
+                正解: 【{' '}
+                <KaTeXText
+                  text={formatCorrectAnswerForDisplay(problem)}
+                  className="inline font-black text-cyan-400 dark:text-cyan-300"
+                />{' '}
+                】
               </p>
             </div>
           </div>

@@ -20,7 +20,7 @@ const DISCOVERY_POOL: Record<string, PatternSeed[]> = {
     { level: 'basic', patternName: '二重根号の簡単化', exampleQuestion: '$\\sqrt{8+2\\sqrt{15}}$ を簡単にせよ。', strategyText: '√(a+b+2√(ab))=(√a+√b) の形を探す。内側の積と和が合う2数を見つける。' },
     { level: 'standard', patternName: '対称式の最大最小', exampleQuestion: '$x+y=4$，$xy=3$ のとき $x^3+y^3$ を求めよ。', strategyText: 'x^3+y^3=(x+y)((x+y)^2-3xy) に基本対称式を代入する。' },
     { level: 'advanced', patternName: '高次不等式の場合分け', exampleQuestion: '$(x-1)(x-2)(x-3)>0$ を解け。', strategyText: '根で数直線を区切り、各区間の符号を調べる。端点は等号の有無で入れる。' },
-    { level: 'standard', patternName: '有理化の工夫', exampleQuestion: '分母を有理化せよ。$1/(\\sqrt{3}-\\sqrt{2})$', strategyText: '共役を掛ける。入れ子の根号は内側から順に有理化する。' },
+    { level: 'standard', patternName: '対称式と分母の有理化', exampleQuestion: '$x = \\dfrac{\\sqrt{3}+\\sqrt{2}}{\\sqrt{3}-\\sqrt{2}},\\ y = \\dfrac{\\sqrt{3}-\\sqrt{2}}{\\sqrt{3}+\\sqrt{2}}$ のとき $x^2+y^2$ を求めよ。', strategyText: '有理化して x+y=10, xy=1。x^2+y^2=(x+y)^2-2xy=100-2=98。' },
     { level: 'advanced', patternName: '整数条件つき不等式', exampleQuestion: '$n$ が自然数のとき $n+1/n$ が整数になる n を求めよ。', strategyText: 'n が n の約数になる条件に帰着し、有限個を調べる。' },
   ],
   'math-1a-quadratic-functions': [

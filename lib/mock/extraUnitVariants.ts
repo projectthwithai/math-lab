@@ -38,6 +38,23 @@ const EXTRA_BY_UNIT: Record<string, ExtraFactory> = {
     const r = difficultySpan(d, 2, 8);
     return [
       mathInput(
+        '対称式と分母の有理化',
+        unit,
+        'x = (√{{a}}+√{{b}})/(√{{a}}-√{{b}}), y = (√{{a}}-√{{b}})/(√{{a}}+√{{b}}) のとき、x² + y² の値を求めよ。',
+        { a: { min: 3, max: 3, step: 1 }, b: { min: 2, max: 2, step: 1 } },
+        `const a = vars.a, b = vars.b;
+         const sum = 2 * (a + b) / (a - b);
+         const answer = sum * sum - 2;
+         return { vars: { a, b }, correctAnswer: answer,
+           explanationSteps: [
+             '分母を有理化すると xy=1。',
+             'x+y = ' + sum + ', xy = 1 ⇒ x²+y² = ' + sum + '² - 2(1) = ' + answer + '。',
+           ] };`,
+        ['まず x+y と xy を有理化して求める。', 'xy=1 を確認する。', 'x²+y²=(x+y)²-2xy。'],
+        'x²+y²=(x+y)²-2xy',
+        '根号を展開したまま計算して対称式に持ち込まない。'
+      ),
+      mathInput(
         '絶対値の和の不等式の整数解',
         unit,
         '不等式 |x - {{a}}| + |x - {{c}}| ≤ {{b}} を満たす整数 x の個数を求めよ。',

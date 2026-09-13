@@ -96,46 +96,38 @@ function numbersByTier(tier: DifficultyTier, difficulty: number): TemplateBluepr
 
   if (tier === 'standard') {
     return {
-      title: '★標準: 2次不等式の正の整数解の個数',
+      title: '★標準: 対称式と分母の有理化',
       unit: '数と式',
       subject: 'math',
       format: 'input',
       variables: {
-        k: { min: 6, max: 10, step: 1 },
-        m: { min: 5, max: 12, step: 1 },
+        a: { min: 3, max: 3, step: 1 },
+        b: { min: 2, max: 2, step: 1 },
       },
       templateText:
-        '不等式 n² - {{k}}n + {{m}} ≤ 0 を満たす正の整数 n の個数を求めよ。',
+        '$x = \\dfrac{\\sqrt{{{a}}}+\\sqrt{{{b}}}}{\\sqrt{{{a}}}-\\sqrt{{{b}}}},\\ y = \\dfrac{\\sqrt{{{a}}}-\\sqrt{{{b}}}}{\\sqrt{{{a}}}+\\sqrt{{{b}}}}$ のとき、$x^2 + y^2$ の値を求めよ。',
       calcLogicJS: `
-        const k = vars.k, m = vars.m;
-        const D = k * k - 4 * m;
-        let answer = 0;
-        let lo = 0, hi = -1;
-        if (D >= 0) {
-          lo = (k - Math.sqrt(D)) / 2;
-          hi = (k + Math.sqrt(D)) / 2;
-          const start = Math.max(1, Math.ceil(lo));
-          const end = Math.floor(hi);
-          answer = Math.max(0, end - start + 1);
-        }
+        const a = vars.a, b = vars.b;
+        const sum = 2 * (a + b) / (a - b);
+        const prod = 1;
+        const answer = sum * sum - 2 * prod;
         return {
-          vars: { k, m },
+          vars: { a, b },
           correctAnswer: answer,
           explanationSteps: [
-            'f(n)=n²-' + k + 'n+' + m + ' ≤ 0。判別式 D=' + D + '。',
-            D < 0 ? 'D<0 かつ上に凸でない（a>0）ので不等式は成立しない。個数0。'
-              : '解の範囲は約 ' + lo.toFixed(2) + ' ≤ n ≤ ' + hi.toFixed(2) + '。',
-            '正の整数に制限して個数を数えると ' + answer + '。',
+            '分母を有理化すると $xy = 1$（$x$ と $y$ は互いに逆数）。',
+            '$x+y = \\\\dfrac{2(' + a + '+' + b + ')}{' + a + '-' + b + '} = ' + sum + '$。',
+            '$x+y = ' + sum + ',\\ xy = 1 \\\\Rightarrow x^2+y^2 = ' + sum + '^2 - 2(1) = ' + answer + '$。',
           ],
         };
       `,
       hints: [
-        'まず対応する2次方程式の判別式と解を求める。',
-        'a>0 なので解と解の間（両端含む）で不等式が成り立つ。',
-        'その区間に入る正の整数だけを数える。',
+        'まず $x+y$ と $xy$ を、有理化して求める。',
+        '$xy=1$ になることを確認する。',
+        '$x^2+y^2=(x+y)^2-2xy$ に代入する。',
       ],
-      keyFormula: 'n² - kn + m ≤ 0 の整数解は、2実数解の閉区間内の整数',
-      commonMistakes: '正の整数条件を忘れ 0 や負を含める。端点が等式で入るのに除外する。',
+      keyFormula: '$x^2+y^2=(x+y)^2-2xy$',
+      commonMistakes: '展開して根号を残したまま計算し、$x+y$ と $xy$ の対称式に持ち込まない。',
     };
   }
 

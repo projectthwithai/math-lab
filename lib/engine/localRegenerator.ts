@@ -10,6 +10,7 @@ import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
 import { attachGeometryVisual } from '@/lib/engine/geometryVisual';
 import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
 import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
+import { ensureProblemHasCorrectAnswer, hasUsableCorrectAnswer } from '@/lib/engine/correctAnswer';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -58,8 +59,7 @@ function fillTemplate(template: string, vars: Record<string, number | string>): 
 export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedProblem {
   const templateConfig = problem.templateConfig;
   if (!templateConfig) {
-    // 再生成テンプレートを持たない問題はそのまま返す
-    return problem;
+    return ensureProblemHasCorrectAnswer(problem);
   }
 
   const rawVars: Record<string, number> = {};
@@ -72,7 +72,7 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
     result = evaluateCalcLogic(templateConfig.calcLogicJS, rawVars);
   } catch (error) {
     console.error('[localRegenerator] calcLogicJS の評価に失敗しました', error);
-    return problem;
+    return ensureProblemHasCorrectAnswer(problem);
   }
 
   const questionText = cleanLatexFormula(fillTemplate(templateConfig.templateText, result.vars));
@@ -88,23 +88,28 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
               : attachMathGraphVisual(problem, result.vars);
           })();
 
-  return cleanGeneratedProblem({
-    ...problem,
-    questionText,
-    correctAnswer:
-      typeof result.correctAnswer === 'string'
-        ? cleanLatexFormula(result.correctAnswer)
-        : result.correctAnswer,
-    choices: (result.choices ?? problem.choices)?.map((choice) => cleanLatexFormula(choice)),
-    explanation: {
-      ...problem.explanation,
-      stepByStep: (result.explanationSteps ?? problem.explanation.stepByStep).map((step) =>
-        cleanLatexFormula(step)
-      ),
-      keyFormula: cleanLatexFormula(problem.explanation.keyFormula),
-      commonMistakes: cleanLatexFormula(problem.explanation.commonMistakes),
-    },
-    visualType: visual.visualType,
-    visualConfig: visual.visualConfig,
-  });
+  const correctAnswer = hasUsableCorrectAnswer(result.correctAnswer)
+    ? typeof result.correctAnswer === 'string'
+      ? cleanLatexFormula(result.correctAnswer)
+      : result.correctAnswer
+    : '';
+
+  return ensureProblemHasCorrectAnswer(
+    cleanGeneratedProblem({
+      ...problem,
+      questionText,
+      correctAnswer,
+      choices: (result.choices ?? problem.choices)?.map((choice) => cleanLatexFormula(choice)),
+      explanation: {
+        ...problem.explanation,
+        stepByStep: (result.explanationSteps ?? problem.explanation.stepByStep).map((step) =>
+          cleanLatexFormula(step)
+        ),
+        keyFormula: cleanLatexFormula(problem.explanation.keyFormula),
+        commonMistakes: cleanLatexFormula(problem.explanation.commonMistakes),
+      },
+      visualType: visual.visualType,
+      visualConfig: visual.visualConfig,
+    })
+  );
 }

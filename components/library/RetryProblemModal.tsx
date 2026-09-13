@@ -14,6 +14,7 @@ import { CheckCircle2, RefreshCw, X, XCircle } from 'lucide-react';
 import type { SolvedProblemRecord } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { checkAnswer } from '@/lib/engine/answerChecker';
+import { formatCorrectAnswerForDisplay, resolveCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
 import { getReviewStageLabel } from '@/lib/engine/forgettingCurve';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
@@ -42,7 +43,7 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
 
   const handleSubmit = () => {
     if (result) return;
-    const isCorrect = checkAnswer(answerInput, problem.correctAnswer);
+    const isCorrect = checkAnswer(answerInput, resolveCorrectAnswer(problem));
     const updated = markRecordReviewed(record.id, isCorrect);
     if (updated) {
       setResult({ isCorrect, updated });
@@ -120,7 +121,12 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
                   {result.isCorrect ? '正解！復習の間隔が伸びました' : '不正解。もう少し間隔を短くして復習します'}
                 </p>
                 <p className="text-xs text-slate-400">
-                  正解: <KaTeXText text={String(problem.correctAnswer)} /> ／ 次回復習ステータス:{' '}
+                  正解: 【{' '}
+                  <KaTeXText
+                    text={formatCorrectAnswerForDisplay(problem)}
+                    className="inline font-black text-cyan-400"
+                  />{' '}
+                  】 ／ 次回復習ステータス:{' '}
                   {getReviewStageLabel(result.updated.reviewStage)}
                 </p>
               </div>

@@ -15,6 +15,7 @@
 
 import type { GeneratedProblem, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
+import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { getUnitById } from '@/data/unitsData';
 import { findSolutionPatternById, getPatternStarDifficulty } from '@/data/patternsData';
 import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/adaptiveEngine';
@@ -223,37 +224,37 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
 
     case 'numbers': {
       return {
-        title: '対称式と整数条件',
+        title: '対称式と分母の有理化',
         unit: '数と式',
         subject: 'math',
         format: 'input',
         variables: {
-          s: { min: 4, max: 9, step: 1 },
-          p: { min: 3, max: 12, step: 1 },
+          a: { min: 3, max: 3, step: 1 },
+          b: { min: 2, max: 2, step: 1 },
         },
         templateText:
-          '実数 x, y が x + y = {{s}}, xy = {{p}} を満たす。x³ + y³ の値を求めよ。',
+          'x = (√{{a}}+√{{b}})/(√{{a}}-√{{b}}), y = (√{{a}}-√{{b}})/(√{{a}}+√{{b}}) のとき、x² + y² の値を求めよ。',
         calcLogicJS: `
-          const s = vars.s, p = vars.p;
-          const answer = s * s * s - 3 * s * p;
-          const D = s * s - 4 * p;
+          const a = vars.a, b = vars.b;
+          const sum = 2 * (a + b) / (a - b);
+          const answer = sum * sum - 2;
           return {
-            vars: { s, p },
+            vars: { a, b },
             correctAnswer: answer,
             explanationSteps: [
-              'x³+y³ = (x+y)(x²-xy+y²) = (x+y)((x+y)²-3xy)。',
-              '代入して (' + s + ')((' + s + ')² - 3·' + p + ') = ' + answer + '。',
-              '参考: x,y が実数である条件は判別式 D=(x+y)²-4xy=' + D + (D >= 0 ? ' ≥ 0 で実数解あり。' : ' < 0 で実数解なしだが、対称式の値自体は定義できる。'),
+              '分母を有理化すると xy = 1（互いに逆数）。',
+              'x+y = 2(a+b)/(a-b) = ' + sum + '。',
+              'x+y = ' + sum + ', xy = 1 ⇒ x²+y² = ' + sum + '² - 2(1) = ' + answer + '。',
             ],
           };
         `,
         hints: [
-          'x³+y³ を x+y と xy の対称式に直す。',
-          'x²+y² = (x+y)²-2xy も途中で使う。',
-          '公式 x³+y³=(x+y)³-3xy(x+y)。',
+          'まず x+y と xy を有理化して求める。',
+          'xy=1 になることを確認する。',
+          'x²+y²=(x+y)²-2xy に代入する。',
         ],
-        keyFormula: 'x³ + y³ = (x+y)³ - 3xy(x+y)',
-        commonMistakes: '(x+y)³ だけを答えて -3xy(x+y) を落とす。',
+        keyFormula: 'x²+y²=(x+y)²-2xy',
+        commonMistakes: '展開して根号を残したまま計算し、対称式に持ち込まない。',
       };
     }
 
@@ -1555,5 +1556,5 @@ export function generateMockProblem({
     },
   };
 
-  return regenerateProblemLocally(base);
+  return ensureProblemHasCorrectAnswer(regenerateProblemLocally(base));
 }

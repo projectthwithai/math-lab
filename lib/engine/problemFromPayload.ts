@@ -8,6 +8,7 @@ import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
 import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
 import { cleanGeneratedProblem } from '@/lib/utils/mathFormatter';
+import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 
 function isSubject(value: unknown): value is Subject {
   return value === 'math' || value === 'physics' || value === 'chemistry';
@@ -96,13 +97,13 @@ export function problemFromPayload(
   };
 
   if (!base.templateConfig) {
-    if (base.subject === 'physics') return cleanGeneratedProblem({ ...base, ...attachPhysicsVisual(base) });
-    if (base.subject === 'chemistry') return cleanGeneratedProblem({ ...base, ...attachChemistryVisual(base) });
-    return cleanGeneratedProblem(base);
+    if (base.subject === 'physics') return ensureProblemHasCorrectAnswer(cleanGeneratedProblem({ ...base, ...attachPhysicsVisual(base) }));
+    if (base.subject === 'chemistry') return ensureProblemHasCorrectAnswer(cleanGeneratedProblem({ ...base, ...attachChemistryVisual(base) }));
+    return ensureProblemHasCorrectAnswer(cleanGeneratedProblem(base));
   }
   try {
     return regenerateProblemLocally(base);
   } catch {
-    return cleanGeneratedProblem(base);
+    return ensureProblemHasCorrectAnswer(cleanGeneratedProblem(base));
   }
 }

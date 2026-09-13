@@ -26,7 +26,7 @@ export const PATTERN_STAR_ARCHETYPES: Four<{
 const EXAMPLES: Record<string, Four<string>> = {
   'st-num-expand': [
     '$(x+3)(x-1)$ を展開せよ。',
-    '$(x+a)(x+b)=x^2+5x+6$ となる $a,b$ を求めよ。',
+    '$x = \\dfrac{\\sqrt{3}+\\sqrt{2}}{\\sqrt{3}-\\sqrt{2}},\\ y = \\dfrac{\\sqrt{3}-\\sqrt{2}}{\\sqrt{3}+\\sqrt{2}}$ のとき、$x^2+y^2$ の値を求めよ。',
     '$0\\le x\\le 3$ のとき $(x-1)(x-4)$ のとりうる値の範囲を求めよ。',
     '$(x+k)^2$ と $x^2+6x+9$ が恒等的に等しい $k$ と、そうならない場合を場合分けして述べよ。',
   ],

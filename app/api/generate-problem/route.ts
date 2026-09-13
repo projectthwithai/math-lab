@@ -28,6 +28,7 @@ import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType } from '@/lib/engine/visualNeed';
 import { completeLlmJson } from '@/lib/llm/completeJson';
 import { buildDifficultyGuide, buildProblemSystemPrompt } from '@/lib/llm/examPrompts';
+import { ensureProblemHasCorrectAnswer, isPlaceholderCorrectAnswer } from '@/lib/engine/correctAnswer';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -53,6 +54,16 @@ function normalizeId(raw: unknown): string | undefined {
 
 function isSubject(value: unknown): value is Subject {
   return value === 'math' || value === 'physics' || value === 'chemistry';
+}
+
+function finalizeGeneratedProblem(
+  viaLlm: GeneratedProblem | null,
+  params: GenerateProblemParams
+): GeneratedProblem {
+  if (viaLlm && !isPlaceholderCorrectAnswer(viaLlm.correctAnswer)) {
+    return ensureProblemHasCorrectAnswer(viaLlm);
+  }
+  return ensureProblemHasCorrectAnswer(generateMockProblem(params));
 }
 
 function parseDiscoveredPatterns(raw: unknown): SolutionPattern[] {
@@ -175,7 +186,7 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
       },
     };
 
-    return regenerateProblemLocally(base);
+    return ensureProblemHasCorrectAnswer(regenerateProblemLocally(base));
   } catch (error) {
     console.error('[generate-problem] LLM生成に失敗、モックにフォールバックします', error);
     return null;
@@ -201,7 +212,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
       generationParams.patternId = picked.pattern.id;
     }
     const viaPrompt = await generateViaLlm(generationParams);
-    const base = viaPrompt ?? generateMockProblem(generationParams);
+    const base = finalizeGeneratedProblem(viaPrompt, generationParams);
     if (picked.pattern && picked.fromDiscovered) {
       return stampDiscoveredProblem(base, picked.pattern);
     }
@@ -232,7 +243,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
   };
 
   const viaLlm = await generateViaLlm(generationParams);
-  const base = viaLlm ?? generateMockProblem(generationParams);
+  const base = finalizeGeneratedProblem(viaLlm, generationParams);
 
   if (picked.pattern && picked.fromDiscovered) {
     return stampDiscoveredProblem(base, picked.pattern);
