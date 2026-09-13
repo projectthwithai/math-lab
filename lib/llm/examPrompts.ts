@@ -107,9 +107,7 @@ export function buildProblemSystemPrompt(options: {
     'calcLogicJSはJavaScriptの関数本体の文字列で、引数varsを受け取り、' +
     '{ vars: object, correctAnswer: string | number, explanationSteps?: string[] } を返してください。' +
     'correctAnswer は空文字・未定義・null 禁止。入力問題は必ず具体的な数値、または完全に求めた式（例: $x=\\pm 2$）を返す。' +
-    '文字 a,b のまま数値入力させる問題は禁止。根号の対称式は a=3, b=2 などの具体整数を代入する。' +
-    '例: $x=\\frac{\\sqrt{3}+\\sqrt{2}}{\\sqrt{3}-\\sqrt{2}}, y=\\frac{\\sqrt{3}-\\sqrt{2}}{\\sqrt{3}+\\sqrt{2}}$ のとき $x^2+y^2$ の正解は 98。' +
-    'その解説は $x+y=10, xy=1 \\Rightarrow x^2+y^2=10^2-2(1)=98$ と明記する。' +
+    '例: $x=\\frac{\\sqrt{a}+\\sqrt{b}}{\\sqrt{a}-\\sqrt{b}}$ と逆数の y について $x^2+y^2$ を問うなら、a,b は具体整数にし、correctAnswer は (2(a+b)/(a-b))^2-2 を四捨五入した整数（a=6,b=5 なら 482、a=3,b=2 なら 98）。固定値 98 を使い回さない。' +
     'explanationSteps の各要素にも $...$ の途中式を含める。' +
     '2次関数・一次関数・三角関数のグラフ問題では、クライアント側SVG描画のため vars に係数を必ず含める。' +
     'quadratic は a,b,c または a,p,q。linear は m,b。sine は amplitude,frequency。画像生成は使わない。' +

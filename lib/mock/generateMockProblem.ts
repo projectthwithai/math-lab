@@ -229,15 +229,17 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
         subject: 'math',
         format: 'input',
         variables: {
-          a: { min: 3, max: 3, step: 1 },
-          b: { min: 2, max: 2, step: 1 },
+          a: { min: 3, max: 8, step: 1 },
+          b: { min: 2, max: 6, step: 1 },
         },
         templateText:
           'x = (√{{a}}+√{{b}})/(√{{a}}-√{{b}}), y = (√{{a}}-√{{b}})/(√{{a}}+√{{b}}) のとき、x² + y² の値を求めよ。',
         calcLogicJS: `
-          const a = vars.a, b = vars.b;
-          const sum = 2 * (a + b) / (a - b);
-          const answer = sum * sum - 2;
+          let a = vars.a, b = vars.b;
+          if (a < b) { const t = a; a = b; b = t; }
+          if (a === b) a = b + 1;
+          const sum = (2 * (a + b)) / (a - b);
+          const answer = String(Math.round(Math.pow((2 * (a + b)) / (a - b), 2) - 2));
           return {
             vars: { a, b },
             correctAnswer: answer,

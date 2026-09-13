@@ -101,16 +101,17 @@ function numbersByTier(tier: DifficultyTier, difficulty: number): TemplateBluepr
       subject: 'math',
       format: 'input',
       variables: {
-        a: { min: 3, max: 3, step: 1 },
-        b: { min: 2, max: 2, step: 1 },
+        a: { min: 3, max: 8, step: 1 },
+        b: { min: 2, max: 6, step: 1 },
       },
       templateText:
         '$x = \\dfrac{\\sqrt{{{a}}}+\\sqrt{{{b}}}}{\\sqrt{{{a}}}-\\sqrt{{{b}}}},\\ y = \\dfrac{\\sqrt{{{a}}}-\\sqrt{{{b}}}}{\\sqrt{{{a}}}+\\sqrt{{{b}}}}$ のとき、$x^2 + y^2$ の値を求めよ。',
       calcLogicJS: `
-        const a = vars.a, b = vars.b;
-        const sum = 2 * (a + b) / (a - b);
-        const prod = 1;
-        const answer = sum * sum - 2 * prod;
+        let a = vars.a, b = vars.b;
+        if (a < b) { const t = a; a = b; b = t; }
+        if (a === b) a = b + 1;
+        const sum = (2 * (a + b)) / (a - b);
+        const answer = String(Math.round(Math.pow((2 * (a + b)) / (a - b), 2) - 2));
         return {
           vars: { a, b },
           correctAnswer: answer,

@@ -9,7 +9,7 @@
 //   ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
 //   ③ ✍️ 自分流のメモとして上書き保存する（②の直下）
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame } from 'lucide-react';
 
@@ -20,7 +20,7 @@ import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
-import { formatCorrectAnswerForDisplay } from '@/lib/engine/correctAnswer';
+import { formatCorrectAnswerForDisplay, ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
@@ -73,6 +73,8 @@ export default function ScoreResultModal({
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const { user, ready: authReady } = useAuthSession();
   const showGuestSignup = isCorrect && authReady && !user;
+  const scoredProblem = useMemo(() => ensureProblemHasCorrectAnswer(problem), [problem]);
+  const displayedAnswer = formatCorrectAnswerForDisplay(scoredProblem);
 
   useEffect(() => {
     // 問題が変わるたびにLocalStorageから既存のノートを読み込む（外部ストアとの同期）。
@@ -140,7 +142,7 @@ export default function ScoreResultModal({
               <p className="mt-1 text-base font-black tracking-tight text-cyan-500 [text-shadow:0_0_12px_rgba(34,211,238,0.7)] dark:text-cyan-300">
                 正解: 【{' '}
                 <KaTeXText
-                  text={formatCorrectAnswerForDisplay(problem)}
+                  text={displayedAnswer}
                   className="inline font-black text-cyan-400 dark:text-cyan-300"
                 />{' '}
                 】
@@ -219,7 +221,7 @@ export default function ScoreResultModal({
             解法の真髄（Apexガイド）
           </h3>
           <ol className="mb-4 list-decimal space-y-2.5 pl-6 text-[15px] leading-relaxed text-slate-800 dark:text-slate-200">
-            {problem.explanation.stepByStep.map((step, index) => (
+            {scoredProblem.explanation.stepByStep.map((step, index) => (
               <li key={index} className="marker:font-bold marker:text-cyan-400">
                 <KaTeXText text={step} />
               </li>
@@ -230,18 +232,18 @@ export default function ScoreResultModal({
               <KeyRound className="h-3.5 w-3.5" />
               鍵となる公式
             </p>
-            <KaTeXBlock content={problem.explanation.keyFormula} className="text-lg font-semibold text-slate-900 dark:text-white" />
+            <KaTeXBlock content={scoredProblem.explanation.keyFormula} className="text-lg font-semibold text-slate-900 dark:text-white" />
           </div>
           <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-red-400">よくあるミス</p>
             <p className="text-sm text-slate-700 dark:text-slate-300">
-              <KaTeXText text={problem.explanation.commonMistakes} />
+              <KaTeXText text={scoredProblem.explanation.commonMistakes} />
             </p>
           </div>
         </div>
 
         <div className="mb-5">
-          <GoalBackwardTree problem={problem} compact />
+          <GoalBackwardTree problem={scoredProblem} compact />
         </div>
 
         {/* ③ ✍️ 自分流のメモとして上書き保存する */}
@@ -263,14 +265,14 @@ export default function ScoreResultModal({
                 customText={noteContent}
                 context={{
                   mode: 'problem',
-                  title: problem.title,
-                  unit: problem.unit,
-                  questionText: problem.questionText,
-                  patternId: problem.patternId,
-                  keyFormula: problem.explanation.keyFormula,
-                  commonMistakes: problem.explanation.commonMistakes,
-                  explanationSteps: problem.explanation.stepByStep,
-                  correctAnswer: problem.correctAnswer,
+                  title: scoredProblem.title,
+                  unit: scoredProblem.unit,
+                  questionText: scoredProblem.questionText,
+                  patternId: scoredProblem.patternId,
+                  keyFormula: scoredProblem.explanation.keyFormula,
+                  commonMistakes: scoredProblem.explanation.commonMistakes,
+                  explanationSteps: scoredProblem.explanation.stepByStep,
+                  correctAnswer: scoredProblem.correctAnswer,
                 }}
                 buttonLabel="解法ロジック検証"
               />

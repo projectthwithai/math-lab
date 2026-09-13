@@ -7,7 +7,7 @@
 
 import type { GeneratedProblem, ProblemFormat } from '@/types/mathLab';
 import { generateMockProblem } from '@/lib/mock/generateMockProblem';
-import { checkAnswer } from '@/lib/engine/answerChecker';
+import { checkProblemAnswer } from '@/lib/engine/answerChecker';
 import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
 import { isLowQualityDummyQuestion } from '@/lib/llm/examPrompts';
 
@@ -244,7 +244,7 @@ export function buildMockExamReport(params: {
       index,
       problem,
       userAnswer,
-      isCorrect: userAnswer.length > 0 && checkAnswer(userAnswer, problem.correctAnswer),
+      isCorrect: userAnswer.length > 0 && checkProblemAnswer(userAnswer, problem),
     };
   });
 

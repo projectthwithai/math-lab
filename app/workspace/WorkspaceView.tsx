@@ -15,8 +15,8 @@ import { Clock, RefreshCw, Lightbulb, PenLine, Keyboard, MessageCircle, Star, La
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
-import { checkAnswer } from '@/lib/engine/answerChecker';
-import { ensureProblemHasCorrectAnswer, resolveCorrectAnswer } from '@/lib/engine/correctAnswer';
+import { checkProblemAnswer } from '@/lib/engine/answerChecker';
+import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { addSolvedProblemRecord } from '@/lib/storage/solvedProblemsStore';
 import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
@@ -232,7 +232,7 @@ export default function WorkspaceView({
     if (!problem || isSubmitted || isSubmittedRef.current) return;
     isSubmittedRef.current = true;
     setIsSubmitted(true);
-    const isCorrect = checkAnswer(answerInput, resolveCorrectAnswer(problem));
+    const isCorrect = checkProblemAnswer(answerInput.trim(), problem);
     const xpResult = recordAnswer({
       isCorrect,
       difficulty: problem.difficulty,

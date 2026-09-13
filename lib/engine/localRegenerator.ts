@@ -10,7 +10,7 @@ import { attachMathGraphVisual } from '@/lib/engine/mathGraphVisual';
 import { attachGeometryVisual } from '@/lib/engine/geometryVisual';
 import { attachChemistryVisual, attachPhysicsVisual } from '@/lib/engine/scienceVisual';
 import { cleanGeneratedProblem, cleanLatexFormula } from '@/lib/utils/mathFormatter';
-import { ensureProblemHasCorrectAnswer, hasUsableCorrectAnswer } from '@/lib/engine/correctAnswer';
+import { ensureProblemHasCorrectAnswer, hasUsableCorrectAnswer, computeSymmetricRadicalAnswer, parseRadicalPair, isSymmetricRadicalQuestion } from '@/lib/engine/correctAnswer';
 
 /** [min, max]をstep刻みで取り得る値からランダムに1つ選ぶ */
 function randomInRange(min: number, max: number, step: number): number {
@@ -88,11 +88,24 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
               : attachMathGraphVisual(problem, result.vars);
           })();
 
-  const correctAnswer = hasUsableCorrectAnswer(result.correctAnswer)
-    ? typeof result.correctAnswer === 'string'
-      ? cleanLatexFormula(result.correctAnswer)
-      : result.correctAnswer
-    : '';
+  const radicalPair = isSymmetricRadicalQuestion(questionText) ? parseRadicalPair(questionText) : null;
+  const fromQuestion = radicalPair ? computeSymmetricRadicalAnswer(radicalPair.a, radicalPair.b) : null;
+  const fromVars =
+    !fromQuestion &&
+    isSymmetricRadicalQuestion(questionText) &&
+    typeof result.vars.a === 'number' &&
+    typeof result.vars.b === 'number'
+      ? computeSymmetricRadicalAnswer(Number(result.vars.a), Number(result.vars.b))
+      : null;
+
+  const syncedAnswer = fromQuestion ?? fromVars;
+  const correctAnswer: string | number = syncedAnswer
+    ? syncedAnswer
+    : hasUsableCorrectAnswer(result.correctAnswer)
+      ? typeof result.correctAnswer === 'string'
+        ? cleanLatexFormula(result.correctAnswer).trim()
+        : result.correctAnswer
+      : '';
 
   return ensureProblemHasCorrectAnswer(
     cleanGeneratedProblem({
@@ -110,6 +123,7 @@ export function regenerateProblemLocally(problem: GeneratedProblem): GeneratedPr
       },
       visualType: visual.visualType,
       visualConfig: visual.visualConfig,
-    })
+    }),
+    result.vars
   );
 }
