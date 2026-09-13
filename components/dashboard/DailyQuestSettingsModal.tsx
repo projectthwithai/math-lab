@@ -117,7 +117,7 @@ export default function DailyQuestSettingsModal({
              デイリークエストを編集
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            クエストは「問題を解く」のみ。Energy報酬は1日最大3回まで受け取れます。
+            クエストはすべて「選んだ単元の問題を解く」演習のみです。3問クリアでストリークが更新され、Energy報酬は1日最大3回まで受け取れます。
           </p>
         </header>
 

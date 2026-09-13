@@ -62,8 +62,8 @@ function DashboardHome() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <Target className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">本日のデイリーミッション</h2>
-          <span className="text-xs text-slate-500 dark:text-zinc-400">未攻略パターンから厳選した3問</span>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">本日の演習ミッション</h2>
+          <span className="text-xs text-slate-500 dark:text-zinc-400">未攻略パターンの単元問題を3問</span>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {dailyMissions.map((pattern, index) => (

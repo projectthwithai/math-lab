@@ -8,11 +8,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Gift, Sparkles, Target, Zap } from 'lucide-react';
+import { CheckCircle2, Flame, Gift, Sparkles, Target, Zap } from 'lucide-react';
 
 import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
+import { useUserStore, isQuestStreakGrantedToday } from '@/lib/store/userStore';
 import {
   MAX_DAILY_QUEST_REWARDS_PER_DAY,
+  STREAK_QUEST_GOAL,
   SUBJECT_LABEL,
   buildQuestWorkspaceHref,
 } from '@/data/dailyQuests';
@@ -29,6 +31,9 @@ export default function DailyMissionWidget() {
   const saveQuestSettings = useDailyQuestStore((state) => state.saveQuestSettings);
   const ensureToday = useDailyQuestStore((state) => state.ensureToday);
   const questCount = useDailyQuestStore((state) => state.questCount);
+  const streakDays = useUserStore((state) => state.streakDays);
+  const lastStreakGrantDateISO = useUserStore((state) => state.lastStreakGrantDateISO);
+  const pendingStreakCelebration = useUserStore((state) => state.pendingStreakCelebration);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [flash, setFlash] = useState<{ id: string; label: string } | null>(null);
@@ -39,6 +44,8 @@ export default function DailyMissionWidget() {
 
   const completedCount = quests.filter((quest) => quest.isCompleted).length;
   const canClaimMore = rewardsClaimedToday < MAX_DAILY_QUEST_REWARDS_PER_DAY;
+  const streakGrantedToday = isQuestStreakGrantedToday(lastStreakGrantDateISO);
+  const questsUntilStreak = Math.max(0, STREAK_QUEST_GOAL - completedCount);
 
   const handleClaim = (id: string) => {
     const result = claimQuest(id);
@@ -63,6 +70,18 @@ export default function DailyMissionWidget() {
             <Zap className="h-3.5 w-3.5" />
              本日のエネルギー報酬受取枠: {rewardsClaimedToday}/{MAX_DAILY_QUEST_REWARDS_PER_DAY}
           </p>
+          <p
+            className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+              streakGrantedToday
+                ? 'border-orange-400/50 bg-orange-400/15 text-orange-800 dark:text-orange-200'
+                : 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+            }`}
+          >
+            <Flame className={`h-3.5 w-3.5 ${streakGrantedToday ? 'text-orange-500' : 'opacity-50'}`} />
+            {streakGrantedToday
+              ? `本日のストリーク更新済み（${streakDays}日連続）`
+              : `あと${questsUntilStreak}問でストリーク更新`}
+          </p>
         </div>
         <button
           type="button"
@@ -72,6 +91,26 @@ export default function DailyMissionWidget() {
            クエストを編集
         </button>
       </div>
+
+      <AnimatePresence>
+        {pendingStreakCelebration != null && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="relative mb-4 overflow-hidden rounded-xl border border-orange-400/50 bg-orange-400/15 px-4 py-3 text-center"
+          >
+            <motion.p
+              initial={{ scale: 0.9 }}
+              animate={{ scale: [0.9, 1.06, 1] }}
+              transition={{ duration: 0.55 }}
+              className="text-sm font-bold text-orange-800 dark:text-orange-100 sm:text-base"
+            >
+              🔥 本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ol className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quests.map((quest) => {

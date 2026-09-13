@@ -4,13 +4,14 @@
 // 演習特化のカスタムデイリークエスト。武器庫閲覧・ライブラリ復習タスクは持たない。
 
 import type { CustomDailyQuest, Subject } from '@/types/mathLab';
-import { UNITS_DATA, getUnitsBySubject } from '@/data/unitsData';
+import { UNITS_DATA, getUnitsBySubject, getUnitById } from '@/data/unitsData';
 import { clampDifficulty } from '@/lib/engine/difficultyScale';
 
 export const MIN_DAILY_QUEST_COUNT = 3;
 export const MAX_DAILY_QUEST_COUNT = 10;
 export const DEFAULT_DAILY_QUEST_COUNT = 3;
 export const MAX_DAILY_QUEST_REWARDS_PER_DAY = 3;
+export const STREAK_QUEST_GOAL = 3;
 
 export const SUBJECT_LABEL: Record<Subject, string> = {
   math: '数学',
@@ -41,10 +42,12 @@ export function clampQuestCount(count: number): number {
   return Math.min(MAX_DAILY_QUEST_COUNT, Math.max(MIN_DAILY_QUEST_COUNT, Math.round(count)));
 }
 
-export function buildQuestTitle(quest: Pick<CustomDailyQuest, 'questNumber' | 'subjects' | 'difficulty'>): string {
+export function buildQuestTitle(quest: Pick<CustomDailyQuest, 'questNumber' | 'subjects' | 'difficulty' | 'unitIds'>): string {
   const subjects =
     quest.subjects.length > 0 ? quest.subjects.map((subject) => SUBJECT_LABEL[subject]).join('・') : '理数';
-  return `クエスト${quest.questNumber}: ${subjects} ★${clampDifficulty(quest.difficulty)}`;
+  const unitTitle = quest.unitIds?.[0] ? getUnitById(quest.unitIds[0])?.title : undefined;
+  const unitPart = unitTitle ?? subjects;
+  return `クエスト${quest.questNumber}: ${unitPart}の問題を解く ★${clampDifficulty(quest.difficulty)}`;
 }
 
 export function createQuestSlot(questNumber: number, seed?: Partial<CustomDailyQuest>): CustomDailyQuest {
@@ -62,7 +65,7 @@ export function createQuestSlot(questNumber: number, seed?: Partial<CustomDailyQ
     isCompleted: seed?.isCompleted ?? false,
     isRewardClaimed: seed?.isRewardClaimed ?? false,
   };
-  quest.title = seed?.title?.trim() ? seed.title : buildQuestTitle(quest);
+  quest.title = buildQuestTitle(quest);
   return quest;
 }
 

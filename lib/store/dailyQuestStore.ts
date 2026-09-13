@@ -10,6 +10,7 @@ import type { CustomDailyQuest } from '@/types/mathLab';
 import {
   MAX_DAILY_QUEST_REWARDS_PER_DAY,
   DEFAULT_DAILY_QUEST_COUNT,
+  STREAK_QUEST_GOAL,
   clampQuestCount,
   createDefaultDailyQuests,
   normalizeDailyQuests,
@@ -41,6 +42,12 @@ function resetDailyProgress(quests: CustomDailyQuest[]): CustomDailyQuest[] {
   return quests.map((quest) => ({ ...quest, isCompleted: false, isRewardClaimed: false }));
 }
 
+function tryGrantQuestStreak(quests: CustomDailyQuest[]): void {
+  const completedCount = quests.filter((quest) => quest.isCompleted).length;
+  if (completedCount < STREAK_QUEST_GOAL) return;
+  useUserStore.getState().grantQuestStreakIfEligible();
+}
+
 export const useDailyQuestStore = create<DailyQuestState>()(
   persist(
     (set, get) => ({
@@ -54,7 +61,10 @@ export const useDailyQuestStore = create<DailyQuestState>()(
       ensureToday: () => {
         const today = getTodayISODate();
         const state = get();
-        if (state.dateISO === today) return;
+        if (state.dateISO === today) {
+          tryGrantQuestStreak(state.quests);
+          return;
+        }
         set({
           dateISO: today,
           rewardsClaimedToday: 0,
@@ -71,11 +81,15 @@ export const useDailyQuestStore = create<DailyQuestState>()(
 
       completeQuest: (id) => {
         get().ensureToday();
+        const alreadyDone = get().quests.find((quest) => quest.id === id)?.isCompleted;
         set((state) => ({
           quests: state.quests.map((quest) =>
             quest.id === id ? { ...quest, isCompleted: true } : quest
           ),
         }));
+        if (!alreadyDone) {
+          tryGrantQuestStreak(get().quests);
+        }
       },
 
       claimQuest: (id) => {

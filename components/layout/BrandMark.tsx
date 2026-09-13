@@ -20,7 +20,7 @@ const SIZE: Record<
   nav: {
     iconBox: 'h-8 w-8 rounded-lg',
     icon: 'h-4 w-4',
-    title: 'text-base font-extrabold tracking-tight sm:text-lg',
+    title: 'text-sm font-extrabold tracking-tight sm:text-lg',
     badge: 'text-[8px] tracking-[0.16em]',
     stack: 'gap-0.5',
   },
@@ -51,9 +51,9 @@ export default function BrandMark({ size = 'nav', className = '' }: BrandMarkPro
         <Sparkles className={spec.icon} />
       </span>
       <span className={`flex min-w-0 flex-col ${spec.stack}`}>
-        <span className={`leading-none text-slate-900 dark:text-zinc-100 ${spec.title}`}>Math Lab</span>
+        <span className={`whitespace-nowrap leading-none text-slate-900 dark:text-zinc-100 ${spec.title}`}>Math Lab</span>
         <span
-          className={`font-medium uppercase leading-none text-slate-400 dark:text-slate-500 ${spec.badge}`}
+          className={`${size === 'nav' ? 'hidden sm:block' : ''} font-medium uppercase leading-none text-slate-400 dark:text-slate-500 ${spec.badge}`}
         >
           AI LEARNING OS BY APEX
         </span>

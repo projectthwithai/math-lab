@@ -14,6 +14,7 @@ import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathL
 import { requestScratchpadCorrection } from '@/lib/api/correctScratchpadClient';
 import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_CORRECT_SCRATCHPAD, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import PaperScratchpadModal from '@/components/workspace/PaperScratchpadModal';
 
 const PEN_COLORS = ['#22d3ee', '#f472b6', '#facc15', '#f8fafc'];
 const CANVAS_BG = '#0b1120';
@@ -71,6 +72,7 @@ export default function ScratchpadCanvas({
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correction, setCorrection] = useState<ScratchpadCorrectionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paperOpen, setPaperOpen] = useState(false);
 
   const emitSnapshot = () => {
     const canvas = canvasRef.current;
@@ -201,7 +203,12 @@ export default function ScratchpadCanvas({
     setErrorMessage(null);
     try {
       const imageBase64 = canvas.toDataURL('image/png');
-      const result = await requestScratchpadCorrection({ imageBase64, problem });
+      const result = await requestScratchpadCorrection({
+        imageBase64,
+        mimeType: 'image/png',
+        captureSource: 'canvas',
+        problem,
+      });
       setCorrection(result);
     } catch (error) {
       console.error('[ScratchpadCanvas] 添削に失敗しました', error);
@@ -261,25 +268,36 @@ export default function ScratchpadCanvas({
         className="w-full touch-none rounded-xl border border-slate-200 dark:border-slate-800"
       />
 
-      <button
-        type="button"
-        onClick={() => {
-          void handleCorrect();
-        }}
-        disabled={isCorrecting}
-        className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/50 bg-red-500/10 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-40"
-      >
-        {isCorrecting ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            赤ペン添削中...
-          </>
-        ) : (
-          <>
-            🔍 途中式をAI添削（{ENERGY_COST_CORRECT_SCRATCHPAD} Energy）
-          </>
-        )}
-      </button>
+      <div className="grid grid-cols-1 gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            void handleCorrect();
+          }}
+          disabled={isCorrecting}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/50 bg-red-500/10 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-40"
+        >
+          {isCorrecting ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              赤ペン添削中...
+            </>
+          ) : (
+            <>🔍 途中式をAI添削（{ENERGY_COST_CORRECT_SCRATCHPAD} Energy）</>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPaperOpen(true)}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/5 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/15"
+        >
+          📷 紙のノートを撮って添削
+        </button>
+      </div>
+
+      {paperOpen && (
+        <PaperScratchpadModal problem={problem} onClose={() => setPaperOpen(false)} />
+      )}
 
       {errorMessage && <p className="text-xs text-red-400">{errorMessage}</p>}
 

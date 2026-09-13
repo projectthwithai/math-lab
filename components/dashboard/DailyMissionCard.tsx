@@ -49,8 +49,10 @@ export default function DailyMissionCard({ pattern, missionIndex }: DailyMission
             {getPatternStarTypeLabel(pattern)}
           </span>
         </div>
-        <p className="text-xs text-slate-500">{pattern.unit}</p>
-        <h3 className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{pattern.patternName}</h3>
+        <h3 className="mt-0.5 text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
+          {pattern.unit}の問題を解く
+        </h3>
+        <p className="mt-1 text-xs text-slate-500">{pattern.patternName}</p>
       </div>
 
       <button
@@ -58,7 +60,7 @@ export default function DailyMissionCard({ pattern, missionIndex }: DailyMission
         onClick={handleStart}
         className={`mt-4 flex items-center justify-center gap-1.5 rounded-lg border ${accent.border} py-2 text-xs font-semibold ${accent.text} transition-colors ${accent.bgSoftHover}`}
       >
-        挑戦する
+        問題を解く
         <ArrowRight className="h-3.5 w-3.5" />
       </button>
     </div>

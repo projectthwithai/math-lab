@@ -8,13 +8,19 @@
 
 import { motion } from 'framer-motion';
 import { Flame, Zap, Trophy, Infinity as InfinityIcon } from 'lucide-react';
-import { useUserStore } from '@/lib/store/userStore';
+import { useUserStore, isQuestStreakGrantedToday } from '@/lib/store/userStore';
+import { STREAK_QUEST_GOAL } from '@/data/dailyQuests';
+import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
 
 export default function PlayerStatusPanel() {
   const level = useUserStore((state) => state.level);
   const xpIntoCurrentLevel = useUserStore((state) => state.xpIntoCurrentLevel);
   const xpRequiredForNextLevel = useUserStore((state) => state.xpRequiredForNextLevel);
   const streakDays = useUserStore((state) => state.streakDays);
+  const lastStreakGrantDateISO = useUserStore((state) => state.lastStreakGrantDateISO);
+  const completedQuestCount = useDailyQuestStore(
+    (state) => state.quests.filter((quest) => quest.isCompleted).length
+  );
   const energy = useUserStore((state) => state.energy);
   const maxEnergy = useUserStore((state) => state.maxEnergy);
   const isDeveloper = useUserStore((state) => state.isDeveloper);
@@ -23,6 +29,8 @@ export default function PlayerStatusPanel() {
     xpRequiredForNextLevel > 0
       ? Math.max(0, Math.min(1, xpIntoCurrentLevel / xpRequiredForNextLevel))
       : 0;
+  const streakGrantedToday = isQuestStreakGrantedToday(lastStreakGrantDateISO);
+  const questsUntilStreak = Math.max(0, STREAK_QUEST_GOAL - completedQuestCount);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-6">
@@ -55,11 +63,44 @@ export default function PlayerStatusPanel() {
 
         {/* ストリーク & エネルギー */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950/50">
-            <Flame className="h-5 w-5 text-orange-500 dark:text-orange-300" />
+          <div
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
+              streakGrantedToday
+                ? 'border-orange-400/40 bg-orange-400/10 dark:bg-orange-400/10'
+                : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/50'
+            }`}
+          >
+            <Flame
+              className={`h-5 w-5 ${
+                streakGrantedToday
+                  ? 'text-orange-500 dark:text-orange-300'
+                  : 'text-orange-400/50 dark:text-orange-300/40'
+              }`}
+            />
             <div>
-              <p className="text-[10px] leading-none text-orange-500/80 dark:text-orange-300/80">ストリーク</p>
-              <p className="text-sm font-bold leading-tight text-orange-700 dark:text-orange-200">{streakDays}日連続</p>
+              <p
+                className={`text-[10px] leading-none ${
+                  streakGrantedToday
+                    ? 'text-orange-500/80 dark:text-orange-300/80'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                ストリーク
+              </p>
+              <p
+                className={`text-sm font-bold leading-tight ${
+                  streakGrantedToday
+                    ? 'text-orange-700 dark:text-orange-200'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {streakDays}日連続
+              </p>
+              <p className="text-[10px] font-medium text-slate-400">
+                {streakGrantedToday
+                  ? '本日の目標達成'
+                  : `あと${questsUntilStreak}問で更新`}
+              </p>
             </div>
           </div>
           <div className="flex min-w-[9.5rem] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950/50">

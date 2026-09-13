@@ -10,7 +10,9 @@ import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
 
-import { useUserStore, DEFAULT_MAX_ENERGY } from '@/lib/store/userStore';
+import { useUserStore, DEFAULT_MAX_ENERGY, isQuestStreakGrantedToday } from '@/lib/store/userStore';
+import { STREAK_QUEST_GOAL } from '@/data/dailyQuests';
+import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
 import BrandMark from '@/components/layout/BrandMark';
@@ -36,9 +38,15 @@ const NAV_TABS: NavTab[] = [
 export default function Navbar() {
   const pathname = usePathname();
   const streakDays = useUserStore((state) => state.streakDays);
+  const lastStreakGrantDateISO = useUserStore((state) => state.lastStreakGrantDateISO);
+  const pendingStreakCelebration = useUserStore((state) => state.pendingStreakCelebration);
+  const clearStreakCelebration = useUserStore((state) => state.clearStreakCelebration);
   const energy = useUserStore((state) => state.energy);
   const maxEnergy = useUserStore((state) => state.maxEnergy);
   const isDeveloper = useUserStore((state) => state.isDeveloper);
+  const completedQuestCount = useDailyQuestStore(
+    (state) => state.quests.filter((quest) => quest.isCompleted).length
+  );
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const energyCap = maxEnergy ?? DEFAULT_MAX_ENERGY;
   const isOvercapped = !isDeveloper && energy > energyCap;
@@ -48,6 +56,9 @@ export default function Navbar() {
     window.location.assign('/');
   };
 
+  const streakGrantedToday = isQuestStreakGrantedToday(lastStreakGrantDateISO);
+  const questsUntilStreak = Math.max(0, STREAK_QUEST_GOAL - completedQuestCount);
+
   useEffect(() => {
     if (!authNotice) return;
     const linger = authNotice === SUPABASE_BOOTING_HINT ? 9000 : 5200;
@@ -55,24 +66,40 @@ export default function Navbar() {
     return () => window.clearTimeout(timer);
   }, [authNotice]);
 
+  useEffect(() => {
+    if (pendingStreakCelebration == null) return;
+    const timer = window.setTimeout(() => clearStreakCelebration(), 4800);
+    return () => window.clearTimeout(timer);
+  }, [pendingStreakCelebration, clearStreakCelebration]);
+
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-zinc-800/60 dark:bg-black/80">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:py-3 lg:px-10">
         <div className="flex items-center justify-between gap-2">
-          <Link href="/" className="flex min-w-0 items-center">
-            <BrandMark size="nav" />
-          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Link href="/" className="flex min-w-0 shrink items-center overflow-hidden">
+              <BrandMark size="nav" />
+            </Link>
+            <span
+              className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium sm:px-2.5 sm:text-xs ${
+                streakGrantedToday
+                  ? 'border-orange-400/50 bg-orange-400/10 text-orange-600 dark:border-orange-400/40 dark:bg-zinc-950/80 dark:text-orange-400'
+                  : 'border-slate-200 bg-white text-orange-400/70 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-orange-400/55'
+              }`}
+              title={
+                streakGrantedToday
+                  ? `${streakDays}日連続`
+                  : `あと${questsUntilStreak}問でストリーク更新`
+              }
+            >
+              <Flame className={`h-3.5 w-3.5 ${streakGrantedToday ? '' : 'opacity-50'}`} />
+              {streakDays}日
+            </span>
+          </div>
 
           <div className="flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium sm:text-xs">
             <span
-              className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-orange-500 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-orange-400"
-              title="連続学習ストリーク"
-            >
-              <Flame className="h-3.5 w-3.5" />
-              {streakDays}日
-            </span>
-            <span
-              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
+              className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 sm:px-2.5 ${
                 isDeveloper
                   ? 'border-amber-400/50 bg-amber-400/10 text-amber-600 dark:border-amber-400/40 dark:bg-zinc-950/80 dark:text-amber-300'
                   : isOvercapped
@@ -85,14 +112,13 @@ export default function Navbar() {
               {isDeveloper ? (
                 <span className="inline-flex items-center gap-1">
                   <InfinityIcon className="h-3.5 w-3.5" />
-                  (Dev)
+                  <span className="hidden sm:inline">(Dev)</span>
                 </span>
               ) : (
                 `${energy}/${energyCap}`
               )}
             </span>
             <ThemeToggle />
-            {/* 未ログイン時は AuthButton が常時「Googleで保存」を強調表示する */}
             <AuthButton
               onLogout={handleSecureLogout}
               onNotice={(message) => {
@@ -133,6 +159,22 @@ export default function Navbar() {
           })}
         </nav>
       </div>
+
+      <AnimatePresence>
+        {pendingStreakCelebration != null && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.96 }}
+            className="fixed inset-x-4 top-20 z-[70] mx-auto w-[min(92vw,28rem)] rounded-2xl border border-orange-400/50 bg-slate-950/95 px-4 py-3.5 shadow-2xl sm:top-24"
+            role="status"
+          >
+            <p className="text-center text-sm font-bold leading-relaxed text-orange-100 sm:text-base">
+              🔥 本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {authNotice && (

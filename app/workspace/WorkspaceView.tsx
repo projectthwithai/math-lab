@@ -242,7 +242,7 @@ export default function WorkspaceView({
     setIsSolved(true);
     // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
     addSolvedProblemRecord(problem, isCorrect);
-    if (source === 'daily-quest' && questId) {
+    if (isCorrect && source === 'daily-quest' && questId) {
       completeDailyQuest(questId);
     }
   };

@@ -137,9 +137,13 @@ interface UserStoreState {
   xpIntoCurrentLevel: number;
   xpRequiredForNextLevel: number;
 
-  // --- 連続学習ストリーク ---
+  // --- 連続学習ストリーク（デイリークエスト3問達成で +1） ---
   streakDays: number;
   lastActiveDateISO: string | null;
+  /** ストリークを実際に加算した日。アプリ起動では更新しない */
+  lastStreakGrantDateISO: string | null;
+  /** 3問達成で付与した直後のトースト用。永続化しない */
+  pendingStreakCelebration: number | null;
 
   // --- Energy（スタミナ） ---
   energy: number;
@@ -181,8 +185,11 @@ interface UserStoreState {
   // --- アクション ---
   /** ウェルカム画面から「1問だけ体験」を開始する */
   startGuestDemo: () => void;
-  /** アプリ起動時（クライアントマウント後）に1度呼び出し、ストリーク更新とEnergy日次リフィルを行う */
+  /** アプリ起動時: Energy 日次リフィルと、未達成日のストリーク失効。加算はしない */
   touchDailyStreakAndEnergy: () => void;
+  /** デイリークエストを当日3つ完了したときだけストリークを +1 */
+  grantQuestStreakIfEligible: () => { granted: boolean; streakDays: number };
+  clearStreakCelebration: () => void;
   /** ログイン後など、端末ロックをユーザーID付きで再適用する */
   applyDeviceEnergyLock: (userId?: string | null) => void;
   /** 1問解答した結果を反映する（XP付与・難易度適応・パターン攻略記録。Energyは消費しない） */
@@ -225,6 +232,8 @@ export const useUserStore = create<UserStoreState>()(
 
       streakDays: 0,
       lastActiveDateISO: null,
+      lastStreakGrantDateISO: null,
+      pendingStreakCelebration: null,
 
       energy: DEFAULT_MAX_ENERGY,
       maxEnergy: DEFAULT_MAX_ENERGY,
@@ -262,18 +271,14 @@ export const useUserStore = create<UserStoreState>()(
         });
 
         set((current) => {
+          const lastGrant = current.lastStreakGrantDateISO ?? current.lastActiveDateISO;
           let streakDays = current.streakDays;
-          if (current.lastActiveDateISO === today) {
-            // 本日すでに記録済み: 何もしない
-          } else if (current.lastActiveDateISO === yesterday) {
-            streakDays = current.streakDays + 1;
-          } else {
-            streakDays = 1;
+          if (lastGrant && lastGrant !== today && lastGrant !== yesterday) {
+            streakDays = 0;
           }
 
           return {
             streakDays,
-            lastActiveDateISO: today,
             energy: resolved.energy,
             maxEnergy: DEFAULT_MAX_ENERGY,
             lastEnergyRefillDateISO: resolved.lastEnergyRefillDateISO,
@@ -281,6 +286,29 @@ export const useUserStore = create<UserStoreState>()(
           };
         });
       },
+
+      grantQuestStreakIfEligible: () => {
+        const today = getTodayISODate();
+        const yesterday = getYesterdayISODate();
+        const current = get();
+        if (current.lastStreakGrantDateISO === today) {
+          return { granted: false, streakDays: current.streakDays };
+        }
+
+        const streakDays =
+          current.lastStreakGrantDateISO === yesterday ? current.streakDays + 1 : 1;
+
+        set({
+          streakDays,
+          lastStreakGrantDateISO: today,
+          lastActiveDateISO: today,
+          pendingStreakCelebration: streakDays,
+          progressUpdatedAt: stampProgress(),
+        });
+        return { granted: true, streakDays };
+      },
+
+      clearStreakCelebration: () => set({ pendingStreakCelebration: null }),
 
       applyDeviceEnergyLock: (userId = null) => {
         const state = get();
@@ -453,7 +481,12 @@ export const useUserStore = create<UserStoreState>()(
       // `UserStoreHydrator`がマウント後に明示的に`rehydrate()`する。
       skipHydration: true,
       partialize: (state) => {
-        const { isDeveloper: _isDeveloper, hasHydrated: _hasHydrated, ...persisted } = state;
+        const {
+          isDeveloper: _isDeveloper,
+          hasHydrated: _hasHydrated,
+          pendingStreakCelebration: _pendingStreakCelebration,
+          ...persisted
+        } = state;
         return persisted;
       },
       merge: (persisted, current) => {
@@ -485,6 +518,13 @@ export const useUserStore = create<UserStoreState>()(
             ? incoming.unlockedWeaponIds
             : current.unlockedWeaponIds,
           ...nextMasteredIds(incomingCleared),
+          lastStreakGrantDateISO:
+            typeof incoming.lastStreakGrantDateISO === 'string'
+              ? incoming.lastStreakGrantDateISO
+              : incoming.lastStreakGrantDateISO === null
+                ? null
+                : (current.lastStreakGrantDateISO ?? null),
+          pendingStreakCelebration: null,
           hasHydrated: false,
         };
       },
@@ -496,6 +536,11 @@ export interface LivePatternProgress {
   masteredPatterns: string[];
   summary: PatternCompletionSummary;
   radarAxes: WeaknessRadarAxis[];
+}
+
+/** 当日すでにデイリークエスト3問でストリーク加算済みか */
+export function isQuestStreakGrantedToday(lastStreakGrantDateISO: string | null): boolean {
+  return lastStreakGrantDateISO === getTodayISODate();
 }
 
 /** レーダー・進捗バー用。静的図鑑 + 発掘 + 制覇IDからリアルタイム集計する */

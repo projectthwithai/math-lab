@@ -125,7 +125,7 @@ export default function AuthButton({ onNotice, onLogout }: AuthButtonProps) {
             ) : (
               <UserRound className="h-3.5 w-3.5" />
             )}
-            <span className="truncate">{name}</span>
+            <span className="hidden truncate sm:inline">{name}</span>
           </span>
           <button
             type="button"

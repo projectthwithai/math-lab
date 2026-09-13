@@ -30,6 +30,7 @@ interface CorrectionContext {
   commonMistakes?: string;
   explanationSteps?: string[];
   keyFormula?: string;
+  captureSource?: 'canvas' | 'paper-notebook';
 }
 
 function stripDataUrl(raw: string): ParsedImage {
@@ -65,6 +66,10 @@ function parseContext(raw: unknown): CorrectionContext {
   return context;
 }
 
+function parseCaptureSource(raw: unknown): 'canvas' | 'paper-notebook' {
+  return raw === 'paper-notebook' ? 'paper-notebook' : 'canvas';
+}
+
 function parseIncoming(body: Record<string, unknown>): { image: ParsedImage | null; context: CorrectionContext } {
   const raw =
     typeof body.imageBase64 === 'string'
@@ -76,7 +81,9 @@ function parseIncoming(body: Record<string, unknown>): { image: ParsedImage | nu
   if (image && typeof body.mimeType === 'string' && body.mimeType.startsWith('image/')) {
     image.mimeType = body.mimeType;
   }
-  return { image, context: parseContext(body.context ?? body) };
+  const context = parseContext(body.context ?? body);
+  context.captureSource = parseCaptureSource(body.captureSource);
+  return { image, context };
 }
 
 function normalizeComments(raw: unknown): ScratchpadCorrectionComment[] {
@@ -114,20 +121,26 @@ async function correctViaVision(
   image: ParsedImage,
   context: CorrectionContext
 ): Promise<ScratchpadCorrectionResult | null> {
+  const isPaper = context.captureSource === 'paper-notebook';
   const systemPrompt =
     'あなたは高校生の手書き途中式を赤ペンで添削する数学・物理・化学の教師です。' +
-    '画像をOCRし、書かれている文字・数式・計算ステップを実際に読み取る。読めない部分は断定しない。' +
+    (isPaper
+      ? '入力は紙のノート・計算用紙の写真である。罫線・消しゴム跡・影があっても手書き数式をOCRして読む。'
+      : '入力はデジタル手書きキャンバスの画像である。') +
+    '書かれている文字・数式・計算ステップを実際に読み取る。読めない部分は断定しない。' +
     '出力はJSONのみ。キーは overall, summary, comments。' +
     'overall は good / needs_fix / empty。' +
     'comments は { line?, severity, text } の配列。severity は error / warning / ok。' +
-    'text は必ずピンポイントな赤ペン指導にする。例:' +
-    '「2行目の計算で符号が逆です」「余弦定理への辺の代入ミスです」' +
-    '「考え方は完璧です。計算を最後まで進めましょう」。' +
+    'text は必ずピンポイントな赤ペン指導にする。行が読み取れるなら必ず line を付け、' +
+    '「ノートの2行目で符号ミスです」「3行目で余弦定理への辺の代入が誤りです」のように具体的に書く。' +
+    '公式名を挙げ、どの文字をどこへ代入したかが違うのかを指摘する。' +
     '正解の最終値を先に教えず、どこが論理的・計算的に危ういかを具体的に指す。' +
-    '空欄・ほぼ白紙なら overall=empty。数式は $...$ の LaTeX で書いてよい。';
+    '空欄・ほぼ白紙・数式が全く写っていないなら overall=empty。数式は $...$ の LaTeX で書いてよい。';
 
   const userText = JSON.stringify({
-    task: '手書き画像をOCRしたうえで赤ペン添削してください。行番号が読み取れるなら line を付ける。',
+    task: isPaper
+      ? '紙ノート写真をOCRしたうえで、行番号つきの赤ペン添削をしてください。符号ミス・公式への代入誤りをピンポイントで指摘する。'
+      : '手書き画像をOCRしたうえで赤ペン添削してください。行番号が読み取れるなら line を付ける。',
     problem: {
       title: context.title ?? '',
       unit: context.unit ?? '',
@@ -181,6 +194,7 @@ export async function POST(request: Request): Promise<Response> {
       correctScratchpadMock({
         ...context,
         imageByteLength: 0,
+        captureSource: context.captureSource,
       })
     );
   }
@@ -191,6 +205,7 @@ export async function POST(request: Request): Promise<Response> {
       correctScratchpadMock({
         ...context,
         imageByteLength: image.base64.length,
+        captureSource: context.captureSource,
       })
   );
 }

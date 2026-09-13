@@ -4,8 +4,12 @@
 
 import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathLab';
 
+export type ScratchpadCaptureSource = 'canvas' | 'paper-notebook';
+
 export async function requestScratchpadCorrection(params: {
   imageBase64: string;
+  mimeType?: string;
+  captureSource?: ScratchpadCaptureSource;
   problem?: GeneratedProblem | null;
 }): Promise<ScratchpadCorrectionResult> {
   const problem = params.problem;
@@ -14,7 +18,8 @@ export async function requestScratchpadCorrection(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       imageBase64: params.imageBase64,
-      mimeType: 'image/png',
+      mimeType: params.mimeType ?? 'image/png',
+      captureSource: params.captureSource ?? 'canvas',
       context: problem
         ? {
             title: problem.title,

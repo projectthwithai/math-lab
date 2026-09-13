@@ -14,6 +14,7 @@ interface ScratchpadMockContext {
   commonMistakes?: string;
   explanationSteps?: string[];
   imageByteLength?: number;
+  captureSource?: 'canvas' | 'paper-notebook';
 }
 
 const GENERIC_COMMENTS = [
@@ -93,13 +94,18 @@ function unitComments(unit: string, commonMistakes: string): ScratchpadCorrectio
 export function correctScratchpadMock(context: ScratchpadMockContext): ScratchpadCorrectionResult {
   const imageLen = context.imageByteLength ?? 0;
   if (imageLen < 800) {
+    const isPaper = context.captureSource === 'paper-notebook';
     return {
       overall: 'empty',
-      summary: '途中式がほとんど読み取れません。キャンバスに計算過程を書いてから、もう一度添削してください。',
+      summary: isPaper
+        ? 'ノートの途中式がほとんど読み取れません。計算が写るように明るく撮り直してください。'
+        : '途中式がほとんど読み取れません。キャンバスに計算過程を書いてから、もう一度添削してください。',
       comments: [
         {
           severity: 'warning',
-          text: '行番号が分かるように、式を上から順に書いてください。展開・場合分け・結論を分けて書くと添削精度が上がります。',
+          text: isPaper
+            ? 'ノートの上から順に式が見えるように撮影し、符号・代入した公式名が読める大きさを確保してください。'
+            : '行番号が分かるように、式を上から順に書いてください。展開・場合分け・結論を分けて書くと添削精度が上がります。',
         },
       ],
       source: 'local',
