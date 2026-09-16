@@ -112,6 +112,8 @@ export interface SolutionPattern {
   difficulty?: number;
   /** 図鑑の「新パターン解析」で後から追加されたパターン */
   discovered?: boolean;
+  /** 反例克服ストーリーで登録した「⚠️ 罠パターン」 */
+  trapPattern?: boolean;
 }
 
 // ------------------------------------------

@@ -13,13 +13,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame, AlertTriangle, Loader2, Swords } from 'lucide-react';
 
 import type { GeneratedProblem, MistakeTag } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
+import CounterChallengeStoryModal from './CounterChallengeStoryModal';
 import GoalBackwardTree from './GoalBackwardTree';
 import PostSolveAIChat from './PostSolveAIChat';
 import { saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
@@ -31,6 +32,9 @@ import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
+import { requestRefinedSolutionNote } from '@/lib/api/refineSolutionNoteClient';
+import { ENERGY_COST_REFINE_NOTE, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import type { CustomSolutionVerifyResult } from '@/types/mathLab';
 
 interface ScoreResultModalProps {
   problem: GeneratedProblem;
@@ -86,6 +90,11 @@ export default function ScoreResultModal({
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [verifyFeedback, setVerifyFeedback] = useState('');
+  const [verifyStatus, setVerifyStatus] = useState<CustomSolutionVerifyResult['status'] | null>(null);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [noteGlow, setNoteGlow] = useState(false);
   const { user, ready: authReady } = useAuthSession();
   const showGuestSignup = isCorrect && authReady && !user;
   const scoredProblem = useMemo(() => ensureProblemHasCorrectAnswer(problem), [problem]);
@@ -155,7 +164,59 @@ export default function ScoreResultModal({
     window.setTimeout(() => setSaveNotice(null), 3000);
   };
 
+  const handleRefineNote = async () => {
+    if (isRefining) return;
+    const store = useUserStore.getState();
+    if (!store.hasHydrated) {
+      setSaveNotice('ステータスを読み込み中です。少し待ってから再試行してください。');
+      window.setTimeout(() => setSaveNotice(null), 3000);
+      return;
+    }
+    if (!store.consumeEnergy(ENERGY_COST_REFINE_NOTE)) {
+      setSaveNotice(formatEnergyShortage(ENERGY_COST_REFINE_NOTE, store.energy));
+      window.setTimeout(() => setSaveNotice(null), 4000);
+      return;
+    }
+
+    const aiFeedback = [
+      verifyFeedback,
+      scoredProblem.explanation.commonMistakes,
+    ]
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .join('\n');
+
+    setIsRefining(true);
+    try {
+      const refinedNote = await requestRefinedSolutionNote({
+        originalNote: solutionNote,
+        aiFeedback,
+        questionText: scoredProblem.questionText,
+        keyFormula: scoredProblem.explanation.keyFormula,
+        userEmail: user?.email,
+      });
+      onSolutionNoteChange(refinedNote);
+      if (patternId) {
+        upsertPatternNote(patternId, refinedNote);
+      } else {
+        saveCustomSolutionNote(problem.id, refinedNote);
+      }
+      setNoteGlow(true);
+      setSaveNotice('AIの指摘を反映して清書しました');
+      window.setTimeout(() => setNoteGlow(false), 1400);
+      window.setTimeout(() => setSaveNotice(null), 3000);
+    } catch (error) {
+      console.error('[ScoreResultModal] 清書に失敗しました', error);
+      useUserStore.getState().refundEnergy(ENERGY_COST_REFINE_NOTE);
+      setSaveNotice('清書に失敗したため、Energy を返還しました。');
+      window.setTimeout(() => setSaveNotice(null), 4000);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -307,13 +368,30 @@ export default function ScoreResultModal({
                 このメモは解答前のワークスペースと同じ内容です。編集すると図鑑とも同期されます。
               </p>
             )}
-            <textarea
-              value={solutionNote}
-              onChange={(event) => onSolutionNoteChange(event.target.value)}
-              rows={8}
-              placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-              className="min-h-[10rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
+            <motion.div
+              animate={
+                noteGlow
+                  ? {
+                      boxShadow: [
+                        '0 0 0 rgba(34,211,238,0)',
+                        '0 0 28px rgba(34,211,238,0.85)',
+                        '0 0 12px rgba(168,85,247,0.55)',
+                        '0 0 0 rgba(34,211,238,0)',
+                      ],
+                    }
+                  : { boxShadow: '0 0 0 rgba(34,211,238,0)' }
+              }
+              transition={{ duration: 1.2, ease: 'easeOut' }}
+              className={`rounded-lg ${noteGlow ? 'ring-2 ring-cyan-300/80' : ''}`}
+            >
+              <textarea
+                value={solutionNote}
+                onChange={(event) => onSolutionNoteChange(event.target.value)}
+                rows={8}
+                placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
+                className="min-h-[10rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              />
+            </motion.div>
             <div className="mt-3">
               <AiSolutionCheckPanel
                 customText={solutionNote}
@@ -329,9 +407,26 @@ export default function ScoreResultModal({
                   correctAnswer: scoredProblem.correctAnswer,
                 }}
                 buttonLabel="解法ロジック検証"
+                onResult={(result: CustomSolutionVerifyResult) => {
+                  const parts = [result.feedback, result.edgeCaseNote].filter(
+                    (item): item is string => Boolean(item && item.trim())
+                  );
+                  setVerifyFeedback(parts.join('\n'));
+                  setVerifyStatus(result.status);
+                }}
               />
+              {verifyStatus && verifyStatus !== 'perfect' && (
+                <button
+                  type="button"
+                  onClick={() => setChallengeOpen(true)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/15 via-red-400/10 to-cyan-400/15 px-3 py-2.5 text-xs font-bold text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:shadow-[0_0_24px_rgba(34,211,238,0.35)]"
+                >
+                  <Swords className="h-3.5 w-3.5 text-amber-300" />
+                  ⚔️ この解法が通用しない「罠パターン」に挑戦する
+                </button>
+              )}
             </div>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleSaveNote}
@@ -339,13 +434,37 @@ export default function ScoreResultModal({
               >
                 ノートに保存
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRefineNote();
+                }}
+                disabled={isRefining}
+                className="rounded-lg border border-cyan-300/70 bg-gradient-to-r from-cyan-400/25 via-fuchsia-400/20 to-cyan-400/25 px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.45)] transition hover:shadow-[0_0_22px_rgba(34,211,238,0.7)] disabled:opacity-50"
+              >
+                {isRefining ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    清書中...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+                    ✨ AIの指摘を反映して清書
+                  </span>
+                )}
+              </button>
               <AnimatePresence>
                 {saveNotice && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs text-emerald-300"
+                    className={`text-xs ${
+                      saveNotice.includes('失敗') || saveNotice.includes('不足') || saveNotice.includes('読み込み')
+                        ? 'text-red-400'
+                        : 'text-emerald-300'
+                    }`}
                   >
                     {saveNotice}
                   </motion.span>
@@ -440,5 +559,17 @@ export default function ScoreResultModal({
         </div>
       </motion.div>
     </div>
+    {challengeOpen && (
+      <CounterChallengeStoryModal
+        questionText={scoredProblem.questionText}
+        customNote={solutionNote}
+        aiFeedback={verifyFeedback}
+        sourceProblem={scoredProblem}
+        userEmail={user?.email}
+        onAbort={() => setChallengeOpen(false)}
+        onComplete={() => setChallengeOpen(false)}
+      />
+    )}
+    </>
   );
 }

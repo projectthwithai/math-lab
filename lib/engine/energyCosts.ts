@@ -23,6 +23,12 @@ export const ENERGY_COST_ANALYZE_IMAGE = 15;
 /** 解法ロジック検証（/api/verify-custom-solution） */
 export const ENERGY_COST_VERIFY_LOGIC = 5;
 
+/** 解法メモのAI清書（/api/refine-solution-note） */
+export const ENERGY_COST_REFINE_NOTE = 5;
+
+/** 反例トラップ問題の生成（/api/generate-counter-problems） */
+export const ENERGY_COST_COUNTER_CHALLENGE = 10;
+
 /** 手書き途中式のAI赤ペン添削（/api/correct-scratchpad） */
 export const ENERGY_COST_CORRECT_SCRATCHPAD = 5;
 

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Loader2, Pencil, Sparkles, FileText, Cpu, Zap, Layers } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Loader2, Pencil, Sparkles, FileText, Cpu, Zap, Layers, AlertTriangle } from 'lucide-react';
 
 import type { Subject } from '@/types/mathLab';
 import type { SolutionPattern } from '@/types/mathLab';
@@ -116,7 +116,13 @@ function PatternCard({
 
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">{pattern.patternName}</h3>
-        {pattern.discovered && (
+        {pattern.trapPattern && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+            <AlertTriangle className="h-3 w-3 text-amber-400" />
+            ⚠️ 罠パターン
+          </span>
+        )}
+        {pattern.discovered && !pattern.trapPattern && (
           <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-slate-700 dark:bg-slate-950 dark:text-amber-300">
             <Layers className="h-3 w-3 text-amber-500" />
             新パターン

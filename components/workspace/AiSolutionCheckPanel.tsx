@@ -45,6 +45,7 @@ interface AiSolutionCheckPanelProps {
   context: CustomSolutionVerifyContext;
   buttonLabel: string;
   disabled?: boolean;
+  onResult?: (result: CustomSolutionVerifyResult) => void;
 }
 
 export default function AiSolutionCheckPanel({
@@ -52,6 +53,7 @@ export default function AiSolutionCheckPanel({
   context,
   buttonLabel,
   disabled = false,
+  onResult,
 }: AiSolutionCheckPanelProps) {
   const [isChecking, setIsChecking] = useState(false);
   const [result, setResult] = useState<CustomSolutionVerifyResult | null>(null);
@@ -73,6 +75,7 @@ export default function AiSolutionCheckPanel({
     try {
       const next = await requestCustomSolutionVerify(customText, context);
       setResult(next);
+      onResult?.(next);
     } catch (error) {
       console.error('[AiSolutionCheckPanel] 検証に失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_VERIFY_LOGIC);
