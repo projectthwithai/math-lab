@@ -5,14 +5,14 @@
 // - 画像内の原問テキスト・設定・数値を出力・保存しない。
 // - 解法構造（単元・手法・条件の種類）だけを抽出し、
 //   100%オリジナルの新規創作問題とパターンカードだけを返す。
-// .cursorrules: Gemini 1.5 Flash (Vision) 優先。未設定・失敗時はローカル mock。
+// .cursorrules: 指揮官は Gemini Vision 永久固定。一般は OpenAI Vision / Gemini。未設定・失敗時はローカル mock。
 
 import { NextResponse } from 'next/server';
 import type { ImageAnalysisResult, ImageLogicSummary, SolutionPattern, Subject } from '@/types/mathLab';
 import { analyzeImageMock } from '@/lib/mock/analyzeImageMock';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
-import { completeGeminiJson } from '@/lib/llm/completeJson';
+import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 
@@ -114,7 +114,10 @@ function sanitizeOriginalCopy(result: ImageAnalysisResult): ImageAnalysisResult 
   };
 }
 
-async function analyzeViaVision(image: ParsedImage): Promise<ImageAnalysisResult | null> {
+async function analyzeViaVision(
+  image: ParsedImage,
+  userEmail?: string
+): Promise<ImageAnalysisResult | null> {
   const systemPrompt =
     'あなたは高校の数学・物理・化学の問題写真を Vision で解析する作問者です。' +
     '写真から単元・解法ロジック・条件の種類を読み取る。' +
@@ -129,15 +132,17 @@ async function analyzeViaVision(image: ParsedImage): Promise<ImageAnalysisResult
     'pattern は動的に新規生成する patternName, strategyText, exampleQuestion（類題の要約、LaTeX可）。';
 
   try {
-    const parsedRaw = await completeGeminiJson({
+    const routed = await routeLlmJson({
       systemPrompt,
       userPrompt:
         '写真をVisionで解析し、単元と解法ロジックを抽出したうえで、完全オリジナルの類題（LaTeX付き）と新規パターンカードをJSONで返してください。原問は書き写さない。',
       image: { mimeType: image.mimeType, base64: image.base64 },
+      userEmail,
       temperature: 0.45,
       timeoutMs: 25000,
       maxGeminiAttempts: 3,
     });
+    const parsedRaw = routed?.data;
     if (!parsedRaw || typeof parsedRaw !== 'object') return null;
     const parsed = parsedRaw as Record<string, unknown>;
     const fallback = analyzeImageMock(Date.now());
@@ -190,6 +195,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json(sanitizeOriginalCopy(analyzeImageMock(Date.now())));
   }
 
-  const viaVision = await analyzeViaVision(image);
+  const userEmail = await resolveRouterUserEmail(request);
+  const viaVision = await analyzeViaVision(image, userEmail);
   return NextResponse.json(sanitizeOriginalCopy(viaVision ?? analyzeImageMock(image.base64.length)));
 }

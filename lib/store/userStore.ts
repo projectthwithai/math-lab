@@ -7,6 +7,7 @@
 // - Energy（スタミナ。1日1回リフィル。同一端末での無料100の二重付与は deviceLock で防止）
 // - クリアした解法パターンIDリスト（パターン図鑑・デイリーミッションが参照する）
 // - 発掘パターン（discoveredPatterns。図鑑保存 → 単元演習の出題プール）
+// - 解法メモ（patternNotes。patternId をキーに図鑑・ワークスペースで共有）
 // - アダプティブ出題エンジンの難易度状態
 //
 // `zustand/middleware` の `persist` でlocalStorageに自動保存される。
@@ -16,7 +17,13 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { SolutionPattern } from '@/types/mathLab';
+import type { PatternNotesMap, SolutionPattern } from '@/types/mathLab';
+import {
+  collectLegacyPatternNotes,
+  mergePatternNoteMaps,
+  mirrorPatternNotesToLegacyStores,
+  normalizePatternNotes,
+} from '@/lib/storage/patternNotes';
 import {
   advanceAdaptiveDifficulty,
   applyXpGain,
@@ -168,6 +175,9 @@ interface UserStoreState {
   // --- 発掘パターン（図鑑 → 単元演習の出題プール） ---
   discoveredPatterns: SolutionPattern[];
 
+  // --- 解法メモ（patternId がプライマリキー。図鑑・ワークスペースで共有） ---
+  patternNotes: PatternNotesMap;
+
   // --- 解放した武器（閲覧で収集。空でも図鑑は全公開） ---
   unlockedWeaponIds: string[];
 
@@ -218,6 +228,14 @@ interface UserStoreState {
   appendDiscoveredPatterns: (incoming: SolutionPattern[]) => SolutionPattern[];
   /** 発掘パターンの方針文を更新する */
   updateDiscoveredPatternStrategy: (patternId: string, strategyText: string) => void;
+  /** パターンIDをキーに自分流解法メモを保存する（図鑑と双方向同期） */
+  upsertPatternNote: (patternId: string, customText: string, aiFeedback?: string) => void;
+  /** 解法メモへの AI 添削コメントだけを更新する */
+  setPatternNoteFeedback: (patternId: string, aiFeedback: string) => void;
+  /** 自分流メモを消して公式方針に戻す */
+  clearPatternNote: (patternId: string) => void;
+  /** 旧問題IDノート / 図鑑オーバーライドを patternNotes へ統合する */
+  importLegacyPatternNotes: () => void;
   /** 旧 LocalStorage キーから発掘パターンを取り込み、Zustand へ統合する */
   importLegacyDiscoveredPatterns: () => void;
 }
@@ -245,6 +263,7 @@ export const useUserStore = create<UserStoreState>()(
       clearedPatternIds: [],
       masteredPatterns: [],
       discoveredPatterns: [],
+      patternNotes: {},
       unlockedWeaponIds: [],
 
       currentDifficulty: DEFAULT_DIFFICULTY,
@@ -465,6 +484,60 @@ export const useUserStore = create<UserStoreState>()(
         }));
       },
 
+      upsertPatternNote: (patternId, customText, aiFeedback) => {
+        const id = patternId.trim();
+        if (!id) return;
+        const trimmed = customText.trim();
+        if (!trimmed) {
+          get().clearPatternNote(id);
+          return;
+        }
+        const existing = get().patternNotes[id];
+        const nextNote = {
+          customText: customText,
+          updatedAt: new Date().toISOString(),
+          ...(aiFeedback?.trim()
+            ? { aiFeedback: aiFeedback.trim() }
+            : existing?.aiFeedback
+              ? { aiFeedback: existing.aiFeedback }
+              : {}),
+        };
+        const patternNotes = { ...get().patternNotes, [id]: nextNote };
+        set({ patternNotes, progressUpdatedAt: stampProgress() });
+        mirrorPatternNotesToLegacyStores(patternNotes);
+      },
+
+      setPatternNoteFeedback: (patternId, aiFeedback) => {
+        const id = patternId.trim();
+        const existing = get().patternNotes[id];
+        if (!id || !existing) return;
+        const patternNotes = {
+          ...get().patternNotes,
+          [id]: {
+            ...existing,
+            aiFeedback: aiFeedback.trim(),
+            updatedAt: new Date().toISOString(),
+          },
+        };
+        set({ patternNotes, progressUpdatedAt: stampProgress() });
+        mirrorPatternNotesToLegacyStores(patternNotes);
+      },
+
+      clearPatternNote: (patternId) => {
+        const id = patternId.trim();
+        if (!id || !get().patternNotes[id]) return;
+        const patternNotes = { ...get().patternNotes };
+        delete patternNotes[id];
+        set({ patternNotes, progressUpdatedAt: stampProgress() });
+        mirrorPatternNotesToLegacyStores(patternNotes);
+      },
+
+      importLegacyPatternNotes: () => {
+        const merged = mergePatternNoteMaps(collectLegacyPatternNotes(), get().patternNotes);
+        set({ patternNotes: merged });
+        mirrorPatternNotesToLegacyStores(merged);
+      },
+
       importLegacyDiscoveredPatterns: () => {
         const legacy = readLegacyDiscoveredPatterns();
         if (legacy.length === 0) return;
@@ -518,6 +591,7 @@ export const useUserStore = create<UserStoreState>()(
             ? incoming.unlockedWeaponIds
             : current.unlockedWeaponIds,
           ...nextMasteredIds(incomingCleared),
+          patternNotes: normalizePatternNotes(incoming.patternNotes ?? current.patternNotes),
           lastStreakGrantDateISO:
             typeof incoming.lastStreakGrantDateISO === 'string'
               ? incoming.lastStreakGrantDateISO

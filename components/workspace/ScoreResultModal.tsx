@@ -7,7 +7,8 @@
 // 表示順序（優先度順）:
 //   ① 正誤判定 + XP獲得（コンパクトなヘッダー行）
 //   ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
-//   ③ ✍️ 自分流のメモとして上書き保存する（②の直下）
+//   ③ ✍️ 自分流のメモとして上書き保存する（patternId で図鑑と一元管理）
+//   ④ 💬 この解説についてAIに質問する（解法メモの添削チップ付き）
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +20,9 @@ import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
+import PostSolveAIChat from './PostSolveAIChat';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { useUserStore } from '@/lib/store/userStore';
 import { formatCorrectAnswerForDisplay, ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
 import { signInWithGoogleOAuth } from '@/lib/supabase/client';
@@ -30,6 +33,7 @@ interface ScoreResultModalProps {
   problem: GeneratedProblem;
   isCorrect: boolean;
   xpResult: XpGainResult;
+  userAnswer?: string;
   onClose: () => void;
   onNextProblem: () => void;
 }
@@ -64,6 +68,7 @@ export default function ScoreResultModal({
   problem,
   isCorrect,
   xpResult,
+  userAnswer = '',
   onClose,
   onNextProblem,
 }: ScoreResultModalProps) {
@@ -75,13 +80,18 @@ export default function ScoreResultModal({
   const showGuestSignup = isCorrect && authReady && !user;
   const scoredProblem = useMemo(() => ensureProblemHasCorrectAnswer(problem), [problem]);
   const displayedAnswer = formatCorrectAnswerForDisplay(scoredProblem);
+  const patternId = scoredProblem.patternId;
+  const storedPatternNote = useUserStore((state) =>
+    patternId ? state.patternNotes[patternId] : undefined
+  );
+  const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
 
   useEffect(() => {
-    // 問題が変わるたびにLocalStorageから既存のノートを読み込む（外部ストアとの同期）。
-    const existing = getCustomSolutionNote(problem.id);
+    const fromPattern = storedPatternNote?.customText;
+    const fromProblem = getCustomSolutionNote(problem.id)?.content;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNoteContent(existing?.content ?? '');
-  }, [problem.id]);
+    setNoteContent(fromPattern || fromProblem || '');
+  }, [problem.id, patternId, storedPatternNote?.customText, storedPatternNote?.updatedAt]);
 
   const handleGoogleSave = async () => {
     setAuthBusy(true);
@@ -103,8 +113,16 @@ export default function ScoreResultModal({
   };
 
   const handleSaveNote = () => {
-    saveCustomSolutionNote(problem.id, noteContent, problem.patternId);
-    setSaveNotice('ローカルストレージに保存しました（ログイン後は自動同期されます）');
+    if (patternId) {
+      upsertPatternNote(patternId, noteContent);
+    } else {
+      saveCustomSolutionNote(problem.id, noteContent);
+    }
+    setSaveNotice(
+      patternId
+        ? 'このパターンの解法メモとして保存しました（図鑑と同期されます）'
+        : 'ローカルストレージに保存しました（ログイン後は自動同期されます）'
+    );
     window.setTimeout(() => setSaveNotice(null), 3000);
   };
 
@@ -252,6 +270,11 @@ export default function ScoreResultModal({
             <BookOpenCheck className="h-4 w-4" />
             自分流のメモとして上書き保存する
           </h3>
+          {patternId && (
+            <p className="mb-2 text-[11px] text-fuchsia-200/80">
+              このメモはパターン図鑑と同じ場所に保存され、同じパターンの問題で自動的に読み込まれます。
+            </p>
+          )}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
             <textarea
               value={noteContent}
@@ -300,6 +323,20 @@ export default function ScoreResultModal({
             </AnimatePresence>
           </div>
         </div>
+
+        <PostSolveAIChat
+          questionText={scoredProblem.questionText}
+          userAnswer={userAnswer}
+          correctAnswer={scoredProblem.correctAnswer}
+          stepByStep={scoredProblem.explanation.stepByStep}
+          customNote={noteContent}
+          userEmail={user?.email}
+          onMemoReviewed={(feedback) => {
+            if (patternId && noteContent.trim()) {
+              upsertPatternNote(patternId, noteContent, feedback);
+            }
+          }}
+        />
 
         <div className="flex gap-3">
           <button

@@ -1,8 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Custom Solution Verify API
 // ==========================================
-// 自分流の解法メモを Gemini が熟読し、類似問題への汎用性と罠を判定する。
-// GEMINI_API_KEY 最優先。未設定・タイムアウト時のみローカル検証。
+// 自分流の解法メモをハイブリッドAIルーター経由で熟読し、類似問題への汎用性と罠を判定する。
+// 指揮官は Gemini 永久固定。未設定・タイムアウト時のみローカル検証。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -11,7 +11,7 @@ import type {
   CustomSolutionVerifyStatus,
 } from '@/types/mathLab';
 import { verifyCustomSolutionMock } from '@/lib/mock/verifyCustomSolution';
-import { completeGeminiJson } from '@/lib/llm/completeJson';
+import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 
 interface VerifyRequestBody {
   customText?: unknown;
@@ -76,7 +76,8 @@ function isVerifyResult(value: unknown): value is CustomSolutionVerifyResult {
 
 async function verifyViaLlm(
   customText: string,
-  context: CustomSolutionVerifyContext
+  context: CustomSolutionVerifyContext,
+  userEmail?: string
 ): Promise<CustomSolutionVerifyResult | null> {
   const systemPrompt =
     'あなたは高校の数学・物理・化学の解法を厳格に審査する教師です。' +
@@ -100,13 +101,15 @@ async function verifyViaLlm(
   });
 
   try {
-    const parsed = await completeGeminiJson({
+    const routed = await routeLlmJson({
       systemPrompt,
       userPrompt,
+      userEmail,
       temperature: 0.25,
       timeoutMs: 18000,
       maxGeminiAttempts: 3,
     });
+    const parsed = routed?.data;
     if (!isVerifyResult(parsed)) return null;
 
     return {
@@ -133,8 +136,12 @@ export async function POST(request: Request): Promise<Response> {
 
   const customText = normalizeText(body.customText);
   const context = parseContext(body.context);
+  const userEmail = await resolveRouterUserEmail(
+    request,
+    (body as Record<string, unknown>).userEmail
+  );
 
-  const viaLlm = await verifyViaLlm(customText, context);
+  const viaLlm = await verifyViaLlm(customText, context, userEmail);
   const result = viaLlm ?? verifyCustomSolutionMock(customText, context);
 
   return NextResponse.json(result);

@@ -1,12 +1,12 @@
 // ==========================================
 // Apex Suite: Math Lab - Solution Chat API
 // ==========================================
-// 別解壁打ち。GEMINI_API_KEY で Gemini Flash 直通。
+// 別解壁打ち。ハイブリッドAIルーター経由（指揮官は Gemini 永久固定）。
 // 未設定・タイムアウト時のみローカル短文へフォールバック。
 
 import { NextResponse } from 'next/server';
 import type { GeneratedProblem } from '@/types/mathLab';
-import { completeGeminiJson } from '@/lib/llm/completeJson';
+import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 import { buildChatSolutionMockReply } from '@/lib/mock/chatSolutionMock';
 
 export const maxDuration = 30;
@@ -95,6 +95,7 @@ export async function POST(request: Request): Promise<Response> {
   const message = readString(body.message);
   const problem = parseProblem(body.problem);
   const history = parseHistory(body.history);
+  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
 
   if (!message || !problem) {
     return NextResponse.json({ error: 'メッセージと問題コンテキストが必要です。' }, { status: 400 });
@@ -127,19 +128,20 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   try {
-    const parsed = await completeGeminiJson({
+    const routed = await routeLlmJson({
       systemPrompt,
       userPrompt,
+      userEmail,
       temperature: 0.35,
       timeoutMs: 18000,
       maxGeminiAttempts: 3,
     });
-    const reply = extractReply(parsed);
+    const reply = extractReply(routed?.data);
     if (reply) {
-      return NextResponse.json({ reply, source: 'gemini' });
+      return NextResponse.json({ reply, source: routed?.provider ?? 'gemini' });
     }
   } catch (error) {
-    console.error('[chat-solution] Gemini 呼び出しに失敗', error);
+    console.error('[chat-solution] AI 呼び出しに失敗', error);
   }
 
   return NextResponse.json({

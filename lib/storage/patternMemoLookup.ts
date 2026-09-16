@@ -1,17 +1,27 @@
 // ==========================================
 // Apex Suite: Math Lab - Pattern memo lookup
 // ==========================================
-// 単元演習で patternId が付いた問題に、図鑑の自分流メモ /
-// 過去問で書き換えた解法ノートを自動紐付けする。
+// 単元演習で patternId が付いた問題に、一元管理された解法メモを自動紐付けする。
 
 import type { PatternLinkedMemo } from '@/types/mathLab';
+import { useUserStore } from '@/lib/store/userStore';
 import { getAllCustomSolutionNotes } from '@/lib/storage/customSolutionNotesStore';
 import { getPatternOverride } from '@/lib/storage/patternStrategyStore';
-import { getAllSolvedProblemRecords } from '@/lib/storage/solvedProblemsStore';
 import { findSolutionPatternById } from '@/data/patternsData';
 
 export function findPatternLinkedMemo(patternId: string | undefined): PatternLinkedMemo | null {
   if (!patternId) return null;
+
+  const unified = useUserStore.getState().patternNotes[patternId];
+  if (unified && unified.customText.trim().length > 0) {
+    return {
+      patternId,
+      content: unified.customText,
+      updatedAt: unified.updatedAt,
+      source: 'strategy',
+      label: 'このパターンの自分流メモ',
+    };
+  }
 
   const override = getPatternOverride(patternId);
   if (override && override.customStrategyText.trim().length > 0) {
@@ -36,20 +46,6 @@ export function findPatternLinkedMemo(patternId: string | undefined): PatternLin
       source: 'note',
       label: 'このパターンの解法ノート',
     };
-  }
-
-  const records = getAllSolvedProblemRecords().filter((record) => record.problem.patternId === patternId);
-  for (const record of records) {
-    const note = getAllCustomSolutionNotes()[record.problem.id];
-    if (note && note.content.trim().length > 0) {
-      return {
-        patternId,
-        content: note.content,
-        updatedAt: note.updatedAt,
-        source: 'note',
-        label: '過去に書いた自分メモ',
-      };
-    }
   }
 
   return null;

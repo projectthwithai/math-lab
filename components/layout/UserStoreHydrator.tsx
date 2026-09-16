@@ -19,6 +19,7 @@ export default function UserStoreHydrator() {
     const hydrate = async () => {
       await useUserStore.persist.rehydrate();
       useUserStore.getState().importLegacyDiscoveredPatterns();
+      useUserStore.getState().importLegacyPatternNotes();
       useUserStore.getState().touchDailyStreakAndEnergy();
       useUserStore.getState().setHasHydrated(true);
 

@@ -1,16 +1,15 @@
 // ==========================================
-// Apex Suite: Math Lab - LLM JSON completion
+// Apex Suite: Math Lab - LLM JSON / text completion
 // ==========================================
-// 優先順:
-//   1. GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY → Gemini Flash（REST）
-//   2. OPENAI_API_KEY → gpt-4o-mini
-//   3. 呼び出し元でローカルモックへフォールバック
-// gemini-1.5-flash を優先し、廃止済みなら無料枠の Flash 系へ自動フォールバックする。
+// 低レベル呼び出し。プロバイダ選択は `lib/engine/aiRouter.ts` が行う。
+// Gemini は gemini-1.5-flash を優先し、廃止済みなら無料枠の Flash 系へ自動フォールバックする。
 
 export interface LlmImagePart {
   mimeType: string;
   base64: string;
 }
+
+export type LlmProvider = 'gemini' | 'openai';
 
 export interface CompleteJsonParams {
   systemPrompt: string;
@@ -19,6 +18,8 @@ export interface CompleteJsonParams {
   temperature?: number;
   /** true のとき OpenAI へ落とさず Gemini のみ */
   geminiOnly?: boolean;
+  /** ルーター指定。gemini = Gemini のみ / openai = GPT-4o-mini のみ */
+  forceProvider?: LlmProvider;
   /** 1モデルあたりの待ち時間（ms） */
   timeoutMs?: number;
   /** 試す Gemini モデル数の上限 */
@@ -120,12 +121,12 @@ async function listGeminiFlashModel(apiKey: string, timeoutMs: number): Promise<
   }
 }
 
-async function requestGeminiModel(
+async function requestGeminiModelText(
   apiKey: string,
   model: string,
   body: Record<string, unknown>,
   timeoutMs: number
-): Promise<unknown | null> {
+): Promise<string | null> {
   const response = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -143,16 +144,10 @@ async function requestGeminiModel(
     .map((part) => part.text ?? '')
     .join('')
     .trim();
-  if (!text) return null;
-  return parseJsonObject(text);
+  return text || null;
 }
 
-async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | null> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) return null;
-  const timeoutMs = params.timeoutMs ?? 25000;
-  const maxAttempts = params.maxGeminiAttempts ?? GEMINI_MODEL_CANDIDATES.length;
-
+function buildGeminiBody(params: CompleteJsonParams, jsonMode: boolean): Record<string, unknown> {
   const parts: Array<Record<string, unknown>> = [{ text: params.userPrompt }];
   if (params.image) {
     parts.push({
@@ -163,14 +158,29 @@ async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | 
     });
   }
 
-  const body = {
+  const generationConfig: Record<string, unknown> = {
+    temperature: params.temperature ?? 0.4,
+  };
+  if (jsonMode) {
+    generationConfig.responseMimeType = 'application/json';
+  }
+
+  return {
     systemInstruction: { parts: [{ text: params.systemPrompt }] },
     contents: [{ role: 'user', parts }],
-    generationConfig: {
-      temperature: params.temperature ?? 0.4,
-      responseMimeType: 'application/json',
-    },
+    generationConfig,
   };
+}
+
+async function generateGeminiContent(
+  params: CompleteJsonParams,
+  jsonMode: boolean
+): Promise<string | null> {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) return null;
+  const timeoutMs = params.timeoutMs ?? 25000;
+  const maxAttempts = params.maxGeminiAttempts ?? GEMINI_MODEL_CANDIDATES.length;
+  const body = buildGeminiBody(params, jsonMode);
 
   const listed = cachedGeminiModel ?? (await listGeminiFlashModel(apiKey, timeoutMs));
   const models = [
@@ -180,11 +190,11 @@ async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | 
 
   for (const model of models) {
     try {
-      const parsed = await requestGeminiModel(apiKey, model, body, timeoutMs);
-      if (parsed && typeof parsed === 'object') {
+      const text = await requestGeminiModelText(apiKey, model, body, timeoutMs);
+      if (text) {
         cachedGeminiModel = model;
-        console.info(`[llm] Gemini (${model}) で JSON を生成しました`);
-        return parsed;
+        console.info(`[llm] Gemini (${model}) で ${jsonMode ? 'JSON' : 'テキスト'} を生成しました`);
+        return text;
       }
     } catch (error) {
       console.error(`[llm] Gemini (${model}) 呼び出しに失敗`, error);
@@ -194,11 +204,19 @@ async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | 
   return null;
 }
 
-async function completeViaOpenAi(params: CompleteJsonParams): Promise<unknown | null> {
-  const apiKey = getOpenAiApiKey();
-  if (!apiKey) return null;
+async function completeViaGemini(params: CompleteJsonParams): Promise<unknown | null> {
+  const text = await generateGeminiContent(params, true);
+  if (!text) return null;
+  const parsed = parseJsonObject(text);
+  return parsed && typeof parsed === 'object' ? parsed : null;
+}
 
-  const userContent = params.image
+async function completeViaGeminiText(params: CompleteJsonParams): Promise<string | null> {
+  return generateGeminiContent(params, false);
+}
+
+function buildOpenAiUserContent(params: CompleteJsonParams): unknown {
+  return params.image
     ? [
         { type: 'text', text: params.userPrompt },
         {
@@ -207,44 +225,73 @@ async function completeViaOpenAi(params: CompleteJsonParams): Promise<unknown | 
         },
       ]
     : params.userPrompt;
+}
+
+async function completeViaOpenAiText(params: CompleteJsonParams, jsonMode: boolean): Promise<string | null> {
+  const apiKey = getOpenAiApiKey();
+  if (!apiKey) return null;
+  const timeoutMs = params.timeoutMs ?? 25000;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+    const response = await fetchWithTimeout(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+          temperature: params.temperature ?? 0.4,
+          messages: [
+            { role: 'system', content: params.systemPrompt },
+            { role: 'user', content: buildOpenAiUserContent(params) },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: params.systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-      }),
-    });
+      timeoutMs
+    );
     if (!response.ok) return null;
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== 'string') return null;
-    return parseJsonObject(content);
+    return typeof content === 'string' && content.trim() ? content.trim() : null;
   } catch (error) {
     console.error('[llm] OpenAI 呼び出しに失敗', error);
     return null;
   }
 }
 
-/** Gemini（キーがあれば）→ OpenAI → null。null のときは呼び出し元がモックへ落とす。 */
+async function completeViaOpenAi(params: CompleteJsonParams): Promise<unknown | null> {
+  const content = await completeViaOpenAiText(params, true);
+  if (!content) return null;
+  return parseJsonObject(content);
+}
+
+function shouldUseGeminiOnly(params: CompleteJsonParams): boolean {
+  return params.forceProvider === 'gemini' || Boolean(params.geminiOnly);
+}
+
+function shouldUseOpenAiOnly(params: CompleteJsonParams): boolean {
+  return params.forceProvider === 'openai';
+}
+
+/** ルーター指定があればそのプロバイダのみ。未指定時は Gemini → OpenAI。 */
 export async function completeLlmJson(params: CompleteJsonParams): Promise<unknown | null> {
   if (!getGeminiApiKey() && !getOpenAiApiKey()) return null;
+
+  if (shouldUseOpenAiOnly(params)) {
+    return completeViaOpenAi(params);
+  }
+
   const viaGemini = await completeViaGemini(params);
   if (viaGemini !== null) return viaGemini;
-  if (params.geminiOnly) {
+  if (shouldUseGeminiOnly(params)) {
     if (hasGeminiApiKey()) {
-      console.error('[llm] Gemini 呼び出しに失敗したため、ローカル模試フォールバックへ落とします');
+      console.error('[llm] Gemini 呼び出しに失敗したため、ローカルフォールバックへ落とします');
     }
     return null;
   }
@@ -254,7 +301,21 @@ export async function completeLlmJson(params: CompleteJsonParams): Promise<unkno
   return completeViaOpenAi(params);
 }
 
+/** JSON ではなくプレーンテキスト（チューターチャット等）を返す。 */
+export async function completeLlmText(params: CompleteJsonParams): Promise<string | null> {
+  if (!getGeminiApiKey() && !getOpenAiApiKey()) return null;
+
+  if (shouldUseOpenAiOnly(params)) {
+    return completeViaOpenAiText(params, false);
+  }
+
+  const viaGemini = await completeViaGeminiText(params);
+  if (viaGemini) return viaGemini;
+  if (shouldUseGeminiOnly(params)) return null;
+  return completeViaOpenAiText(params, false);
+}
+
 /** 模試など Gemini 直通専用。失敗時は null（呼び出し元が高品質ローカル模試へ）。 */
 export async function completeGeminiJson(params: CompleteJsonParams): Promise<unknown | null> {
-  return completeLlmJson({ ...params, geminiOnly: true });
+  return completeLlmJson({ ...params, geminiOnly: true, forceProvider: 'gemini' });
 }

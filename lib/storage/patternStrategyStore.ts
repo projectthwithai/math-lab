@@ -13,6 +13,7 @@ export interface PatternOverride {
   patternId: string;
   customStrategyText: string;
   updatedAt: string;
+  aiFeedback?: string;
 }
 
 function isBrowser(): boolean {
@@ -52,12 +53,22 @@ export function getPatternOverride(patternId: string): PatternOverride | null {
   return readAllOverrides()[patternId] ?? null;
 }
 
-export function saveCustomStrategyText(patternId: string, text: string): PatternOverride {
+export function saveCustomStrategyText(
+  patternId: string,
+  text: string,
+  aiFeedback?: string
+): PatternOverride {
   const overrides = readAllOverrides();
+  const existing = overrides[patternId];
   const override: PatternOverride = {
     patternId,
     customStrategyText: text,
     updatedAt: new Date().toISOString(),
+    ...(aiFeedback?.trim()
+      ? { aiFeedback: aiFeedback.trim() }
+      : existing?.aiFeedback
+        ? { aiFeedback: existing.aiFeedback }
+        : {}),
   };
   overrides[patternId] = override;
   writeAllOverrides(overrides);

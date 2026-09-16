@@ -3,6 +3,7 @@
 // ==========================================
 
 import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathLab';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 
 export type ScratchpadCaptureSource = 'canvas' | 'paper-notebook';
 
@@ -15,7 +16,7 @@ export async function requestScratchpadCorrection(params: {
   const problem = params.problem;
   const response = await fetch('/api/correct-scratchpad', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       imageBase64: params.imageBase64,
       mimeType: params.mimeType ?? 'image/png',

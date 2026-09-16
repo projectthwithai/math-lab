@@ -165,6 +165,15 @@ export interface CustomSolutionNote {
   updatedAt: string;
 }
 
+/** パターンIDをキーとする自分流解法メモ（図鑑・ワークスペース・ライブラリで共有） */
+export interface PatternNote {
+  customText: string;
+  updatedAt: string;
+  aiFeedback?: string;
+}
+
+export type PatternNotesMap = Record<string, PatternNote>;
+
 // ------------------------------------------
 // PatternLinkedMemo（単元演習時にポップアップ表示する自分流メモ）
 // ------------------------------------------

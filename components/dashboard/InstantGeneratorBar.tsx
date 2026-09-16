@@ -13,6 +13,7 @@ import { Camera, ImagePlus, Loader2, Sparkles, Send } from 'lucide-react';
 import type { ImageAnalysisResult } from '@/types/mathLab';
 import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_ANALYZE_IMAGE, ENERGY_COST_GENERATE_PROBLEM, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import ImageAnalysisModal from './ImageAnalysisModal';
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -70,6 +71,7 @@ export default function InstantGeneratorBar() {
       form.append('image', file);
       const response = await fetch('/api/analyze-image', {
         method: 'POST',
+        headers: withAiRouterHeaders(),
         body: form,
       });
       if (!response.ok) throw new Error(`analyze-image ${response.status}`);

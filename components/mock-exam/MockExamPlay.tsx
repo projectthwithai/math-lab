@@ -23,6 +23,7 @@ import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
 import { resolvePhysicsScene } from '@/lib/engine/scienceVisual';
 import { resolveChemistryScene } from '@/lib/engine/scienceVisual';
 import { isActiveVisualType } from '@/lib/engine/visualNeed';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import {
   buildMockExamProblems,
   buildMockExamReport,
@@ -75,7 +76,7 @@ export default function MockExamPlay() {
       try {
         const response = await fetch('/api/mock-exam', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(config),
         });
         const data = (await response.json()) as { problems?: GeneratedProblem[]; error?: string };

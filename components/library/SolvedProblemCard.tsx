@@ -16,6 +16,7 @@ import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { getOverdueDays, getReviewStageLabel, isDueForReview } from '@/lib/engine/forgettingCurve';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
+import { useUserStore } from '@/lib/store/userStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
 
 interface SolvedProblemCardProps {
@@ -32,14 +33,25 @@ export default function SolvedProblemCard({ record, onRetry }: SolvedProblemCard
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [saveNotice, setSaveNotice] = useState(false);
+  const patternId = problem.patternId;
+  const storedPatternNote = useUserStore((state) =>
+    patternId ? state.patternNotes[patternId] : undefined
+  );
+  const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
 
   useEffect(() => {
+    const fromPattern = storedPatternNote?.customText;
+    const fromProblem = getCustomSolutionNote(problem.id)?.content;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNoteContent(getCustomSolutionNote(problem.id)?.content ?? '');
-  }, [problem.id]);
+    setNoteContent(fromPattern || fromProblem || '');
+  }, [problem.id, patternId, storedPatternNote?.customText, storedPatternNote?.updatedAt]);
 
   const handleSaveNote = () => {
-    saveCustomSolutionNote(problem.id, noteContent);
+    if (patternId) {
+      upsertPatternNote(patternId, noteContent);
+    } else {
+      saveCustomSolutionNote(problem.id, noteContent);
+    }
     setSaveNotice(true);
     window.setTimeout(() => setSaveNotice(false), 2500);
   };

@@ -30,6 +30,7 @@ import {
 } from '@/lib/engine/energyCosts';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 
 import MathGraphPlotter from '@/components/visuals/MathGraphPlotter';
 import GeometrySvgPlotter from '@/components/visuals/GeometrySvgPlotter';
@@ -84,6 +85,8 @@ export default function WorkspaceView({
   const recordAnswer = useUserStore((state) => state.recordAnswer);
   const discoveredPatterns = useUserStore((state) => state.discoveredPatterns);
   const hasHydrated = useUserStore((state) => state.hasHydrated);
+  const patternNotes = useUserStore((state) => state.patternNotes);
+  const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
 
   const [problem, setProblem] = useState<GeneratedProblem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,11 +94,14 @@ export default function WorkspaceView({
   const [answerInput, setAnswerInput] = useState('');
   const [revealedHintCount, setRevealedHintCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [submission, setSubmission] = useState<{ isCorrect: boolean; xpResult: XpGainResult } | null>(
-    null
-  );
+  const [submission, setSubmission] = useState<{
+    isCorrect: boolean;
+    xpResult: XpGainResult;
+    userAnswer: string;
+  } | null>(null);
   const [energyError, setEnergyError] = useState<string | null>(null);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [workspaceNote, setWorkspaceNote] = useState('');
   const [isSolved, setIsSolved] = useState(false);
   const [isVisualOpen, setIsVisualOpen] = useState(false);
   /** 同一問題への再送信による二重XPを防ぐ。モーダルを閉じても解除しない */
@@ -128,9 +134,16 @@ export default function WorkspaceView({
     visualEnabled && Boolean(geometryScene || graphModel || physicsScene || chemistryScene);
   const patternMemo = useMemo(
     () => (problem?.patternId ? findPatternLinkedMemo(problem.patternId) : null),
-    [problem?.id, problem?.patternId]
+    [problem?.id, problem?.patternId, patternNotes]
   );
   const patternName = getPatternDisplayName(problem?.patternId);
+  const storedPatternNoteText = problem?.patternId
+    ? (patternNotes[problem.patternId]?.customText ?? '')
+    : '';
+
+  useEffect(() => {
+    setWorkspaceNote(storedPatternNoteText);
+  }, [problem?.id, problem?.patternId, storedPatternNoteText]);
 
   const applyNewProblem = useCallback((next: GeneratedProblem) => {
     setProblem(ensureProblemHasCorrectAnswer(next));
@@ -181,7 +194,7 @@ export default function WorkspaceView({
 
       const response = await fetch('/api/generate-problem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           unitId,
           patternId,
@@ -236,6 +249,9 @@ export default function WorkspaceView({
     if (!problem || isSubmitted || isSubmittedRef.current) return;
     isSubmittedRef.current = true;
     setIsSubmitted(true);
+    if (problem.patternId && workspaceNote.trim() !== storedPatternNoteText.trim()) {
+      upsertPatternNote(problem.patternId, workspaceNote);
+    }
     const isCorrect = checkProblemAnswer(answerInput.trim(), problem);
     const xpResult = recordAnswer({
       isCorrect,
@@ -243,7 +259,7 @@ export default function WorkspaceView({
       hintsUsed: revealedHintCount,
       patternId: problem.patternId ?? patternId,
     });
-    setSubmission({ isCorrect, xpResult });
+    setSubmission({ isCorrect, xpResult, userAnswer: answerInput.trim() });
     setIsScoreModalOpen(true);
     setIsSolved(true);
     // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
@@ -331,14 +347,35 @@ export default function WorkspaceView({
           <KaTeXText text={problem.questionText} />
         </div>
 
-        {patternMemo && (
-          <button
-            type="button"
-            onClick={() => setIsMemoOpen(true)}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
-          >
-            💡 このパターンの自分メモを参照
-          </button>
+        {problem.patternId && (
+          <div className="rounded-xl border border-fuchsia-400/25 bg-fuchsia-400/5 p-3">
+            <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-300">
+              <BookOpen className="h-3.5 w-3.5" />
+              このパターンの自分流メモ
+              {patternName ? ` · ${patternName}` : ''}
+            </p>
+            <textarea
+              value={workspaceNote}
+              onChange={(event) => setWorkspaceNote(event.target.value)}
+              onBlur={() => {
+                if (!problem.patternId) return;
+                if ((workspaceNote.trim() || '') === (storedPatternNoteText.trim() || '')) return;
+                upsertPatternNote(problem.patternId, workspaceNote);
+              }}
+              rows={3}
+              placeholder="図鑑と共有される自分流の解き方。同じパターンの問題を開くと自動で読み込まれます。"
+              className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+            {patternMemo && (
+              <button
+                type="button"
+                onClick={() => setIsMemoOpen(true)}
+                className="mt-2 text-[11px] font-semibold text-amber-700 hover:underline dark:text-amber-200"
+              >
+                💡 数式つきでメモを確認する
+              </button>
+            )}
+          </div>
         )}
 
         {hasVisual && (
@@ -558,6 +595,7 @@ export default function WorkspaceView({
           problem={problem}
           isCorrect={submission.isCorrect}
           xpResult={submission.xpResult}
+          userAnswer={submission.userAnswer}
           onClose={() => setIsScoreModalOpen(false)}
           onNextProblem={handleNextProblem}
         />

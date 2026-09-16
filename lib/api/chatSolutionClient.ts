@@ -3,6 +3,7 @@
 // ==========================================
 
 import type { GeneratedProblem } from '@/types/mathLab';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 
 export async function requestSolutionChatReply(params: {
   message: string;
@@ -11,7 +12,7 @@ export async function requestSolutionChatReply(params: {
 }): Promise<string> {
   const response = await fetch('/api/chat-solution', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       message: params.message,
       problem: params.problem,

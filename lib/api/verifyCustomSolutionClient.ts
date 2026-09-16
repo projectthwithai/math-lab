@@ -6,6 +6,7 @@ import type {
   CustomSolutionVerifyContext,
   CustomSolutionVerifyResult,
 } from '@/types/mathLab';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 
 export async function requestCustomSolutionVerify(
   customText: string,
@@ -13,7 +14,7 @@ export async function requestCustomSolutionVerify(
 ): Promise<CustomSolutionVerifyResult> {
   const response = await fetch('/api/verify-custom-solution', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ customText, context }),
   });
 

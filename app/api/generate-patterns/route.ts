@@ -5,7 +5,7 @@
 // 生成結果は `discovered: true` を付けて返し、クライアントが
 // `userStore.discoveredPatterns`（単元演習の出題プール）へ自動保存する。
 // .cursorrules の API Cost Minimization:
-// - GEMINI_API_KEY があれば gemini-1.5-flash、なければ gpt-4o-mini
+// - 指揮官は Gemini 永久固定。一般ユーザーは OpenAI キーがあれば gpt-4o-mini、無ければ Gemini
 // - 未設定・失敗時はローカル発掘エンジン（ゼロコスト）
 
 import { NextResponse } from 'next/server';
@@ -13,7 +13,7 @@ import type { PatternLevel, SolutionPattern, Subject } from '@/types/mathLab';
 import { getUnitById } from '@/data/unitsData';
 import { SOLUTION_PATTERNS } from '@/data/patternsData';
 import { generateMockPatterns } from '@/lib/mock/generateMockPatterns';
-import { completeLlmJson } from '@/lib/llm/completeJson';
+import { routeLlmJson, resolveRouterUserEmail } from '@/lib/engine/aiRouter';
 import { resolveSubtopicIdForPattern } from '@/data/subtopicsData';
 
 interface GeneratePatternsBody {
@@ -22,6 +22,7 @@ interface GeneratePatternsBody {
   existingNames?: unknown;
   count?: unknown;
   subtopicId?: unknown;
+  userEmail?: unknown;
 }
 
 function normalizeId(raw: unknown): string | undefined {
@@ -72,6 +73,7 @@ async function generateViaLlm(params: {
   subject?: Subject;
   existingNames: string[];
   count: number;
+  userEmail?: string;
 }): Promise<SolutionPattern[] | null> {
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
   const subject: Subject = unit?.subject ?? params.subject ?? 'math';
@@ -94,7 +96,8 @@ async function generateViaLlm(params: {
   });
 
   try {
-    const parsedRaw = await completeLlmJson({ systemPrompt, userPrompt });
+    const routed = await routeLlmJson({ systemPrompt, userPrompt, userEmail: params.userEmail });
+    const parsedRaw = routed?.data;
     const parsed = parsedRaw as { patterns?: unknown } | null;
     if (!parsed) return null;
     const rawList = Array.isArray(parsed.patterns) ? parsed.patterns : Array.isArray(parsed) ? parsed : [];
@@ -139,7 +142,8 @@ export async function POST(request: Request): Promise<Response> {
   );
   const existingNames = [...new Set([...catalogNames, ...extraNames])];
 
-  const viaLlm = await generateViaLlm({ unitId, subject, existingNames, count });
+  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
+  const viaLlm = await generateViaLlm({ unitId, subject, existingNames, count, userEmail });
   const rawPatterns = viaLlm ?? generateMockPatterns({ unitId, subject, existingNames, count });
   // クライアントはレスポンスを userStore.discoveredPatterns に自動保存する。
   const patterns = rawPatterns.map((pattern) => {

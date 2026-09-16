@@ -2,8 +2,8 @@
 // Apex Suite: Math Lab - Problem Generation API Route
 // ==========================================
 // .cursorrules の「API Cost Minimization」方針に従い:
-// - `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` があれば gemini-1.5-flash（互換 Flash へ自動フォールバック）。
-// - なければ `OPENAI_API_KEY` の gpt-4o-mini。
+// - 指揮官（NEXT_PUBLIC_ADMIN_EMAIL）は OpenAI キーの有無にかかわらず Gemini 永久固定。
+// - 一般ユーザーは OPENAI_API_KEY があれば gpt-4o-mini、無ければ Gemini。
 // - 未設定、またはLLM呼び出しが失敗した場合は、100%ローカルの
 //   モック生成エンジン (`lib/mock/generateMockProblem.ts`) にフォールバックする。
 // 生成された問題は必ず `templateConfig` を持ち、クライアント側で
@@ -26,7 +26,7 @@ import {
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType } from '@/lib/engine/visualNeed';
-import { completeLlmJson } from '@/lib/llm/completeJson';
+import { routeLlmJson, resolveRouterUserEmail } from '@/lib/engine/aiRouter';
 import { buildDifficultyGuide, buildProblemSystemPrompt } from '@/lib/llm/examPrompts';
 import { ensureProblemHasCorrectAnswer, isPlaceholderCorrectAnswer } from '@/lib/engine/correctAnswer';
 
@@ -112,7 +112,10 @@ function isValidLlmTemplatePayload(value: unknown): value is LlmTemplatePayload 
   );
 }
 
-async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedProblem | null> {
+async function generateViaLlm(
+  params: GenerateProblemParams,
+  userEmail?: string
+): Promise<GeneratedProblem | null> {
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
   const difficulty = params.difficulty ?? DEFAULT_DIFFICULTY;
   const meta = getDifficultyMeta(difficulty);
@@ -152,7 +155,8 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
   });
 
   try {
-    const parsed = await completeLlmJson({ systemPrompt, userPrompt });
+    const routed = await routeLlmJson({ systemPrompt, userPrompt, userEmail });
+    const parsed = routed?.data;
     if (!isValidLlmTemplatePayload(parsed)) return null;
 
     const geometryScene = parseGeometryScene(parsed.geometryScene);
@@ -193,7 +197,10 @@ async function generateViaLlm(params: GenerateProblemParams): Promise<GeneratedP
   }
 }
 
-async function handleGenerateProblem(params: GenerateProblemParams): Promise<GeneratedProblem> {
+async function handleGenerateProblem(
+  params: GenerateProblemParams,
+  userEmail?: string
+): Promise<GeneratedProblem> {
   if (params.prompt) {
     const intent = resolvePromptIntent(params.prompt);
     const generationParams: GenerateProblemParams = {
@@ -211,7 +218,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
     if (picked.pattern) {
       generationParams.patternId = picked.pattern.id;
     }
-    const viaPrompt = await generateViaLlm(generationParams);
+    const viaPrompt = await generateViaLlm(generationParams, userEmail);
     const base = finalizeGeneratedProblem(viaPrompt, generationParams);
     if (picked.pattern && picked.fromDiscovered) {
       return stampDiscoveredProblem(base, picked.pattern);
@@ -242,7 +249,7 @@ async function handleGenerateProblem(params: GenerateProblemParams): Promise<Gen
     prompt: params.prompt,
   };
 
-  const viaLlm = await generateViaLlm(generationParams);
+  const viaLlm = await generateViaLlm(generationParams, userEmail);
   const base = finalizeGeneratedProblem(viaLlm, generationParams);
 
   if (picked.pattern && picked.fromDiscovered) {
@@ -265,7 +272,8 @@ export async function GET(request: Request): Promise<Response> {
     discoveredPatterns: [],
   };
 
-  const problem = await handleGenerateProblem(params);
+  const userEmail = await resolveRouterUserEmail(request, url.searchParams.get('userEmail'));
+  const problem = await handleGenerateProblem(params, userEmail);
   return NextResponse.json(problem);
 }
 
@@ -286,6 +294,7 @@ export async function POST(request: Request): Promise<Response> {
     discoveredPatterns: parseDiscoveredPatterns(body.discoveredPatterns),
   };
 
-  const problem = await handleGenerateProblem(params);
+  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
+  const problem = await handleGenerateProblem(params, userEmail);
   return NextResponse.json(problem);
 }

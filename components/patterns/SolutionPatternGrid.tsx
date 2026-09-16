@@ -27,14 +27,9 @@ import { getUnitIcon } from '@/components/unit/unitIcons';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_DISCOVER_PATTERNS } from '@/lib/engine/energyCosts';
+import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import AiSolutionCheckPanel from '@/components/workspace/AiSolutionCheckPanel';
-import {
-  getAllPatternOverrides,
-  saveCustomStrategyText,
-  resetCustomStrategyText,
-  type PatternOverride,
-} from '@/lib/storage/patternStrategyStore';
 
 const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
 const SUBJECT_FILTERS: Array<Subject | 'all'> = ['all', 'math', 'physics', 'chemistry'];
@@ -43,39 +38,41 @@ const STAR_FILTERS: Array<1 | 2 | 3 | 4 | 'all'> = ['all', 1, 2, 3, 4];
 interface PatternCardProps {
   pattern: SolutionPattern;
   isCleared: boolean;
-  override: PatternOverride | null;
   onToggleCleared: (patternId: string) => void;
-  onSaveOverride: (patternId: string, text: string) => void;
-  onResetOverride: (patternId: string) => void;
 }
 
 function PatternCard({
   pattern,
   isCleared,
-  override,
   onToggleCleared,
-  onSaveOverride,
-  onResetOverride,
 }: PatternCardProps) {
   const router = useRouter();
   const accent = SUBJECT_ACCENT[pattern.subject];
+  const note = useUserStore((state) => state.patternNotes[pattern.id]);
+  const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
+  const clearPatternNote = useUserStore((state) => state.clearPatternNote);
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(override?.customStrategyText ?? pattern.strategyText);
+  const [draft, setDraft] = useState(note?.customText ?? pattern.strategyText);
 
-  const displayedStrategy = override?.customStrategyText ?? pattern.strategyText;
+  const displayedStrategy = note?.customText ?? pattern.strategyText;
+
+  useEffect(() => {
+    if (isEditing) return;
+    setDraft(note?.customText ?? pattern.strategyText);
+  }, [note?.customText, note?.updatedAt, pattern.strategyText, isEditing]);
 
   const handleStartEdit = () => {
-    setDraft(override?.customStrategyText ?? pattern.strategyText);
+    setDraft(note?.customText ?? pattern.strategyText);
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    onSaveOverride(pattern.id, draft);
+    upsertPatternNote(pattern.id, draft);
     setIsEditing(false);
   };
 
   const handleReset = () => {
-    onResetOverride(pattern.id);
+    clearPatternNote(pattern.id);
     setDraft(pattern.strategyText);
     setIsEditing(false);
   };
@@ -176,7 +173,7 @@ function PatternCard({
             >
               キャンセル
             </button>
-            {override && (
+            {note && (
               <button
                 type="button"
                 onClick={handleReset}
@@ -194,7 +191,7 @@ function PatternCard({
               <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">アプローチ方針</p>
               <p className="text-xs leading-relaxed text-slate-400">{displayedStrategy}</p>
             </div>
-            {override && (
+            {note && (
               <div className="sm:w-52">
                 <AiSolutionCheckPanel
                   customText={displayedStrategy}
@@ -211,7 +208,7 @@ function PatternCard({
               </div>
             )}
           </div>
-          {override && (
+          {note && (
             <span className="inline-flex items-center gap-1 self-start rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-fuchsia-600 dark:border-slate-700 dark:bg-slate-950 dark:text-fuchsia-300">
               <Pencil className="h-3 w-3" />
               自分流にカスタマイズ済み
@@ -313,15 +310,8 @@ export default function SolutionPatternGrid() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, PatternOverride>>({});
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoverNotice, setDiscoverNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    // ローカルストレージからの初期読み込みのみ。
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOverrides(getAllPatternOverrides());
-  }, []);
 
   const clearedSet = useMemo(() => resolveMasteredPatternIds(clearedPatternIds), [clearedPatternIds]);
   const selectedUnit = selectedUnitId ? UNITS_DATA.find((unit) => unit.id === selectedUnitId) : undefined;
@@ -365,20 +355,6 @@ export default function SolutionPatternGrid() {
     });
   }, [selectedUnitId, selectedSubtopicId, starFilter, searchQuery, discovered]);
 
-  const handleSaveOverride = (patternId: string, text: string) => {
-    const saved = saveCustomStrategyText(patternId, text);
-    setOverrides((prev) => ({ ...prev, [patternId]: saved }));
-  };
-
-  const handleResetOverride = (patternId: string) => {
-    resetCustomStrategyText(patternId);
-    setOverrides((prev) => {
-      const next = { ...prev };
-      delete next[patternId];
-      return next;
-    });
-  };
-
   const handleDiscoverPatterns = async () => {
     if (!selectedUnitId || isDiscovering) return;
 
@@ -402,7 +378,7 @@ export default function SolutionPatternGrid() {
       const existingNames = patternsForUnit(selectedUnitId).map((pattern) => pattern.patternName);
       const fetchPatterns = fetch('/api/generate-patterns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           unitId: selectedUnitId,
           subject: selectedUnit?.subject,
@@ -660,10 +636,7 @@ export default function SolutionPatternGrid() {
                   key={pattern.id}
                   pattern={pattern}
                   isCleared={clearedSet.has(pattern.id)}
-                  override={overrides[pattern.id] ?? null}
                   onToggleCleared={toggleClearedPattern}
-                  onSaveOverride={handleSaveOverride}
-                  onResetOverride={handleResetOverride}
                 />
               ))}
               {filteredPatterns.length === 0 && (

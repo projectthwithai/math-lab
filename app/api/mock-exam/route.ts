@@ -1,8 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Mock Exam Generation API
 // ==========================================
-// Gemini (GEMINI_API_KEY) 直通で大問をリアルタイム生成する。
-// 通信エラー時のみ、高校数I教科書応用〜共通テスト水準のローカル模試へフォールバック。
+// ハイブリッドAIルーター経由で大問をリアルタイム生成する。
+// 指揮官は Gemini 永久固定。通信エラー時のみ、高校数I教科書応用〜共通テスト水準のローカル模試へフォールバック。
 // 中学の展開・定数項ダミーは使わない。
 
 import { NextResponse } from 'next/server';
@@ -16,7 +16,7 @@ import {
   type MockExamConfig,
 } from '@/lib/engine/mockExam';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
-import { completeGeminiJson, hasGeminiApiKey } from '@/lib/llm/completeJson';
+import { hasRoutedProviderKey, resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 import {
   buildDifficultyGuide,
   buildMockExamSystemPrompt,
@@ -35,9 +35,9 @@ function extractProblemArray(parsed: unknown): unknown[] {
   return [];
 }
 
-async function generateViaGemini(config: MockExamConfig): Promise<GeneratedProblem[] | null> {
-  if (!hasGeminiApiKey()) {
-    console.warn('[mock-exam] GEMINI_API_KEY が未設定のため、高品質ローカル模試へフォールバックします');
+async function generateViaLlm(config: MockExamConfig, userEmail?: string): Promise<GeneratedProblem[] | null> {
+  if (!hasRoutedProviderKey(userEmail)) {
+    console.warn('[mock-exam] 利用可能な LLM キーが無いため、高品質ローカル模試へフォールバックします');
     return null;
   }
 
@@ -88,13 +88,15 @@ async function generateViaGemini(config: MockExamConfig): Promise<GeneratedProbl
     },
   });
 
-  const parsed = await completeGeminiJson({
+  const routed = await routeLlmJson({
     systemPrompt,
     userPrompt,
+    userEmail,
     temperature: difficulty >= 5 ? 0.55 : 0.45,
     timeoutMs: 22000,
     maxGeminiAttempts: 3,
   });
+  const parsed = routed?.data;
   if (!parsed) return null;
 
   const generated: GeneratedProblem[] = [];
@@ -104,7 +106,7 @@ async function generateViaGemini(config: MockExamConfig): Promise<GeneratedProbl
       unit: slot.unitTitle,
       subject: slot.subject,
       difficulty,
-      idPrefix: `gemini-exam-${index}`,
+      idPrefix: `exam-${index}`,
     });
     if (!problem) continue;
     if (isLowQualityDummyQuestion(problem.questionText, difficulty) || isLowQualityDummyQuestion(problem.title, difficulty)) {
@@ -126,16 +128,16 @@ async function generateViaGemini(config: MockExamConfig): Promise<GeneratedProbl
   return generated.length > 0 ? generated : null;
 }
 
-function fillToCount(config: MockExamConfig, geminiProblems: GeneratedProblem[]): GeneratedProblem[] {
-  if (geminiProblems.length >= config.questionCount) {
-    return geminiProblems.slice(0, config.questionCount).map((problem, index) => ({
+function fillToCount(config: MockExamConfig, llmProblems: GeneratedProblem[]): GeneratedProblem[] {
+  if (llmProblems.length >= config.questionCount) {
+    return llmProblems.slice(0, config.questionCount).map((problem, index) => ({
       ...problem,
       id: `mock-exam-${index}-${problem.id}`,
     }));
   }
 
   const fallback = buildMockExamProblems(config);
-  const merged = [...geminiProblems];
+  const merged = [...llmProblems];
   for (const candidate of fallback) {
     if (merged.length >= config.questionCount) break;
     if (merged.some((item) => item.questionText === candidate.questionText)) continue;
@@ -150,7 +152,7 @@ function fillToCount(config: MockExamConfig, geminiProblems: GeneratedProblem[])
 function raceTimeout<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      console.warn('[mock-exam] Gemini が時間内に応答しなかったため、高校レベル模試へフォールバックします');
+      console.warn('[mock-exam] LLM が時間内に応答しなかったため、高校レベル模試へフォールバックします');
       resolve(null);
     }, ms);
     promise
@@ -160,7 +162,7 @@ function raceTimeout<T>(promise: Promise<T | null>, ms: number): Promise<T | nul
       })
       .catch((error) => {
         clearTimeout(timer);
-        console.error('[mock-exam] Gemini 生成に失敗', error);
+        console.error('[mock-exam] LLM 生成に失敗', error);
         resolve(null);
       });
   });
@@ -179,16 +181,19 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: '模試の単元設定が不正です。' }, { status: 400 });
   }
 
+  const bodyRecord = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const userEmail = await resolveRouterUserEmail(request, bodyRecord.userEmail);
+
   try {
-    const viaGemini = await raceTimeout(generateViaGemini(config), 48000);
-    if (viaGemini) {
+    const viaLlm = await raceTimeout(generateViaLlm(config, userEmail), 48000);
+    if (viaLlm) {
       return NextResponse.json({
-        problems: fillToCount(config, viaGemini),
-        source: viaGemini.length >= config.questionCount ? 'gemini' : 'gemini+fallback',
+        problems: fillToCount(config, viaLlm),
+        source: viaLlm.length >= config.questionCount ? 'llm' : 'llm+fallback',
       });
     }
   } catch (error) {
-    console.error('[mock-exam] Gemini 生成に失敗', error);
+    console.error('[mock-exam] LLM 生成に失敗', error);
   }
 
   return NextResponse.json({

@@ -1,8 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Scratchpad Red-Pen API
 // ==========================================
-// 手書きキャンバス画像（base64）を Gemini 1.5 Flash Vision で OCR・赤ペン添削する。
-// GEMINI_API_KEY 最優先。未設定・タイムアウト時のみローカル mock。
+// 手書きキャンバス画像（base64）をハイブリッドAIルーター経由で OCR・赤ペン添削する。
+// 指揮官は Gemini Vision 永久固定。未設定・タイムアウト時のみローカル mock。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -12,7 +12,7 @@ import type {
   ScratchpadCorrectionResult,
 } from '@/types/mathLab';
 import { correctScratchpadMock } from '@/lib/mock/correctScratchpadMock';
-import { completeGeminiJson } from '@/lib/llm/completeJson';
+import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 const OVERALLS: ScratchpadCorrectionOverall[] = ['good', 'needs_fix', 'empty'];
@@ -119,7 +119,8 @@ export const maxDuration = 45;
 
 async function correctViaVision(
   image: ParsedImage,
-  context: CorrectionContext
+  context: CorrectionContext,
+  userEmail?: string
 ): Promise<ScratchpadCorrectionResult | null> {
   const isPaper = context.captureSource === 'paper-notebook';
   const systemPrompt =
@@ -157,14 +158,16 @@ async function correctViaVision(
   });
 
   try {
-    const parsed = await completeGeminiJson({
+    const routed = await routeLlmJson({
       systemPrompt,
       userPrompt: userText,
       image: { mimeType: image.mimeType, base64: image.base64 },
+      userEmail,
       temperature: 0.2,
       timeoutMs: 22000,
       maxGeminiAttempts: 3,
     });
+    const parsed = routed?.data;
     if (!isCorrectionResult(parsed)) return null;
 
     const comments = normalizeComments((parsed as ScratchpadCorrectionResult).comments);
@@ -188,6 +191,7 @@ export async function POST(request: Request): Promise<Response> {
     body = {};
   }
 
+  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
   const { image, context } = parseIncoming(body);
   if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
     return NextResponse.json(
@@ -199,7 +203,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const viaVision = await correctViaVision(image, context);
+  const viaVision = await correctViaVision(image, context, userEmail);
   return NextResponse.json(
     viaVision ??
       correctScratchpadMock({

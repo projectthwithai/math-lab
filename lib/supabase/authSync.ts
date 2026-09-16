@@ -21,6 +21,13 @@ import {
 } from '@/lib/supabase/progress';
 import { getAllCustomSolutionNotes, replaceAllCustomSolutionNotes } from '@/lib/storage/customSolutionNotesStore';
 import { getAllPatternOverrides, replaceAllPatternOverrides } from '@/lib/storage/patternStrategyStore';
+import {
+  mergePatternNoteMaps,
+  mirrorPatternNotesToLegacyStores,
+  overridesToPatternNotes,
+  patternNotesToOverrides,
+  solutionNotesToPatternNotes,
+} from '@/lib/storage/patternNotes';
 import { useUserStore } from '@/lib/store/userStore';
 import { activateLocalDeveloperFallback, syncDeveloperSession } from '@/lib/auth/developerAccess';
 
@@ -61,7 +68,10 @@ function collectLocalSnapshot(): UserProgressSnapshot {
     consecutiveCorrect: state.consecutiveCorrect,
     consecutiveIncorrect: state.consecutiveIncorrect,
     solutionNotes: getAllCustomSolutionNotes(),
-    strategyOverrides: getAllPatternOverrides(),
+    strategyOverrides: {
+      ...getAllPatternOverrides(),
+      ...patternNotesToOverrides(state.patternNotes),
+    },
   };
 }
 
@@ -87,6 +97,13 @@ function applySnapshot(snapshot: UserProgressSnapshot, userId?: string | null): 
     });
     replaceAllCustomSolutionNotes(snapshot.solutionNotes);
     replaceAllPatternOverrides(snapshot.strategyOverrides);
+    const mergedNotes = mergePatternNoteMaps(
+      overridesToPatternNotes(snapshot.strategyOverrides),
+      solutionNotesToPatternNotes(snapshot.solutionNotes),
+      useUserStore.getState().patternNotes
+    );
+    useUserStore.setState({ patternNotes: mergedNotes });
+    mirrorPatternNotesToLegacyStores(mergedNotes);
     useUserStore.getState().applyDeviceEnergyLock(userId ?? null);
   } finally {
     applyingRemote = false;
