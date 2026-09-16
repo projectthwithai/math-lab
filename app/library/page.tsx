@@ -6,6 +6,7 @@
 // 過去に解いた問題（マイ問題集）を一覧表示し、エビングハウスの忘却曲線に基づき
 // 「🔥 今日復習すべき過去問」を優先バッジで示す。正否タブ・失点原因フィルターと
 // ミス分析ダッシュボードで弱点克服の演習ループを回す。
+// 「数字を変えて即挑戦」は簡易モーダルではなく /workspace?mode=review の全画面へ遷移する。
 
 import { useEffect, useMemo, useState } from 'react';
 import { BookMarked, CircleCheck, CircleX, Flame, Layers, Search } from 'lucide-react';
@@ -15,7 +16,6 @@ import { getAllSolvedProblemRecords } from '@/lib/storage/solvedProblemsStore';
 import { isDueForReview } from '@/lib/engine/forgettingCurve';
 import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import SolvedProblemCard from '@/components/library/SolvedProblemCard';
-import RetryProblemModal from '@/components/library/RetryProblemModal';
 import MistakeAnalysisDashboard from '@/components/library/MistakeAnalysisDashboard';
 
 const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
@@ -36,7 +36,6 @@ export default function LibraryPage() {
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
   const [causeFilter, setCauseFilter] = useState<MistakeTag | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [retryRecord, setRetryRecord] = useState<SolvedProblemRecord | null>(null);
 
   useEffect(() => {
     // LocalStorageはクライアントのみアクセス可能なため、マウント後に読み込む。
@@ -75,7 +74,6 @@ export default function LibraryPage() {
 
   const handleReviewed = (updated: SolvedProblemRecord) => {
     setRecords((prev) => prev.map((record) => (record.id === updated.id ? updated : record)));
-    setRetryRecord((current) => (current?.id === updated.id ? updated : current));
   };
 
   return (
@@ -173,7 +171,6 @@ export default function LibraryPage() {
                   <SolvedProblemCard
                     key={`due-${record.id}`}
                     record={record}
-                    onRetry={() => setRetryRecord(record)}
                     onUpdated={handleReviewed}
                   />
                 ))}
@@ -225,7 +222,6 @@ export default function LibraryPage() {
                 <SolvedProblemCard
                   key={record.id}
                   record={record}
-                  onRetry={() => setRetryRecord(record)}
                   onUpdated={handleReviewed}
                 />
               ))}
@@ -238,14 +234,6 @@ export default function LibraryPage() {
             </div>
           </section>
         </>
-      )}
-
-      {retryRecord && (
-        <RetryProblemModal
-          record={retryRecord}
-          onClose={() => setRetryRecord(null)}
-          onReviewed={handleReviewed}
-        />
       )}
     </main>
   );

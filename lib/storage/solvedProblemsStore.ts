@@ -50,6 +50,15 @@ export function getSolvedProblemRecordById(recordId: string): SolvedProblemRecor
   return readAllRecords().find((record) => record.id === recordId) ?? null;
 }
 
+export function findSolvedProblemRecord(problemId: string): SolvedProblemRecord | null {
+  const records = readAllRecords();
+  return (
+    records.find((record) => record.id === problemId) ??
+    records.find((record) => record.problem.id === problemId) ??
+    null
+  );
+}
+
 /** 1問解答した結果をマイライブラリに新規記録する（reviewStage=0からスタート） */
 export function addSolvedProblemRecord(
   problem: GeneratedProblem,

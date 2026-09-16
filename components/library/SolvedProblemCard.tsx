@@ -9,6 +9,7 @@
 // - 「✍️ 解説を自分の言葉でカスタマイズ」インライン編集エリア
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle2, XCircle, Flame, RefreshCw, Pencil, Save, AlertTriangle } from 'lucide-react';
 
 import type { MistakeTag, SolvedProblemRecord } from '@/types/mathLab';
@@ -16,6 +17,7 @@ import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { getOverdueDays, getReviewStageLabel, isDueForReview } from '@/lib/engine/forgettingCurve';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
+import { setPendingWorkspaceProblem, startLibraryReviewPath } from '@/lib/storage/pendingProblemStore';
 import { MISTAKE_TAG_BY_ID, MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { useUserStore } from '@/lib/store/userStore';
@@ -23,11 +25,11 @@ import KaTeXText from '@/components/workspace/KaTeXText';
 
 interface SolvedProblemCardProps {
   record: SolvedProblemRecord;
-  onRetry: () => void;
   onUpdated?: (updated: SolvedProblemRecord) => void;
 }
 
-export default function SolvedProblemCard({ record, onRetry, onUpdated }: SolvedProblemCardProps) {
+export default function SolvedProblemCard({ record, onUpdated }: SolvedProblemCardProps) {
+  const router = useRouter();
   const { problem } = record;
   const accent = SUBJECT_ACCENT[problem.subject];
   const due = isDueForReview(record.nextReviewAt);
@@ -81,6 +83,11 @@ export default function SolvedProblemCard({ record, onRetry, onUpdated }: Solved
     persistMistake(record.mistakeTag ?? null, mistakeNote);
     setSaveNotice(true);
     window.setTimeout(() => setSaveNotice(false), 2500);
+  };
+
+  const handleRetryInWorkspace = () => {
+    setPendingWorkspaceProblem(record.problem);
+    router.push(startLibraryReviewPath(record.id));
   };
 
   const solvedDateLabel = new Date(record.solvedAt).toLocaleDateString('ja-JP', {
@@ -187,11 +194,11 @@ export default function SolvedProblemCard({ record, onRetry, onUpdated }: Solved
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={onRetry}
+          onClick={handleRetryInWorkspace}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border ${accent.border} py-2 text-xs font-semibold ${accent.text} transition-colors ${accent.bgSoftHover}`}
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          数字を変えて即挑戦
+          数字を変えて即挑戦 (0 Energy)
         </button>
         <button
           type="button"

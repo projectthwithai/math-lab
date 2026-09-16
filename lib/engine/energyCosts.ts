@@ -32,6 +32,9 @@ export const ENERGY_COST_DAILY_QUEST = 0;
 /** 未ログイン1問お試しの初回生成。常に 0 Energy */
 export const ENERGY_COST_GUEST_DEMO = 0;
 
+/** マイライブラリからの過去問復習。常に 0 Energy */
+export const ENERGY_COST_LIBRARY_REVIEW = 0;
+
 /** デイリークエスト達成時の Energy 回復量 */
 export const DAILY_QUEST_ENERGY_REWARD = 30;
 
@@ -43,10 +46,15 @@ export function isGuestDemoSource(source?: string | null): boolean {
   return source === 'guest-demo';
 }
 
-/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験は常に 0 */
+export function isLibraryReviewSource(source?: string | null): boolean {
+  return source === 'review';
+}
+
+/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験 / 過去問復習は常に 0 */
 export function getGenerateEnergyCost(source?: string | null): number {
   if (isDailyQuestSource(source)) return ENERGY_COST_DAILY_QUEST;
   if (isGuestDemoSource(source)) return ENERGY_COST_GUEST_DEMO;
+  if (isLibraryReviewSource(source)) return ENERGY_COST_LIBRARY_REVIEW;
   return ENERGY_COST_GENERATE_PROBLEM;
 }
 

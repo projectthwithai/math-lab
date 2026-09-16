@@ -18,7 +18,7 @@ import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { checkProblemAnswer } from '@/lib/engine/answerChecker';
 import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
-import { addSolvedProblemRecord } from '@/lib/storage/solvedProblemsStore';
+import { addSolvedProblemRecord, findSolvedProblemRecord, markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
 import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
 import { useUserStore } from '@/lib/store/userStore';
@@ -27,6 +27,7 @@ import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import {
   formatEnergyShortage,
   getGenerateEnergyCost,
+  isLibraryReviewSource,
 } from '@/lib/engine/energyCosts';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
@@ -65,11 +66,14 @@ interface WorkspaceViewProps {
   initialDifficulty?: number;
   /** ホームの即時生成バーから渡された作問プロンプト */
   prompt?: string;
-  /** pending = 画像解析で作った完成済み問題を sessionStorage から読む */
+  /** pending = 画像解析で作った完成済み問題を sessionStorage から読む / review = ライブラリ復習 */
   source?: string;
   subtopicId?: string;
   /** デイリークエスト経由のとき、達成記録するクエストID */
   questId?: string;
+  mode?: string;
+  /** ライブラリ復習時の SolvedProblemRecord.id または problem.id */
+  problemId?: string;
 }
 
 export default function WorkspaceView({
@@ -80,6 +84,8 @@ export default function WorkspaceView({
   source,
   subtopicId,
   questId,
+  mode,
+  problemId,
 }: WorkspaceViewProps) {
   const router = useRouter();
   const recordAnswer = useUserStore((state) => state.recordAnswer);
@@ -112,6 +118,8 @@ export default function WorkspaceView({
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const isSubmittedRef = useRef(false);
   const fetchingRef = useRef(false);
+  const reviewRecordIdRef = useRef<string | null>(null);
+  const isReviewMode = mode === 'review' || isLibraryReviewSource(source);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
   const visualEnabled = isActiveVisualType(problem?.visualType);
@@ -165,6 +173,27 @@ export default function WorkspaceView({
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
+      if (isReviewMode) {
+        const stored = problemId ? findSolvedProblemRecord(problemId) : null;
+        const pending = consumePendingWorkspaceProblem();
+        const sourceProblem = stored?.problem ?? pending;
+        if (!sourceProblem) {
+          setEnergyError('復習する問題が見つかりません。マイライブラリから選び直してください。');
+          setIsLoading(false);
+          return;
+        }
+        reviewRecordIdRef.current = stored?.id ?? problemId ?? null;
+        setEnergyError(null);
+        setIsLoading(true);
+        applyNewProblem(
+          regenerateProblemLocally({
+            ...sourceProblem,
+            id: `${sourceProblem.id}-review-${Date.now()}`,
+          })
+        );
+        return;
+      }
+
       if (source === 'pending') {
         const pending = consumePendingWorkspaceProblem();
         if (pending) {
@@ -222,7 +251,7 @@ export default function WorkspaceView({
       fetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem]);
+  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem, isReviewMode, problemId]);
 
   useEffect(() => {
     // 発掘パターンを出題プールに含めるため、Zustand ハイドレーション後に生成する。
@@ -261,7 +290,11 @@ export default function WorkspaceView({
       hintsUsed: revealedHintCount,
       patternId: problem.patternId ?? patternId,
     });
-    const record = addSolvedProblemRecord(problem, isCorrect);
+    const reviewRecordId = reviewRecordIdRef.current;
+    const record =
+      isReviewMode && reviewRecordId
+        ? markRecordReviewed(reviewRecordId, isCorrect) ?? addSolvedProblemRecord(problem, isCorrect)
+        : addSolvedProblemRecord(problem, isCorrect);
     setSubmission({ isCorrect, xpResult, userAnswer: answerInput.trim(), recordId: record.id });
     setIsScoreModalOpen(true);
     setIsSolved(true);
@@ -274,6 +307,10 @@ export default function WorkspaceView({
     if (fetchingRef.current || isLoading) return;
     setIsScoreModalOpen(false);
     setSubmission(null);
+    if (isReviewMode) {
+      handleRegenerateLocally();
+      return;
+    }
     void fetchProblem();
     router.refresh();
   };
@@ -291,15 +328,25 @@ export default function WorkspaceView({
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 px-4 py-16 text-center">
         <p className="text-sm font-semibold text-amber-600 dark:text-amber-300">{energyError}</p>
-        <button
-          type="button"
-          onClick={() => {
-            void fetchProblem({ useInitialDifficulty: true });
-          }}
-          className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-200"
-        >
-          再試行
-        </button>
+        {isReviewMode ? (
+          <button
+            type="button"
+            onClick={() => router.push('/library')}
+            className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-200"
+          >
+            マイライブラリへ戻る
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              void fetchProblem({ useInitialDifficulty: true });
+            }}
+            className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-200"
+          >
+            再試行
+          </button>
+        )}
       </div>
     );
   }
@@ -321,6 +368,12 @@ export default function WorkspaceView({
       )}
       {/* 左: 問題エリア */}
       <div className={`flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60`}>
+        {isReviewMode && (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold tracking-tight text-cyan-700 dark:text-cyan-200">
+            <RefreshCw className="h-3.5 w-3.5" />
+            🔄 過去問復習モード (0 Energy)
+          </div>
+        )}
         {problem.fromDiscoveredPattern && (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-[11px] font-medium tracking-tight text-amber-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-amber-300">
             <Layers className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />

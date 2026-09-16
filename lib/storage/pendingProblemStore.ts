@@ -1,7 +1,7 @@
 // ==========================================
 // Apex Suite: Math Lab - Pending Workspace Problem
 // ==========================================
-// ホームの即時バー / 画像解析モーダルから Workspace へ
+// ホームの即時バー / 画像解析モーダル / ライブラリ復習から Workspace へ
 // 完成済み問題JSONを渡すための sessionStorage。
 
 import type { GeneratedProblem } from '@/types/mathLab';
@@ -25,4 +25,13 @@ export function consumePendingWorkspaceProblem(): GeneratedProblem | null {
   } catch {
     return null;
   }
+}
+
+export function clearPendingWorkspaceProblem(): void {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(STORAGE_KEY);
+}
+
+export function startLibraryReviewPath(recordId: string): string {
+  return `/workspace?problemId=${encodeURIComponent(recordId)}&mode=review`;
 }

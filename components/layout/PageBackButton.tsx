@@ -10,12 +10,18 @@ import { ArrowLeft } from 'lucide-react';
 
 interface PageBackButtonProps {
   fallbackHref?: string;
+  /** 指定時は履歴を使わず、このパスへ直接戻る */
+  href?: string;
 }
 
-export default function PageBackButton({ fallbackHref = '/units' }: PageBackButtonProps) {
+export default function PageBackButton({ fallbackHref = '/units', href }: PageBackButtonProps) {
   const router = useRouter();
 
   const handleBack = () => {
+    if (href) {
+      router.push(href);
+      return;
+    }
     if (typeof window !== 'undefined') {
       const referrer = document.referrer;
       const fromSameOrigin = Boolean(referrer) && referrer.startsWith(window.location.origin);
