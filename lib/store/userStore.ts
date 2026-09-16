@@ -231,6 +231,8 @@ interface UserStoreState {
   updateDiscoveredPatternStrategy: (patternId: string, strategyText: string) => void;
   /** パターンIDをキーに自分流解法メモを保存する（図鑑と双方向同期） */
   upsertPatternNote: (patternId: string, customText: string, aiFeedback?: string) => void;
+  /** 保存済みの自分流解法メモ本文を返す */
+  getPatternNote: (patternId: string) => string;
   /** 解法メモへの AI 添削コメントだけを更新する */
   setPatternNoteFeedback: (patternId: string, aiFeedback: string) => void;
   /** 自分流メモを消して公式方針に戻す */
@@ -506,6 +508,12 @@ export const useUserStore = create<UserStoreState>()(
         const patternNotes = { ...get().patternNotes, [id]: nextNote };
         set({ patternNotes, progressUpdatedAt: stampProgress() });
         mirrorPatternNotesToLegacyStores(patternNotes);
+      },
+
+      getPatternNote: (patternId) => {
+        const id = patternId.trim();
+        if (!id) return '';
+        return get().patternNotes[id]?.customText ?? '';
       },
 
       setPatternNoteFeedback: (patternId, aiFeedback) => {

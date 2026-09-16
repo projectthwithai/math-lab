@@ -7,6 +7,8 @@
 // visualType がある問題だけ、初期折りたたみのアコーディオンを出す。
 // 出題プールは WorkspaceView が userStore.discoveredPatterns を
 // /api/generate-problem に渡し、固定図鑑＋発掘パターンから抽選する。
+// 解法メモは WorkspaceView の workspaceNote と userStore.getPatternNote で
+// 解答前画面と採点モーダルを双方向同期する。
 // mode=review のときはマイライブラリからの過去問復習（0 Energy・ローカル再生成）。
 
 import { RefreshCw } from 'lucide-react';

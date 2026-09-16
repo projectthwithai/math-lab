@@ -22,7 +22,7 @@ import KaTeXBlock from './KaTeXBlock';
 import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
 import PostSolveAIChat from './PostSolveAIChat';
-import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { getSolvedProblemRecordById, updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
 import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { useUserStore } from '@/lib/store/userStore';
@@ -38,6 +38,8 @@ interface ScoreResultModalProps {
   xpResult: XpGainResult;
   userAnswer?: string;
   solvedRecordId?: string;
+  solutionNote: string;
+  onSolutionNoteChange: (value: string) => void;
   onClose: () => void;
   onNextProblem: () => void;
 }
@@ -74,10 +76,11 @@ export default function ScoreResultModal({
   xpResult,
   userAnswer = '',
   solvedRecordId,
+  solutionNote,
+  onSolutionNoteChange,
   onClose,
   onNextProblem,
 }: ScoreResultModalProps) {
-  const [noteContent, setNoteContent] = useState('');
   const [mistakeTag, setMistakeTag] = useState<MistakeTag | null>(null);
   const [mistakeNote, setMistakeNote] = useState('');
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -88,17 +91,7 @@ export default function ScoreResultModal({
   const scoredProblem = useMemo(() => ensureProblemHasCorrectAnswer(problem), [problem]);
   const displayedAnswer = formatCorrectAnswerForDisplay(scoredProblem);
   const patternId = scoredProblem.patternId;
-  const storedPatternNote = useUserStore((state) =>
-    patternId ? state.patternNotes[patternId] : undefined
-  );
   const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
-
-  useEffect(() => {
-    const fromPattern = storedPatternNote?.customText;
-    const fromProblem = getCustomSolutionNote(problem.id)?.content;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNoteContent(fromPattern || fromProblem || '');
-  }, [problem.id, patternId, storedPatternNote?.customText, storedPatternNote?.updatedAt]);
 
   useEffect(() => {
     if (!solvedRecordId || isCorrect) return;
@@ -150,9 +143,9 @@ export default function ScoreResultModal({
 
   const handleSaveNote = () => {
     if (patternId) {
-      upsertPatternNote(patternId, noteContent);
+      upsertPatternNote(patternId, solutionNote);
     } else {
-      saveCustomSolutionNote(problem.id, noteContent);
+      saveCustomSolutionNote(problem.id, solutionNote);
     }
     setSaveNotice(
       patternId
@@ -168,7 +161,7 @@ export default function ScoreResultModal({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
+        className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
       >
         <AnimatePresence>{xpResult.leveledUp && <ConfettiBurst />}</AnimatePresence>
 
@@ -303,28 +296,27 @@ export default function ScoreResultModal({
           <GoalBackwardTree problem={scoredProblem} compact />
         </div>
 
-        <div className={!isCorrect ? 'mb-5 grid gap-4 lg:grid-cols-2' : 'mb-5'}>
-          <div className="rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
+        <div className="mb-5 flex w-full flex-col gap-4">
+          <div className="w-full rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
             <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
               <BookOpenCheck className="h-4 w-4" />
               ✍️ 自分流解法メモ
             </h3>
-          {patternId && (
-            <p className="mb-2 text-[11px] text-fuchsia-200/80">
-              このメモはパターン図鑑と同じ場所に保存され、同じパターンの問題で自動的に読み込まれます。
-            </p>
-          )}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            {patternId && (
+              <p className="mb-2 text-[11px] text-fuchsia-200/80">
+                このメモは解答前のワークスペースと同じ内容です。編集すると図鑑とも同期されます。
+              </p>
+            )}
             <textarea
-              value={noteContent}
-              onChange={(event) => setNoteContent(event.target.value)}
-              rows={4}
+              value={solutionNote}
+              onChange={(event) => onSolutionNoteChange(event.target.value)}
+              rows={8}
               placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-              className="w-full min-w-0 flex-1 resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="min-h-[10rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
-            <div className="sm:w-52">
+            <div className="mt-3">
               <AiSolutionCheckPanel
-                customText={noteContent}
+                customText={solutionNote}
                 context={{
                   mode: 'problem',
                   title: scoredProblem.title,
@@ -339,75 +331,74 @@ export default function ScoreResultModal({
                 buttonLabel="解法ロジック検証"
               />
             </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleSaveNote}
-              className="rounded-lg border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 transition-colors hover:bg-fuchsia-400/20"
-            >
-              ノートに保存
-            </button>
-            <AnimatePresence>
-              {saveNotice && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="text-xs text-emerald-300"
-                >
-                  {saveNotice}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {!isCorrect && (
-          <div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
-            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-300">
-              <AlertTriangle className="h-4 w-4" />
-              ⚠️ なぜ間違えたかメモ
-            </h3>
-            <p className="mb-3 text-[11px] text-amber-200/80">
-              ワンタップで原因を残すと、ライブラリでミス原因別に復習できます。
-            </p>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {MISTAKE_TAGS.map((tag) => {
-                const selected = mistakeTag === tag.id;
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => handleToggleMistakeTag(tag.id)}
-                    className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
-                      selected
-                        ? 'border-amber-400/70 bg-amber-400/20 text-amber-100'
-                        : 'border-slate-300 bg-white/70 text-slate-600 hover:border-amber-400/40 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300'
-                    }`}
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handleSaveNote}
+                className="rounded-lg border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 transition-colors hover:bg-fuchsia-400/20"
+              >
+                ノートに保存
+              </button>
+              <AnimatePresence>
+                {saveNotice && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-emerald-300"
                   >
-                    {tag.label}
-                  </button>
-                );
-              })}
+                    {saveNotice}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </div>
-            <textarea
-              value={mistakeNote}
-              onChange={(event) => setMistakeNote(event.target.value)}
-              onBlur={() => persistMistake(mistakeTag, mistakeNote)}
-              rows={3}
-              placeholder="どこで、なぜ間違えたかを自分の言葉で残そう..."
-              className="w-full resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-            <button
-              type="button"
-              onClick={handleSaveMistakeNote}
-              className="mt-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
-            >
-              失点メモを保存
-            </button>
           </div>
-        )}
+
+          {!isCorrect && (
+            <div className="w-full rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                <AlertTriangle className="h-4 w-4" />
+                ⚠️ なぜ間違えたかメモ
+              </h3>
+              <p className="mb-3 text-[11px] text-amber-200/80">
+                ワンタップで原因を残すと、ライブラリでミス原因別に復習できます。
+              </p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {MISTAKE_TAGS.map((tag) => {
+                  const selected = mistakeTag === tag.id;
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => handleToggleMistakeTag(tag.id)}
+                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                        selected
+                          ? 'border-amber-400/70 bg-amber-400/20 text-amber-100'
+                          : 'border-slate-300 bg-white/70 text-slate-600 hover:border-amber-400/40 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300'
+                      }`}
+                    >
+                      {tag.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <textarea
+                value={mistakeNote}
+                onChange={(event) => setMistakeNote(event.target.value)}
+                onBlur={() => persistMistake(mistakeTag, mistakeNote)}
+                rows={6}
+                placeholder="どこで、なぜ間違えたかを自分の言葉で残そう..."
+                className="min-h-[8rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={handleSaveMistakeNote}
+                className="mt-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
+              >
+                失点メモを保存
+              </button>
+            </div>
+          )}
         </div>
 
         <PostSolveAIChat
@@ -415,11 +406,11 @@ export default function ScoreResultModal({
           userAnswer={userAnswer}
           correctAnswer={scoredProblem.correctAnswer}
           stepByStep={scoredProblem.explanation.stepByStep}
-          customNote={noteContent}
+          customNote={solutionNote}
           userEmail={user?.email}
           onMemoReviewed={(feedback) => {
-            if (patternId && noteContent.trim()) {
-              upsertPatternNote(patternId, noteContent, feedback);
+            if (patternId && solutionNote.trim()) {
+              upsertPatternNote(patternId, solutionNote, feedback);
             }
           }}
         />

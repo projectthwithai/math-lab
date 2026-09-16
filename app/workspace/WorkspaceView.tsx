@@ -21,6 +21,7 @@ import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { addSolvedProblemRecord, findSolvedProblemRecord, markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
 import { consumePendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import { findPatternLinkedMemo, getPatternDisplayName } from '@/lib/storage/patternMemoLookup';
+import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { useUserStore } from '@/lib/store/userStore';
 import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
@@ -146,18 +147,31 @@ export default function WorkspaceView({
     [problem?.id, problem?.patternId, patternNotes]
   );
   const patternName = getPatternDisplayName(problem?.patternId);
-  const storedPatternNoteText = problem?.patternId
-    ? (patternNotes[problem.patternId]?.customText ?? '')
-    : '';
 
   useEffect(() => {
+    const fromPattern = problem?.patternId
+      ? useUserStore.getState().getPatternNote(problem.patternId)
+      : '';
+    const fromProblem = problem ? getCustomSolutionNote(problem.id)?.content : '';
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWorkspaceNote(storedPatternNoteText);
-  }, [problem?.id, problem?.patternId, storedPatternNoteText]);
+    setWorkspaceNote(fromPattern || fromProblem || '');
+    // 問題の切り替え時だけ読み込む。入力中の store 更新では上書きしない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [problem?.id, problem?.patternId]);
+
+  const persistSolutionNote = (text: string) => {
+    setWorkspaceNote(text);
+    if (problem?.patternId) {
+      upsertPatternNote(problem.patternId, text);
+      return;
+    }
+    if (problem) saveCustomSolutionNote(problem.id, text);
+  };
 
   const applyNewProblem = useCallback((next: GeneratedProblem) => {
     setProblem(ensureProblemHasCorrectAnswer(next));
     setAnswerInput('');
+    setWorkspaceNote('');
     setRevealedHintCount(0);
     setElapsedSeconds(0);
     setSubmission(null);
@@ -280,8 +294,10 @@ export default function WorkspaceView({
     if (!problem || isSubmitted || isSubmittedRef.current) return;
     isSubmittedRef.current = true;
     setIsSubmitted(true);
-    if (problem.patternId && workspaceNote.trim() !== storedPatternNoteText.trim()) {
+    if (problem.patternId) {
       upsertPatternNote(problem.patternId, workspaceNote);
+    } else if (workspaceNote.trim()) {
+      saveCustomSolutionNote(problem.id, workspaceNote);
     }
     const isCorrect = checkProblemAnswer(answerInput.trim(), problem);
     const xpResult = recordAnswer({
@@ -401,24 +417,18 @@ export default function WorkspaceView({
           <KaTeXText text={problem.questionText} />
         </div>
 
-        {problem.patternId && (
-          <div className="rounded-xl border border-fuchsia-400/25 bg-fuchsia-400/5 p-3">
+        <div className="rounded-xl border border-fuchsia-400/25 bg-fuchsia-400/5 p-3">
             <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-300">
               <BookOpen className="h-3.5 w-3.5" />
-              このパターンの自分流メモ
+              ✍️ 自分流解法メモ
               {patternName ? ` · ${patternName}` : ''}
             </p>
             <textarea
               value={workspaceNote}
-              onChange={(event) => setWorkspaceNote(event.target.value)}
-              onBlur={() => {
-                if (!problem.patternId) return;
-                if ((workspaceNote.trim() || '') === (storedPatternNoteText.trim() || '')) return;
-                upsertPatternNote(problem.patternId, workspaceNote);
-              }}
-              rows={3}
-              placeholder="図鑑と共有される自分流の解き方。同じパターンの問題を開くと自動で読み込まれます。"
-              className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              onChange={(event) => persistSolutionNote(event.target.value)}
+              rows={4}
+              placeholder="解き方を自分の言葉で書いておこう。解答後の採点モーダルにもそのまま表示されます。"
+              className="min-h-[6rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
             {patternMemo && (
               <button
@@ -430,7 +440,6 @@ export default function WorkspaceView({
               </button>
             )}
           </div>
-        )}
 
         {hasVisual && (
           <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
@@ -651,6 +660,8 @@ export default function WorkspaceView({
           xpResult={submission.xpResult}
           userAnswer={submission.userAnswer}
           solvedRecordId={submission.recordId}
+          solutionNote={workspaceNote}
+          onSolutionNoteChange={persistSolutionNote}
           onClose={() => setIsScoreModalOpen(false)}
           onNextProblem={handleNextProblem}
         />

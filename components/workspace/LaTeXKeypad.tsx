@@ -18,20 +18,44 @@ interface LaTeXKeypadProps {
 
 type InsertMode = 'at' | 'after' | 'before-atom';
 
+const FRACTION_SNIPPET = '\\frac{分子}{分母}';
+const FRACTION_NUMERATOR = '分子';
+const FRACTION_GUIDE = '💡 分数: \\frac{分子(上)}{分母(下)}';
+
+function latexForPreview(value: string): string {
+  const wrapped = value.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, (_match, num: string, den: string) => {
+    const wrap = (part: string) => {
+      if (!part) return '\\square';
+      if (/[\u3040-\u30ff\u3400-\u9fff]/.test(part)) return `\\text{${part}}`;
+      return part;
+    };
+    return `\\frac{${wrap(num)}}{${wrap(den)}}`;
+  });
+  const trimmed = wrapped.trim();
+  if (!trimmed) return '';
+  return trimmed.includes('$') ? trimmed : `$${trimmed}$`;
+}
+
 export default function LaTeXKeypad({ value, onChange, disabled = false }: LaTeXKeypadProps) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const caretRef = useRef<number | null>(null);
+  const selectionEndRef = useRef<number | null>(null);
 
   useEffect(() => {
     const caret = caretRef.current;
     const area = areaRef.current;
     if (caret == null || !area) return;
     area.focus();
-    area.setSelectionRange(caret, caret);
+    area.setSelectionRange(caret, selectionEndRef.current ?? caret);
     caretRef.current = null;
+    selectionEndRef.current = null;
   }, [value]);
 
-  const applyInsert = (snippet: string, mode: InsertMode) => {
+  const applyInsert = (
+    snippet: string,
+    mode: InsertMode,
+    selection?: { offset: number; length: number }
+  ) => {
     if (disabled) return;
     const area = areaRef.current;
     const start = area?.selectionStart ?? value.length;
@@ -48,12 +72,24 @@ export default function LaTeXKeypad({ value, onChange, disabled = false }: LaTeX
     }
 
     const next = value.slice(0, insertAt) + snippet + value.slice(restFrom);
-    const brace = snippet.indexOf('{}');
-    caretRef.current = brace >= 0 ? insertAt + brace + 1 : insertAt + snippet.length;
+    if (selection) {
+      caretRef.current = insertAt + selection.offset;
+      selectionEndRef.current = insertAt + selection.offset + selection.length;
+    } else {
+      const brace = snippet.indexOf('{}');
+      caretRef.current = brace >= 0 ? insertAt + brace + 1 : insertAt + snippet.length;
+      selectionEndRef.current = null;
+    }
     onChange(next);
   };
 
   const insertPlain = (snippet: string) => applyInsert(snippet, 'at');
+
+  const insertFraction = () =>
+    applyInsert(FRACTION_SNIPPET, 'at', {
+      offset: '\\frac{'.length,
+      length: FRACTION_NUMERATOR.length,
+    });
 
   const backspace = () => {
     if (disabled) return;
@@ -81,7 +117,7 @@ export default function LaTeXKeypad({ value, onChange, disabled = false }: LaTeX
     onChange(`-${value}`);
   };
 
-  const previewSource = value.trim().length === 0 ? '' : value.includes('$') ? value : `$${value}$`;
+  const previewSource = latexForPreview(value);
 
   return (
     <div className="flex flex-col gap-3">
@@ -94,6 +130,9 @@ export default function LaTeXKeypad({ value, onChange, disabled = false }: LaTeX
         placeholder="ここに解答を入力... テンキーで ^{} などを挿入できます"
         className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       />
+      <p className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 font-mono text-[11px] font-medium leading-relaxed text-cyan-700 dark:text-cyan-200">
+        {FRACTION_GUIDE}
+      </p>
 
       <div className="rounded-xl border border-cyan-400/20 bg-slate-950/40 p-3">
         <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-cyan-400/80">KaTeX プレビュー</p>
@@ -176,7 +215,7 @@ export default function LaTeXKeypad({ value, onChange, disabled = false }: LaTeX
       <section>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">理数必須記号</p>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-          <KeyButton disabled={disabled} onClick={() => applyInsert('\\frac{}{}', 'at')}>
+          <KeyButton disabled={disabled} onClick={insertFraction}>
             分数
           </KeyButton>
           <KeyButton disabled={disabled} onClick={() => applyInsert('\\sqrt{}', 'at')}>
