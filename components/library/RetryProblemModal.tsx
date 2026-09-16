@@ -11,12 +11,13 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, RefreshCw, X, XCircle } from 'lucide-react';
 
-import type { SolvedProblemRecord } from '@/types/mathLab';
+import type { MistakeTag, SolvedProblemRecord } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { checkProblemAnswer } from '@/lib/engine/answerChecker';
 import { formatCorrectAnswerForDisplay } from '@/lib/engine/correctAnswer';
-import { markRecordReviewed } from '@/lib/storage/solvedProblemsStore';
+import { markRecordReviewed, updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
 import { getReviewStageLabel } from '@/lib/engine/forgettingCurve';
+import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import KaTeXText from '@/components/workspace/KaTeXText';
 
@@ -32,6 +33,8 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
   const [result, setResult] = useState<{ isCorrect: boolean; updated: SolvedProblemRecord } | null>(
     null
   );
+  const [mistakeTag, setMistakeTag] = useState<MistakeTag | null>(record.mistakeTag ?? null);
+  const [mistakeNote, setMistakeNote] = useState(record.mistakeNote ?? '');
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem.subject], [problem.subject]);
 
@@ -51,6 +54,13 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
     }
   };
 
+  const persistMistake = (tag: MistakeTag | null, note: string) => {
+    const updated = updateSolvedProblemMistake(record.id, { mistakeTag: tag, mistakeNote: note });
+    if (!updated) return;
+    setResult((current) => (current ? { ...current, updated } : current));
+    onReviewed(updated);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <motion.div
@@ -61,7 +71,10 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            if (result && !result.isCorrect) persistMistake(mistakeTag, mistakeNote);
+            onClose();
+          }}
           className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label="閉じる"
         >
@@ -131,6 +144,42 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
                 </p>
               </div>
             </div>
+            {!result.isCorrect && (
+              <div className="mt-3 border-t border-red-400/20 pt-3">
+                <p className="mb-2 text-[11px] font-semibold text-amber-200">⚠️ なぜ間違えたか</p>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {MISTAKE_TAGS.map((tag) => {
+                    const selected = mistakeTag === tag.id;
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => {
+                          const next = mistakeTag === tag.id ? null : tag.id;
+                          setMistakeTag(next);
+                          persistMistake(next, mistakeNote);
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                          selected
+                            ? `border-current bg-white/5 ${tag.textClass}`
+                            : 'border-slate-300 text-slate-400 dark:border-slate-700'
+                        }`}
+                      >
+                        {tag.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <textarea
+                  value={mistakeNote}
+                  onChange={(event) => setMistakeNote(event.target.value)}
+                  onBlur={() => persistMistake(mistakeTag, mistakeNote)}
+                  rows={2}
+                  placeholder="なぜ間違えたかを残そう..."
+                  className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                />
+              </div>
+            )}
           </motion.div>
         ) : (
           <button
@@ -145,7 +194,10 @@ export default function RetryProblemModal({ record, onClose, onReviewed }: Retry
         {result && (
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (!result.isCorrect) persistMistake(mistakeTag, mistakeNote);
+              onClose();
+            }}
             className="mt-4 w-full rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             閉じる

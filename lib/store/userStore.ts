@@ -4,7 +4,7 @@
 // アプリ全体で共有する「ユーザー状態」の単一の情報源（Single Source of Truth）。
 // - 獲得XP・プレイヤーレベル
 // - 連続学習ストリーク（日数）
-// - Energy（スタミナ。1日1回リフィル。同一端末での無料100の二重付与は deviceLock で防止）
+// - Energy（スタミナ。1日1回リフィル。同一端末での無料200の二重付与は deviceLock で防止）
 // - クリアした解法パターンIDリスト（パターン図鑑・デイリーミッションが参照する）
 // - 発掘パターン（discoveredPatterns。図鑑保存 → 単元演習の出題プール）
 // - 解法メモ（patternNotes。patternId をキーに図鑑・ワークスペースで共有）
@@ -33,6 +33,7 @@ import {
 import {
   DEFAULT_MAX_ENERGY,
   DAILY_QUEST_ENERGY_REWARD,
+  LEGACY_MAX_ENERGY,
   applyEnergyReward,
 } from '@/lib/engine/energyCosts';
 import {
@@ -152,7 +153,7 @@ interface UserStoreState {
   /** 3問達成で付与した直後のトースト用。永続化しない */
   pendingStreakCelebration: number | null;
 
-  // --- Energy（スタミナ） ---
+  // --- Energy（スタミナ。標準上限 200。デイリークエスト報酬で 250〜300 の限界突破可） ---
   energy: number;
   maxEnergy: number;
   lastEnergyRefillDateISO: string | null;
@@ -566,6 +567,12 @@ export const useUserStore = create<UserStoreState>()(
         const incoming =
           typeof persisted === 'object' && persisted ? (persisted as Partial<UserStoreState>) : {};
         const energy = typeof incoming.energy === 'number' ? incoming.energy : current.energy;
+        const incomingMax =
+          typeof incoming.maxEnergy === 'number' && incoming.maxEnergy > 0
+            ? incoming.maxEnergy
+            : LEGACY_MAX_ENERGY;
+        const migratedEnergy =
+          incomingMax < DEFAULT_MAX_ENERGY && energy === incomingMax ? DEFAULT_MAX_ENERGY : energy;
         const incomingScale =
           typeof (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion === 'number'
             ? (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion
@@ -581,7 +588,7 @@ export const useUserStore = create<UserStoreState>()(
           ...current,
           ...incoming,
           maxEnergy: DEFAULT_MAX_ENERGY,
-          energy,
+          energy: migratedEnergy,
           currentDifficulty: migrateStoredDifficulty(incomingDifficulty, incomingScale),
           difficultyScaleVersion: DIFFICULTY_SCALE_VERSION,
           // 開発者フラグは Auth メール判定のみ。localStorage 改ざんは無効化する。

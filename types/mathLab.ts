@@ -175,6 +175,12 @@ export interface PatternNote {
 export type PatternNotesMap = Record<string, PatternNote>;
 
 // ------------------------------------------
+// MistakeTag（失点原因・なぜ間違えたか）
+// ------------------------------------------
+
+export type MistakeTag = 'calc_error' | 'condition_overlook' | 'formula_unknown' | 'approach_unknown';
+
+// ------------------------------------------
 // PatternLinkedMemo（単元演習時にポップアップ表示する自分流メモ）
 // ------------------------------------------
 
@@ -276,6 +282,10 @@ export interface SolvedProblemRecord {
   /** エビングハウス忘却曲線に基づく復習ステージ（0=直後 → 数値が大きいほど間隔が長い） */
   reviewStage: number;
   nextReviewAt: string;
+  /** 失点原因タグ（不正解時）。復習後も履歴として残す */
+  mistakeTag?: MistakeTag;
+  /** なぜ間違えたかの自由記述 */
+  mistakeNote?: string;
 }
 
 // ------------------------------------------

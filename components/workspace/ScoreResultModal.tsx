@@ -8,13 +8,14 @@
 //   ① 正誤判定 + XP獲得（コンパクトなヘッダー行）
 //   ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
 //   ③ ✍️ 自分流のメモとして上書き保存する（patternId で図鑑と一元管理）
-//   ④ 💬 この解説についてAIに質問する（解法メモの添削チップ付き）
+//   ④ ⚠️ なぜ間違えたかメモ（失点タグ + 自由記述。ライブラリへ保存）
+//   ⑤ 💬 この解説についてAIに質問する（解法メモの添削チップ付き）
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame, AlertTriangle } from 'lucide-react';
 
-import type { GeneratedProblem } from '@/types/mathLab';
+import type { GeneratedProblem, MistakeTag } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
@@ -22,6 +23,8 @@ import AiSolutionCheckPanel from './AiSolutionCheckPanel';
 import GoalBackwardTree from './GoalBackwardTree';
 import PostSolveAIChat from './PostSolveAIChat';
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
+import { getSolvedProblemRecordById, updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
+import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { useUserStore } from '@/lib/store/userStore';
 import { formatCorrectAnswerForDisplay, ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
@@ -34,6 +37,7 @@ interface ScoreResultModalProps {
   isCorrect: boolean;
   xpResult: XpGainResult;
   userAnswer?: string;
+  solvedRecordId?: string;
   onClose: () => void;
   onNextProblem: () => void;
 }
@@ -69,10 +73,13 @@ export default function ScoreResultModal({
   isCorrect,
   xpResult,
   userAnswer = '',
+  solvedRecordId,
   onClose,
   onNextProblem,
 }: ScoreResultModalProps) {
   const [noteContent, setNoteContent] = useState('');
+  const [mistakeTag, setMistakeTag] = useState<MistakeTag | null>(null);
+  const [mistakeNote, setMistakeNote] = useState('');
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
@@ -93,6 +100,15 @@ export default function ScoreResultModal({
     setNoteContent(fromPattern || fromProblem || '');
   }, [problem.id, patternId, storedPatternNote?.customText, storedPatternNote?.updatedAt]);
 
+  useEffect(() => {
+    if (!solvedRecordId || isCorrect) return;
+    const existing = getSolvedProblemRecordById(solvedRecordId);
+    if (!existing) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMistakeTag(existing.mistakeTag ?? null);
+    setMistakeNote(existing.mistakeNote ?? '');
+  }, [solvedRecordId, isCorrect]);
+
   const handleGoogleSave = async () => {
     setAuthBusy(true);
     setAuthNotice(null);
@@ -110,6 +126,26 @@ export default function ScoreResultModal({
       }
       setAuthBusy(false);
     }
+  };
+
+  const persistMistake = (tag: MistakeTag | null, note: string) => {
+    if (!solvedRecordId || isCorrect) return;
+    updateSolvedProblemMistake(solvedRecordId, {
+      mistakeTag: tag,
+      mistakeNote: note,
+    });
+  };
+
+  const handleToggleMistakeTag = (tag: MistakeTag) => {
+    const next = mistakeTag === tag ? null : tag;
+    setMistakeTag(next);
+    persistMistake(next, mistakeNote);
+  };
+
+  const handleSaveMistakeNote = () => {
+    persistMistake(mistakeTag, mistakeNote);
+    setSaveNotice('失点原因メモをライブラリに保存しました');
+    window.setTimeout(() => setSaveNotice(null), 3000);
   };
 
   const handleSaveNote = () => {
@@ -138,7 +174,10 @@ export default function ScoreResultModal({
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            persistMistake(mistakeTag, mistakeNote);
+            onClose();
+          }}
           className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label="閉じる"
         >
@@ -264,12 +303,12 @@ export default function ScoreResultModal({
           <GoalBackwardTree problem={scoredProblem} compact />
         </div>
 
-        {/* ③ ✍️ 自分流のメモとして上書き保存する */}
-        <div className="mb-5 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
-          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
-            <BookOpenCheck className="h-4 w-4" />
-            自分流のメモとして上書き保存する
-          </h3>
+        <div className={!isCorrect ? 'mb-5 grid gap-4 lg:grid-cols-2' : 'mb-5'}>
+          <div className="rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
+              <BookOpenCheck className="h-4 w-4" />
+              ✍️ 自分流解法メモ
+            </h3>
           {patternId && (
             <p className="mb-2 text-[11px] text-fuchsia-200/80">
               このメモはパターン図鑑と同じ場所に保存され、同じパターンの問題で自動的に読み込まれます。
@@ -324,6 +363,53 @@ export default function ScoreResultModal({
           </div>
         </div>
 
+        {!isCorrect && (
+          <div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-300">
+              <AlertTriangle className="h-4 w-4" />
+              ⚠️ なぜ間違えたかメモ
+            </h3>
+            <p className="mb-3 text-[11px] text-amber-200/80">
+              ワンタップで原因を残すと、ライブラリでミス原因別に復習できます。
+            </p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {MISTAKE_TAGS.map((tag) => {
+                const selected = mistakeTag === tag.id;
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => handleToggleMistakeTag(tag.id)}
+                    className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                      selected
+                        ? 'border-amber-400/70 bg-amber-400/20 text-amber-100'
+                        : 'border-slate-300 bg-white/70 text-slate-600 hover:border-amber-400/40 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300'
+                    }`}
+                  >
+                    {tag.label}
+                  </button>
+                );
+              })}
+            </div>
+            <textarea
+              value={mistakeNote}
+              onChange={(event) => setMistakeNote(event.target.value)}
+              onBlur={() => persistMistake(mistakeTag, mistakeNote)}
+              rows={3}
+              placeholder="どこで、なぜ間違えたかを自分の言葉で残そう..."
+              className="w-full resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={handleSaveMistakeNote}
+              className="mt-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
+            >
+              失点メモを保存
+            </button>
+          </div>
+        )}
+        </div>
+
         <PostSolveAIChat
           questionText={scoredProblem.questionText}
           userAnswer={userAnswer}
@@ -341,7 +427,10 @@ export default function ScoreResultModal({
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              persistMistake(mistakeTag, mistakeNote);
+              onClose();
+            }}
             className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             閉じる
@@ -349,6 +438,7 @@ export default function ScoreResultModal({
           <button
             type="button"
             onClick={() => {
+              persistMistake(mistakeTag, mistakeNote);
               onClose();
               onNextProblem();
             }}

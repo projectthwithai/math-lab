@@ -6,7 +6,8 @@
 // 各レコードは「次回復習日時（nextReviewAt）」を持つ。
 // Supabase連携までのゼロコストな暫定実装。
 
-import type { GeneratedProblem, SolvedProblemRecord } from '@/types/mathLab';
+import type { GeneratedProblem, MistakeTag, SolvedProblemRecord } from '@/types/mathLab';
+import { isMistakeTag } from '@/lib/engine/mistakeTags';
 import { advanceReviewStage, computeNextReviewAt } from '@/lib/engine/forgettingCurve';
 
 const STORAGE_KEY = 'math-lab:solved-problems';
@@ -45,6 +46,10 @@ export function getAllSolvedProblemRecords(): SolvedProblemRecord[] {
   );
 }
 
+export function getSolvedProblemRecordById(recordId: string): SolvedProblemRecord | null {
+  return readAllRecords().find((record) => record.id === recordId) ?? null;
+}
+
 /** 1問解答した結果をマイライブラリに新規記録する（reviewStage=0からスタート） */
 export function addSolvedProblemRecord(
   problem: GeneratedProblem,
@@ -78,6 +83,34 @@ export function markRecordReviewed(recordId: string, isCorrect: boolean): Solved
     isCorrect,
     reviewStage: advanced.reviewStage,
     nextReviewAt: advanced.nextReviewAt,
+  };
+
+  records[index] = updated;
+  writeAllRecords(records);
+  return updated;
+}
+
+export function updateSolvedProblemMistake(
+  recordId: string,
+  patch: { mistakeTag?: MistakeTag | null; mistakeNote?: string }
+): SolvedProblemRecord | null {
+  const records = readAllRecords();
+  const index = records.findIndex((record) => record.id === recordId);
+  if (index === -1) return null;
+
+  const target = records[index];
+  const nextTag = patch.mistakeTag === undefined ? target.mistakeTag : patch.mistakeTag ?? undefined;
+  const nextNote =
+    patch.mistakeNote === undefined
+      ? target.mistakeNote
+      : patch.mistakeNote.trim().length > 0
+        ? patch.mistakeNote.trim()
+        : undefined;
+
+  const updated: SolvedProblemRecord = {
+    ...target,
+    mistakeTag: isMistakeTag(nextTag) ? nextTag : undefined,
+    mistakeNote: nextNote,
   };
 
   records[index] = updated;

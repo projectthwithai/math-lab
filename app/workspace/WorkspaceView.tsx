@@ -98,6 +98,7 @@ export default function WorkspaceView({
     isCorrect: boolean;
     xpResult: XpGainResult;
     userAnswer: string;
+    recordId: string;
   } | null>(null);
   const [energyError, setEnergyError] = useState<string | null>(null);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
@@ -142,6 +143,7 @@ export default function WorkspaceView({
     : '';
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWorkspaceNote(storedPatternNoteText);
   }, [problem?.id, problem?.patternId, storedPatternNoteText]);
 
@@ -259,11 +261,10 @@ export default function WorkspaceView({
       hintsUsed: revealedHintCount,
       patternId: problem.patternId ?? patternId,
     });
-    setSubmission({ isCorrect, xpResult, userAnswer: answerInput.trim() });
+    const record = addSolvedProblemRecord(problem, isCorrect);
+    setSubmission({ isCorrect, xpResult, userAnswer: answerInput.trim(), recordId: record.id });
     setIsScoreModalOpen(true);
     setIsSolved(true);
-    // マイライブラリ（忘却曲線ベースの復習機能）用に解答履歴を保存する。
-    addSolvedProblemRecord(problem, isCorrect);
     if (isCorrect && source === 'daily-quest' && questId) {
       completeDailyQuest(questId);
     }
@@ -596,6 +597,7 @@ export default function WorkspaceView({
           isCorrect={submission.isCorrect}
           xpResult={submission.xpResult}
           userAnswer={submission.userAnswer}
+          solvedRecordId={submission.recordId}
           onClose={() => setIsScoreModalOpen(false)}
           onNextProblem={handleNextProblem}
         />

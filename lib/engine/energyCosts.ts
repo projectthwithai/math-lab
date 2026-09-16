@@ -6,7 +6,10 @@
 // 図鑑の「新パターン解析」は問題生成と同じ 10 Energy。
 
 /** 1日の標準Energy（日次リフィル上限） */
-export const DEFAULT_MAX_ENERGY = 100;
+export const DEFAULT_MAX_ENERGY = 200;
+
+/** 旧バージョンの日次上限。persist 移行で満タンユーザーを 200 に引き上げる */
+export const LEGACY_MAX_ENERGY = 100;
 
 /** 問題生成（/api/generate-problem） */
 export const ENERGY_COST_GENERATE_PROBLEM = 10;
@@ -55,7 +58,7 @@ export function formatEnergyShortage(cost: number, remaining: number): string {
   );
 }
 
-/** デイリークエスト等の報酬。maxEnergy を超えるオーバーキャップを許可する */
+/** デイリークエスト等の報酬。maxEnergy を超えるオーバーキャップを許可する（目安 250〜300） */
 export function applyEnergyReward(energy: number, amount: number): number {
   return Math.max(0, energy + Math.max(0, amount));
 }

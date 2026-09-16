@@ -2,8 +2,8 @@
 // Apex Suite: Math Lab - Anti-Abuse Device Lock
 // ==========================================
 // 同一端末・同一ブラウザ（LocalStorage / Cookie）での
-// 無料初期 Energy (100) の日次二重付与を防ぐ。
-// アカウントを切り替えても、本日すでに付与済みなら新しい 100 は出さない。
+// 無料初期 Energy (200) の日次二重付与を防ぐ。
+// アカウントを切り替えても、本日すでに付与済みなら新しい 200 は出さない。
 // 開発者アカウント（isDeveloper）はこの制限を完全バイパスする。
 
 import { applyDailyEnergyRefill, DEFAULT_MAX_ENERGY } from '@/lib/engine/energyCosts';
@@ -128,7 +128,7 @@ export function syncDeviceEnergyRemaining(remaining: number, userId?: string | n
  * 日次の無料 Energy 付与を端末ロック付きで解決する。
  * - 開発者: 制限なし（記録も更新しない）
  * - この端末で本日未付与: 通常リフィルし、日付と残りを記録
- * - この端末で本日付与済み + 別アカウント: 二重の 100 は出さず、残り Energy を引き継ぐ
+ * - この端末で本日付与済み + 別アカウント: 二重の 200 は出さず、残り Energy を引き継ぐ
  */
 export function resolveDeviceLockedDailyEnergy(
   input: ResolveDeviceEnergyInput
