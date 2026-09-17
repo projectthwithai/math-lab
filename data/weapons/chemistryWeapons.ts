@@ -6,8 +6,10 @@
 
 import type { WeaponItem } from '@/types/mathLab';
 import { createWeapon } from './createWeapon';
+import { CHEMISTRY_MASTERY_CHALLENGES } from './chemistryMasteryChallenges';
 
-const c = (draft: Omit<WeaponItem, 'subject'>): WeaponItem => createWeapon('chemistry', draft);
+const c = (draft: Omit<WeaponItem, 'subject'>): WeaponItem =>
+  createWeapon('chemistry', draft, CHEMISTRY_MASTERY_CHALLENGES[draft.id]);
 
 export const CHEMISTRY_WEAPONS: WeaponItem[] = [
   // ---------- 理論化学 ----------

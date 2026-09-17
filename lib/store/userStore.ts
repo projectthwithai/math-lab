@@ -181,6 +181,8 @@ interface UserStoreState {
 
   // --- 解放した武器（閲覧で収集。空でも図鑑は全公開） ---
   unlockedWeaponIds: string[];
+  /** 成り立ち試練に正解した武器（MASTERED） */
+  masteredWeaponIds: string[];
 
   // --- アダプティブ出題エンジン（難易度） ---
   currentDifficulty: number;
@@ -225,6 +227,8 @@ interface UserStoreState {
   restoreDailyQuestEnergy: () => void;
   /** 武器を解放済みとして記録する（閲覧時） */
   unlockWeapon: (weaponId: string) => void;
+  /** 成り立ち試練の正解で MASTER にする */
+  markWeaponMastered: (weaponId: string) => void;
   /** 図鑑で発掘した新パターンを出題プールへ追加（重複はスキップ） */
   appendDiscoveredPatterns: (incoming: SolutionPattern[]) => SolutionPattern[];
   /** 発掘パターンの方針文を更新する */
@@ -268,6 +272,7 @@ export const useUserStore = create<UserStoreState>()(
       discoveredPatterns: [],
       patternNotes: {},
       unlockedWeaponIds: [],
+      masteredWeaponIds: [],
 
       currentDifficulty: DEFAULT_DIFFICULTY,
       difficultyScaleVersion: DIFFICULTY_SCALE_VERSION,
@@ -470,6 +475,25 @@ export const useUserStore = create<UserStoreState>()(
         );
       },
 
+      markWeaponMastered: (weaponId) => {
+        if (!weaponId) return;
+        set((state) => {
+          const unlockedWeaponIds = state.unlockedWeaponIds.includes(weaponId)
+            ? state.unlockedWeaponIds
+            : [...state.unlockedWeaponIds, weaponId];
+          if (state.masteredWeaponIds.includes(weaponId)) {
+            return unlockedWeaponIds === state.unlockedWeaponIds
+              ? state
+              : { unlockedWeaponIds, progressUpdatedAt: stampProgress() };
+          }
+          return {
+            unlockedWeaponIds,
+            masteredWeaponIds: [...state.masteredWeaponIds, weaponId],
+            progressUpdatedAt: stampProgress(),
+          };
+        });
+      },
+
       appendDiscoveredPatterns: (incoming) => {
         const { next, added } = mergeDiscoveredPatterns(get().discoveredPatterns, incoming);
         if (added.length > 0) {
@@ -605,6 +629,9 @@ export const useUserStore = create<UserStoreState>()(
           unlockedWeaponIds: Array.isArray(incoming.unlockedWeaponIds)
             ? incoming.unlockedWeaponIds
             : current.unlockedWeaponIds,
+          masteredWeaponIds: Array.isArray(incoming.masteredWeaponIds)
+            ? incoming.masteredWeaponIds
+            : current.masteredWeaponIds,
           ...nextMasteredIds(incomingCleared),
           patternNotes: normalizePatternNotes(incoming.patternNotes ?? current.patternNotes),
           lastStreakGrantDateISO:

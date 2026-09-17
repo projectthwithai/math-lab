@@ -9,3 +9,10 @@ import { CHEMISTRY_WEAPONS } from './chemistryWeapons';
 export { MATH_WEAPONS, PHYSICS_WEAPONS, CHEMISTRY_WEAPONS };
 
 export const WEAPONS_DATA = [...MATH_WEAPONS, ...PHYSICS_WEAPONS, ...CHEMISTRY_WEAPONS];
+
+if (process.env.NODE_ENV !== 'production') {
+  const missing = WEAPONS_DATA.filter((weapon) => !weapon.masteryChallenge).map((weapon) => weapon.id);
+  if (missing.length > 0) {
+    console.warn('[weapons] masteryChallenge 未設定:', missing.join(', '));
+  }
+}

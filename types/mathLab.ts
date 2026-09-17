@@ -139,6 +139,17 @@ export interface PatternItem {
 // WeaponItem（武器庫 - 定理・公式図鑑）
 // ------------------------------------------
 
+export interface WeaponMasteryChallenge {
+  /** 公式の導出ステップや成り立ちの核心を問う問題文（LaTeX数式付き） */
+  questionText: string;
+  /** 4択の選択肢 */
+  choices: string[];
+  /** 正解のインデックス (0~3) */
+  correctAnswerIndex: number;
+  /** なぜその式変形・条件になるのかの分かりやすい解説 */
+  explanation: string;
+}
+
 export interface WeaponItem {
   id: string;
   subject: Subject;
@@ -153,6 +164,8 @@ export interface WeaponItem {
   derivationVisualType: string;
   derivationSteps: string[];
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  /** 武器マスター試練（静的プリセット。APIコスト0） */
+  masteryChallenge?: WeaponMasteryChallenge;
 }
 
 // ------------------------------------------

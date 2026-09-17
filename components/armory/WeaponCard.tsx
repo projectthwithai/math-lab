@@ -18,6 +18,7 @@ const RARITY_STYLES: Record<WeaponItem['rarity'], { label: string; badge: string
 
 interface WeaponCardProps {
   weapon: WeaponItem;
+  mastered?: boolean;
   onClick: () => void;
 }
 
@@ -26,7 +27,7 @@ function formulaTextSize(latex: string): 'text-sm' | 'text-xs' {
   return compact.length >= 36 ? 'text-xs' : 'text-sm';
 }
 
-export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
+export default function WeaponCard({ weapon, mastered = false, onClick }: WeaponCardProps) {
   const accent = SUBJECT_ACCENT[weapon.subject];
   const rarity = RARITY_STYLES[weapon.rarity];
 
@@ -34,15 +35,24 @@ export default function WeaponCard({ weapon, onClick }: WeaponCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-0 w-full max-w-full flex-col gap-2 overflow-x-auto scrollbar-none rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-zinc-950/80 ${accent.borderHover}`}
+      className={`flex min-w-0 w-full max-w-full flex-col gap-2 overflow-x-auto scrollbar-none rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-zinc-950/80 ${accent.borderHover} ${
+        mastered ? 'shadow-[0_0_18px_rgba(251,191,36,0.28)] ring-1 ring-amber-300/40' : ''
+      }`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`rounded-full border ${accent.border} px-2 py-0.5 text-[10px] font-bold ${accent.text}`}>
           {weapon.category}
         </span>
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold ${rarity.badge}`}>
-          {rarity.label}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {mastered && (
+            <span className="rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-400/30 to-yellow-200/20 px-2 py-0.5 text-[9px] font-black tracking-wide text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.55)]">
+              💎 MASTERED
+            </span>
+          )}
+          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold ${rarity.badge}`}>
+            {rarity.label}
+          </span>
+        </div>
       </div>
       <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-100">{weapon.name}</h3>
       <div className="min-w-0 w-full max-w-full overflow-x-auto scrollbar-none">

@@ -14,10 +14,21 @@ import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
 import SafeKaTeX from '@/components/ui/SafeKaTeX';
 import DerivationAnimator from './DerivationAnimator';
+import WeaponMasteryQuiz from './WeaponMasteryQuiz';
 
 interface WeaponDetailModalProps {
   weapon: WeaponItem;
   onClose: () => void;
+}
+
+function WeaponMasteredBadge({ weaponId }: { weaponId: string }) {
+  const mastered = useUserStore((state) => state.masteredWeaponIds.includes(weaponId));
+  if (!mastered) return null;
+  return (
+    <span className="rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-400/30 to-yellow-200/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700 shadow-[0_0_12px_rgba(251,191,36,0.45)] dark:text-amber-200">
+      💎 MASTERED
+    </span>
+  );
 }
 
 export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModalProps) {
@@ -47,7 +58,10 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
         <span className={`rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-bold ${accent.text}`}>
           {weapon.category}
         </span>
-        <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{weapon.name}</h2>
+        <h2 className="mt-2 flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          {weapon.name}
+          <WeaponMasteredBadge weaponId={weapon.id} />
+        </h2>
         <div className="mt-3 min-w-0 w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white/80 p-4 scrollbar-none dark:border-slate-800 dark:bg-slate-900/60">
           <SafeKaTeX latex={weapon.formulaLaTeX} displayMode className="text-lg text-slate-900 dark:text-white" />
         </div>
@@ -85,6 +99,8 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
           </h3>
           <DerivationAnimator steps={weapon.derivationSteps} />
         </section>
+
+        <WeaponMasteryQuiz weapon={weapon} />
       </motion.div>
     </div>
   );

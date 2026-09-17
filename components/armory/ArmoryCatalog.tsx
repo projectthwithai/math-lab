@@ -10,6 +10,7 @@ import type { Subject, WeaponItem } from '@/types/mathLab';
 import { WEAPONS_DATA } from '@/data/weaponsData';
 import WeaponCard from '@/components/armory/WeaponCard';
 import WeaponDetailModal from '@/components/armory/WeaponDetailModal';
+import { useUserStore } from '@/lib/store/userStore';
 
 const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
 const SUBJECT_FILTERS: Array<Subject | 'all'> = ['all', 'math', 'physics', 'chemistry'];
@@ -19,6 +20,8 @@ export default function ArmoryCatalog() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponItem | null>(null);
+  const masteredWeaponIds = useUserStore((state) => state.masteredWeaponIds);
+  const masteredSet = useMemo(() => new Set(masteredWeaponIds), [masteredWeaponIds]);
 
   const categoriesForSubject = useMemo(() => {
     const relevant =
@@ -42,7 +45,7 @@ export default function ArmoryCatalog() {
   return (
     <div>
       <p className="mb-6 text-sm text-slate-500">
-        収録数: {WEAPONS_DATA.length}種類（全て解放済み）。クリックすると使いどころ・発動条件・成り立ちが見られます。
+        収録数: {WEAPONS_DATA.length}種類（全て解放済み）。成り立ち試練に正解すると 💎 MASTERED が点灯します。
       </p>
 
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -104,7 +107,12 @@ export default function ArmoryCatalog() {
 
       <div className="grid min-w-0 max-w-full grid-cols-1 gap-3 overflow-x-auto sm:grid-cols-2 lg:grid-cols-3">
         {filteredWeapons.map((weapon) => (
-          <WeaponCard key={weapon.id} weapon={weapon} onClick={() => setSelectedWeapon(weapon)} />
+          <WeaponCard
+            key={weapon.id}
+            weapon={weapon}
+            mastered={masteredSet.has(weapon.id)}
+            onClick={() => setSelectedWeapon(weapon)}
+          />
         ))}
         {filteredWeapons.length === 0 && (
           <p className="col-span-full py-10 text-center text-sm text-slate-500">

@@ -7,8 +7,10 @@
 
 import type { WeaponItem } from '@/types/mathLab';
 import { createWeapon } from './createWeapon';
+import { MATH_MASTERY_CHALLENGES } from './mathMasteryChallenges';
 
-const m = (draft: Omit<WeaponItem, 'subject'>): WeaponItem => createWeapon('math', draft);
+const m = (draft: Omit<WeaponItem, 'subject'>): WeaponItem =>
+  createWeapon('math', draft, MATH_MASTERY_CHALLENGES[draft.id]);
 
 export const MATH_WEAPONS: WeaponItem[] = [
   // ---------- 数I・数と式 ----------
