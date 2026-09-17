@@ -156,7 +156,7 @@ export const MATH_MASTERY_CHALLENGES: MasteryChallengeMap = {
     '三角比の定義そのもの。斜辺が打ち消し、対辺/隣辺が残る。'
   ),
   'w-trig-reciprocal': mc(
-    '$1+\\tan^2\\theta=\\sec^2\\theta$ は何から出るか。',
+    '$1 + \\tan^2\\theta = \\frac{1}{\\cos^2\\theta}$ は何から導かれるか。',
     ['$\\sin^2+\\cos^2=1$ を $\\cos^2$ で割る', '加法定理', '三倍角', '積分'],
     0,
     '両辺を $\\cos^2\\theta$ で割ると $1+\\tan^2=1/\\cos^2$。定義域は $\\cos\\neq 0$。'

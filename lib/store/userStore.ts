@@ -229,6 +229,8 @@ interface UserStoreState {
   unlockWeapon: (weaponId: string) => void;
   /** 成り立ち試練の正解で MASTER にする */
   markWeaponMastered: (weaponId: string) => void;
+  /** 成り立ち試練の MASTER を解除し、未習得に戻す */
+  unmasterWeapon: (weaponId: string) => void;
   /** 図鑑で発掘した新パターンを出題プールへ追加（重複はスキップ） */
   appendDiscoveredPatterns: (incoming: SolutionPattern[]) => SolutionPattern[];
   /** 発掘パターンの方針文を更新する */
@@ -489,6 +491,17 @@ export const useUserStore = create<UserStoreState>()(
           return {
             unlockedWeaponIds,
             masteredWeaponIds: [...state.masteredWeaponIds, weaponId],
+            progressUpdatedAt: stampProgress(),
+          };
+        });
+      },
+
+      unmasterWeapon: (weaponId) => {
+        if (!weaponId) return;
+        set((state) => {
+          if (!state.masteredWeaponIds.includes(weaponId)) return state;
+          return {
+            masteredWeaponIds: state.masteredWeaponIds.filter((id) => id !== weaponId),
             progressUpdatedAt: stampProgress(),
           };
         });

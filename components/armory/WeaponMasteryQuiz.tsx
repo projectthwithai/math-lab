@@ -5,7 +5,7 @@
 // ==========================================
 // API コスト 0。静的プリセットをその場で出題し、正解で MASTERED にする。
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, Swords, XCircle } from 'lucide-react';
 
@@ -48,11 +48,23 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
   const challenge = weapon.masteryChallenge;
   const isMastered = useUserStore((state) => state.masteredWeaponIds.includes(weapon.id));
   const markWeaponMastered = useUserStore((state) => state.markWeaponMastered);
+  const unmasterWeapon = useUserStore((state) => state.unmasterWeapon);
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [result, setResult] = useState<'correct' | 'wrong' | null>(null);
   const [fanfare, setFanfare] = useState(false);
+  const wasMasteredRef = useRef(isMastered);
+
+  useEffect(() => {
+    const wasMastered = wasMasteredRef.current;
+    wasMasteredRef.current = isMastered;
+    if (!wasMastered || isMastered) return;
+    setSelected(null);
+    setResult(null);
+    setOpen(false);
+    setFanfare(false);
+  }, [isMastered]);
 
   if (!challenge || challenge.choices.length < 2) return null;
 
@@ -83,9 +95,14 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
           武器マスター試練
         </h3>
         {isMastered && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.45)]">
+          <button
+            type="button"
+            onClick={() => unmasterWeapon(weapon.id)}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.45)] transition hover:opacity-80"
+            title="習得をリセット"
+          >
             💎 MASTERED
-          </span>
+          </button>
         )}
       </div>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-400">

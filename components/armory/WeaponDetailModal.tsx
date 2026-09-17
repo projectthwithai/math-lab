@@ -7,12 +7,13 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Target, ListChecks, Sparkles } from 'lucide-react';
+import { X, Target, ListChecks, Sparkles, RotateCcw } from 'lucide-react';
 
 import type { WeaponItem } from '@/types/mathLab';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import { useUserStore } from '@/lib/store/userStore';
 import SafeKaTeX from '@/components/ui/SafeKaTeX';
+import KaTeXText from '@/components/workspace/KaTeXText';
 import DerivationAnimator from './DerivationAnimator';
 import WeaponMasteryQuiz from './WeaponMasteryQuiz';
 
@@ -23,10 +24,32 @@ interface WeaponDetailModalProps {
 
 function WeaponMasteredBadge({ weaponId }: { weaponId: string }) {
   const mastered = useUserStore((state) => state.masteredWeaponIds.includes(weaponId));
+  const unmasterWeapon = useUserStore((state) => state.unmasterWeapon);
   if (!mastered) return null;
+
+  const handleReset = () => {
+    unmasterWeapon(weaponId);
+  };
+
   return (
-    <span className="rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-400/30 to-yellow-200/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700 shadow-[0_0_12px_rgba(251,191,36,0.45)] dark:text-amber-200">
-      💎 MASTERED
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={handleReset}
+        className="rounded-full border border-amber-300/70 bg-gradient-to-r from-amber-400/30 to-yellow-200/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-700 shadow-[0_0_12px_rgba(251,191,36,0.45)] transition hover:border-amber-200 hover:opacity-80 dark:text-amber-200"
+        title="習得をリセット"
+        aria-label="MASTERED を解除"
+      >
+        💎 MASTERED
+      </button>
+      <button
+        type="button"
+        onClick={handleReset}
+        className="inline-flex items-center gap-0.5 rounded-full border border-slate-300/70 bg-white/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 transition hover:border-amber-400/50 hover:text-amber-700 dark:border-slate-600 dark:bg-slate-900/80 dark:text-slate-400 dark:hover:text-amber-200"
+      >
+        <RotateCcw className="h-2.5 w-2.5" />
+        ↺ 習得をリセット
+      </button>
     </span>
   );
 }
@@ -72,7 +95,9 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
             <Target className="h-4 w-4" />
             使いどころ・効果
           </h3>
-          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{weapon.usageScenario}</p>
+          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+            <KaTeXText text={weapon.usageScenario} />
+          </p>
         </section>
 
         {/* ② 発動条件 */}
@@ -85,7 +110,7 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
             {weapon.triggerConditions.map((condition, index) => (
               <li key={index} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-fuchsia-400" />
-                {condition}
+                <KaTeXText text={condition} className="min-w-0" />
               </li>
             ))}
           </ul>
