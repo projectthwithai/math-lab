@@ -1,25 +1,23 @@
 // ==========================================
-// Apex Suite: Math Lab - Camouflaged pattern variant API
+// Apex Suite: Math Lab - Exam-quality pattern variant API
 // ==========================================
-// 解法ロジックは固定したまま、出題の見た目だけを変装した GeneratedProblem を 1 問返す。
-// 指揮官（NEXT_PUBLIC_ADMIN_EMAIL）は aiRouter 経由で無料 Gemini 永久固定。
+// 同じ解法パターンを、別の数学的・科学的テーマで切り出した入試良問を 1 問返す。
+// 会話の着せ替えテンプレートは使わない。Gemini を優先し、指揮官は Gemini 永久固定。
 
 import { NextResponse } from 'next/server';
 import type { GeneratedProblem, Subject } from '@/types/mathLab';
-import { generateMockVariant, readMockVariantStyleLabel } from '@/lib/mock/generateMockVariant';
 import { getUnitById } from '@/data/unitsData';
 import { findSolutionPatternById, getPatternStarDifficulty } from '@/data/patternsData';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType } from '@/lib/engine/visualNeed';
-import { routeLlmJson, resolveRouterUserEmail } from '@/lib/engine/aiRouter';
-import { LATEX_EXPLANATION_RULES, SUBJECT_RUBRIC } from '@/lib/llm/examPrompts';
-import { VISUAL_TYPE_PROMPT_RULES } from '@/lib/engine/visualNeed';
+import { isCommanderUser, resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import { completeLlmJson } from '@/lib/llm/completeJson';
+import { buildExamVariantSystemPrompt } from '@/lib/llm/examPrompts';
 import { ensureProblemHasCorrectAnswer, isPlaceholderCorrectAnswer } from '@/lib/engine/correctAnswer';
-import {
-  normalizeCamouflageStyleLabel,
-  pickCamouflageStyleLabel,
-} from '@/lib/engine/patternVariant';
+import { normalizeThemeLabel, pickExamThemeLabel } from '@/lib/engine/patternVariant';
+import { isExamQualityVariantText } from '@/lib/engine/variantQuality';
+import { wrapBareLatexOutsideMath } from '@/lib/utils/sanitizeLatex';
 import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
 
 interface GenerateVariantBody {
@@ -29,6 +27,7 @@ interface GenerateVariantBody {
   unitId?: unknown;
   subject?: unknown;
   existingCount?: unknown;
+  userEmail?: unknown;
 }
 
 interface LlmVariantPayload {
@@ -42,6 +41,7 @@ interface LlmVariantPayload {
   hints: [string, string, string];
   keyFormula: string;
   commonMistakes: string;
+  themeLabel?: string;
   camouflageStyle?: string;
   choices?: string[];
   geometryScene?: unknown;
@@ -80,21 +80,30 @@ function isValidLlmVariantPayload(value: unknown): value is LlmVariantPayload {
   );
 }
 
-function buildVariantSystemPrompt(patternName: string, strategyText: string): string {
-  return (
-    `あなたは難関大入試の作問チーフです。\n` +
-    `指定された解法パターン『${patternName}』(解法方針: ${strategyText}) を使用する問題について、\n` +
-    `解法ロジックは1ミリも変えずに、出題の見た目・文章表現・シチュエーション（純粋な数式題、図形・動点の幾何文章題、共通テスト風の日常会話文題など）を大胆にカモフラージュ（変装）させた新しい問題バリエーション（GeneratedProblem型）を1問生成してください。\n` +
-    SUBJECT_RUBRIC +
-    LATEX_EXPLANATION_RULES +
-    VISUAL_TYPE_PROMPT_RULES +
-    '出力は必ずJSON形式のみとし、余計な説明文を含めないでください。' +
-    '再利用可能なテンプレート（変数の範囲・計算ロジックJS・テンプレート文）を生成してください。' +
-    'calcLogicJSはJavaScriptの関数本体の文字列で、引数varsを受け取り、' +
-    '{ vars: object, correctAnswer: string | number, explanationSteps?: string[] } を返す。' +
-    'correctAnswer は空文字・未定義・null 禁止。' +
-    'camouflageStyle は 図形文章 / 共通テスト風 / 日常会話 / 動点幾何 / 純粋数式の別表現 のいずれか。'
-  );
+function polishExamText(text: string): string {
+  return wrapBareLatexOutsideMath(text.trim());
+}
+
+async function completeVariantJson(params: {
+  systemPrompt: string;
+  userPrompt: string;
+  userEmail?: string;
+}): Promise<unknown | null> {
+  const gemini = await completeLlmJson({
+    systemPrompt: params.systemPrompt,
+    userPrompt: params.userPrompt,
+    forceProvider: 'gemini',
+    geminiOnly: true,
+    temperature: 0.75,
+  });
+  if (gemini !== null) return gemini;
+  if (isCommanderUser(params.userEmail)) return null;
+  const routed = await routeLlmJson({
+    systemPrompt: params.systemPrompt,
+    userPrompt: params.userPrompt,
+    userEmail: params.userEmail,
+  });
+  return routed?.data ?? null;
 }
 
 async function generateVariantViaLlm(params: {
@@ -109,7 +118,7 @@ async function generateVariantViaLlm(params: {
   const unit = params.unitId ? getUnitById(params.unitId) : undefined;
   const catalog = findSolutionPatternById(params.patternId);
   const difficulty = catalog ? getPatternStarDifficulty(catalog) : DEFAULT_DIFFICULTY;
-  const fallbackStyle = pickCamouflageStyleLabel(params.existingCount);
+  const fallbackTheme = pickExamThemeLabel(params.existingCount);
 
   const userPrompt = JSON.stringify({
     patternId: params.patternId,
@@ -119,14 +128,15 @@ async function generateVariantViaLlm(params: {
     unitTitle: unit?.title ?? catalog?.unit ?? '数学',
     difficulty: clampDifficulty(difficulty),
     outputSchema: {
-      title: 'string',
+      title: 'string（入試問題らしい短い見出し。変装・会話などの語は禁止）',
       unit: 'string',
       subject: 'math | physics | chemistry',
       format: 'input | choice | descriptive',
-      camouflageStyle: '図形文章 | 共通テスト風 | 日常会話 | 動点幾何 | 純粋数式の別表現',
+      themeLabel: 'string（例: 階乗不等式 / 整数の倍数 / 漸化式の一般項 / 平面分割）',
       variables: '{ [name]: { min: number, max: number, step: number } }',
-      templateText: 'string (プレースホルダーは {{varName}} 形式。変装後の文章)',
-      calcLogicJS: 'string (function body。解法ロジックは指定パターンと同一)',
+      templateText:
+        'string（プレースホルダーは {{varName}}。受験生が読む純粋な問題文のみ。$...$ / $$...$$ で数式を囲む）',
+      calcLogicJS: 'string (function body。指定パターンを本質的に使う)',
       hints: '[string, string, string]',
       keyFormula: 'string（$...$ の LaTeX）',
       commonMistakes: 'string',
@@ -136,13 +146,17 @@ async function generateVariantViaLlm(params: {
   });
 
   try {
-    const routed = await routeLlmJson({
-      systemPrompt: buildVariantSystemPrompt(params.patternName, params.strategyText),
+    const parsed = await completeVariantJson({
+      systemPrompt: buildExamVariantSystemPrompt(params.patternName, params.strategyText),
       userPrompt,
       userEmail: params.userEmail,
     });
-    const parsed = routed?.data;
     if (!isValidLlmVariantPayload(parsed)) return null;
+    if (!isExamQualityVariantText(parsed.templateText)) return null;
+    if (!isExamQualityVariantText(parsed.title)) return null;
+
+    const questionText = polishExamText(parsed.templateText);
+    if (!isExamQualityVariantText(questionText)) return null;
 
     const geometryScene = parseGeometryScene(parsed.geometryScene);
     const requestedVisual = parseVisualType(parsed.visualType);
@@ -151,16 +165,16 @@ async function generateVariantViaLlm(params: {
       : requestedVisual === 'geometry_svg'
         ? 'none'
         : requestedVisual;
-    const styleLabel = normalizeCamouflageStyleLabel(parsed.camouflageStyle, fallbackStyle);
+    const styleLabel = normalizeThemeLabel(parsed.themeLabel ?? parsed.camouflageStyle, fallbackTheme);
     const base: GeneratedProblem = {
       id: `variant-${params.patternId}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
       patternId: params.patternId,
       subject: parsed.subject,
       unit: parsed.unit,
-      title: parsed.title,
+      title: parsed.title.trim(),
       difficulty: clampDifficulty(difficulty),
       format: parsed.format ?? 'input',
-      questionText: parsed.templateText,
+      questionText,
       visualType,
       visualConfig: geometryScene
         ? { type: 'geometry', params: { ...geometryScene, scene: geometryScene } }
@@ -170,21 +184,22 @@ async function generateVariantViaLlm(params: {
       hints: parsed.hints,
       explanation: {
         stepByStep: [],
-        keyFormula: parsed.keyFormula,
+        keyFormula: polishExamText(parsed.keyFormula),
         commonMistakes: parsed.commonMistakes ?? '',
       },
       templateConfig: {
         variables: parsed.variables,
-        templateText: parsed.templateText,
+        templateText: questionText,
         calcLogicJS: parsed.calcLogicJS,
       },
     };
 
     const problem = ensureProblemHasCorrectAnswer(regenerateProblemLocally(base));
     if (isPlaceholderCorrectAnswer(problem.correctAnswer)) return null;
+    if (!isExamQualityVariantText(problem.questionText)) return null;
     return { problem, styleLabel };
   } catch (error) {
-    console.error('[generate-variant] LLM生成に失敗、モックにフォールバックします', error);
+    console.error('[generate-variant] 入試バリエーションの生成に失敗しました', error);
     return null;
   }
 }
@@ -213,7 +228,7 @@ export async function POST(request: Request): Promise<Response> {
     ? body.subject
     : catalog?.subject ?? (unitId ? getUnitById(unitId)?.subject : undefined) ?? 'math';
   const existingCount = parseExistingCount(body.existingCount);
-  const userEmail = await resolveRouterUserEmail(request, (body as { userEmail?: unknown }).userEmail);
+  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
 
   const viaLlm = await generateVariantViaLlm({
     patternId,
@@ -225,23 +240,15 @@ export async function POST(request: Request): Promise<Response> {
     userEmail,
   });
 
-  if (viaLlm) {
-    return NextResponse.json({
-      problem: viaLlm.problem,
-      styleLabel: viaLlm.styleLabel,
-    });
+  if (!viaLlm) {
+    return NextResponse.json(
+      { error: '入試レベルのバリエーションを生成できませんでした。手抜きテンプレートでは代替しません。' },
+      { status: 503 }
+    );
   }
 
-  const mock = generateMockVariant({
-    patternId,
-    patternName,
-    strategyText,
-    unitId,
-    subject,
-    existingCount,
-  });
   return NextResponse.json({
-    problem: ensureProblemHasCorrectAnswer(mock),
-    styleLabel: readMockVariantStyleLabel(mock),
+    problem: viaLlm.problem,
+    styleLabel: viaLlm.styleLabel,
   });
 }

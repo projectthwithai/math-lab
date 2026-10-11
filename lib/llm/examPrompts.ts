@@ -84,6 +84,41 @@ export function buildDifficultyGuide(difficulty: number, subject: Subject = 'mat
   return `${subjectHint}${STAR5_CORE_RULES} ${STAR5_FIELD_EXAMPLES} ${SUBJECT_RUBRIC}`;
 }
 
+export const VARIANT_META_SPEECH_BAN =
+  '【問題文の絶対禁止】問題文・templateText に次を一切書いてはならない：' +
+  '「見た目は日常の記録だが」「使う式は同じである」「同じ手順で解け」「解法は変えずに」' +
+  '「解法パターン」「カモフラージュ」「変装」「太郎」「花子」などの会話による着せ替え、' +
+  '作問者のメタ指示・解説・ヒント。出力するのは受験生が試験場で読む純粋な問題文のみ。';
+
+export function buildExamVariantSystemPrompt(patternName: string, strategyText: string): string {
+  return (
+    `あなたは東大・難関大入試の数学・理科のプロ作問者です。\n` +
+    `指定された解法パターン『${patternName}』(解法方針: ${strategyText}) を本質的に使用する問題について、\n` +
+    `単なる会話文の着せ替えではなく、出題の数学的・科学的テーマそのものを異なる角度から切り取った本物の入試良問（GeneratedProblem型）を1問生成してください。\n` +
+    `【数学的帰納法の場合の例】:\n` +
+    `・テーマA: 多項式や階乗の不等式の証明\n` +
+    `・テーマB: n^k + an が特定の整数の倍数であることの証明\n` +
+    `・テーマC: 漸化式の一般項を推測して帰納法で証明する融合題\n` +
+    `・テーマD: 平面分割やゲームの勝敗に関する離散数学の帰納法\n` +
+    `【出力ルール】:\n` +
+    `・純粋な問題文のみを出力し、問題文の中に解説やメタ発言を含めないこと。\n` +
+    `・数式は必ず $...$ または $$...$$ で厳密に囲み、生LaTeXコードが地の文に露出しないこと。\n` +
+    VARIANT_META_SPEECH_BAN +
+    SUBJECT_RUBRIC +
+    JUNIOR_HIGH_BAN +
+    LATEX_EXPLANATION_RULES +
+    VISUAL_TYPE_PROMPT_RULES +
+    '会話文・日常記録への着せ替えは禁止。テーマそのものを変えること。' +
+    '出力は必ずJSON形式のみとし、余計な説明文を含めないでください。' +
+    '再利用可能なテンプレート（変数の範囲・計算ロジックJS・テンプレート文）を生成してください。' +
+    'calcLogicJSはJavaScriptの関数本体の文字列で、引数varsを受け取り、' +
+    '{ vars: object, correctAnswer: string | number, explanationSteps?: string[] } を返す。' +
+    'correctAnswer は空文字・未定義・null 禁止。' +
+    'themeLabel は受験生向けの短いテーマ名（例: 階乗不等式、整数の倍数、漸化式の一般項、平面分割）。' +
+    'camouflageStyle は使わない。'
+  );
+}
+
 export function buildProblemSystemPrompt(options: {
   difficulty: number;
   subject?: Subject;

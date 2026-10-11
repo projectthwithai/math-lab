@@ -51,6 +51,7 @@ import {
   BASE_VARIANT_STYLE_LABEL,
   buildVariantTabLabel,
 } from '@/lib/engine/patternVariant';
+import { stripBannedVariantMeta } from '@/lib/engine/variantQuality';
 import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import { startUnitReviewExam } from '@/lib/engine/unitReview';
 import { resolvePatternDisplayName } from '@/lib/engine/patternDisplay';
@@ -96,7 +97,9 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
     selectedVariantId === 'base'
       ? null
       : storedVariants.find((item) => item.id === selectedVariantId) ?? null;
-  const exampleText = selectedStored?.problem.questionText ?? pattern.exampleQuestion;
+  const exampleText = selectedStored
+    ? stripBannedVariantMeta(selectedStored.problem.questionText)
+    : pattern.exampleQuestion;
 
   const displayedStrategy = note?.customText ?? pattern.strategyText;
 
@@ -309,9 +312,9 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
             <FileText className="h-3 w-3 text-amber-500 dark:text-amber-400" />
             {selectedStored ? selectedStored.label : '具体例題'}
           </p>
-          <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+          <div className="text-sm leading-relaxed text-slate-800 dark:text-slate-200 [&_.katex-display]:my-3 [&_.katex-display]:overflow-x-auto [&_strong]:font-semibold">
             <KaTeXText text={exampleText} />
-          </p>
+          </div>
         </div>
       </div>
 

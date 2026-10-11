@@ -43,6 +43,7 @@ import { resolveMathGraphModel } from '@/lib/engine/mathGraphVisual';
 import { resolveGeometryScene } from '@/lib/engine/geometryVisual';
 import { resolveChemistryScene, resolvePhysicsScene } from '@/lib/engine/scienceVisual';
 import { isActiveVisualType } from '@/lib/engine/visualNeed';
+import { stripBannedVariantMeta } from '@/lib/engine/variantQuality';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import ScratchpadCanvas from '@/components/workspace/ScratchpadCanvas';
 import LaTeXKeypad from '@/components/workspace/LaTeXKeypad';
@@ -242,6 +243,13 @@ export default function WorkspaceView({
             ...stored.problem,
             id: `${stored.problem.id}-play-${Date.now()}`,
             patternId,
+            questionText: stripBannedVariantMeta(stored.problem.questionText),
+            templateConfig: stored.problem.templateConfig
+              ? {
+                  ...stored.problem.templateConfig,
+                  templateText: stripBannedVariantMeta(stored.problem.templateConfig.templateText),
+                }
+              : stored.problem.templateConfig,
           })
         );
         return;

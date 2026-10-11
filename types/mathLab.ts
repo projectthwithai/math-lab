@@ -148,9 +148,9 @@ export interface PatternItem {
 export interface PatternVariant {
   id: string;
   patternId: string;
-  /** 表示用。例: バリエーション 2 (図形文章) */
+  /** 表示用。例: バリエーション 2 (階乗不等式) */
   label: string;
-  /** カモフラージュ種別。例: 図形文章 / 共通テスト風 / 日常会話 */
+  /** 入試テーマ名。例: 階乗不等式 / 整数の倍数 / 漸化式の一般項 */
   styleLabel: string;
   problem: GeneratedProblem;
   createdAt: string;

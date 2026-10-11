@@ -3,9 +3,9 @@
 // ==========================================
 // Apex Suite: Math Lab - KaTeXText（インライン数式表示）
 // ==========================================
-// 文中の `$...$` 区間だけを数式としてインライン表示する。
-// `$` の外側に剥き出しの `\text{}` / `\mathrm{}` / `\frac{}{}` があれば
-// wrapBareLatexOutsideMath で自動的に `$...$` へ包んでから描画する。
+// `$...$` / `$$...$$` と Markdown の **太字** を描画する。
+// `$` の外側に剥き出しの `\frac` / `\sum` / `\displaystyle` があれば
+// wrapBareLatexOutsideMath で自動的に数式区間へ包んでから描画する。
 
 import SafeKaTeX from '@/components/ui/SafeKaTeX';
 import { wrapBareLatexOutsideMath } from '@/lib/utils/sanitizeLatex';

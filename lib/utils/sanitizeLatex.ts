@@ -344,6 +344,21 @@ function sanitizeMathSegment(math: string): string {
 }
 
 /** `$` で包む対象。単位・分数・化学式が問題文の生テキストとして漏れないようにする */
+const PREFIX_MATH_COMMANDS = new Set([
+  'sum',
+  'prod',
+  'int',
+  'iint',
+  'iiint',
+  'oint',
+  'lim',
+  'displaystyle',
+  'textstyle',
+  'scriptstyle',
+  'limits',
+  'nolimits',
+]);
+
 const WRAP_BRACE_COMMANDS = new Set([
   'text',
   'mathrm',
@@ -460,10 +475,74 @@ function readWrapableLatex(source: string, start: number): number {
     groups += 1;
   }
 
-  const shouldWrap = groups > 0 || (WRAP_BRACE_COMMANDS.has(name) && hadOptionalBrackets);
+  const shouldWrap =
+    groups > 0 ||
+    PREFIX_MATH_COMMANDS.has(name) ||
+    (WRAP_BRACE_COMMANDS.has(name) && hadOptionalBrackets);
   if (!shouldWrap) return start;
 
-  return readSupSubSuffix(source, index);
+  index = readSupSubSuffix(source, index);
+
+  if (name === 'sum' || name === 'prod' || name === 'int' || name === 'iint' || name === 'iiint') {
+    const next = skipHorizontalSpace(source, index);
+    if (source.slice(next).startsWith('\\limits') || source.slice(next).startsWith('\\nolimits')) {
+      const command = source.slice(next).match(/^\\[A-Za-z]+/);
+      index = next + (command?.[0].length ?? 0);
+      index = readSupSubSuffix(source, index);
+    }
+  }
+
+  if (name === 'displaystyle' || name === 'textstyle' || name === 'scriptstyle') {
+    const next = skipHorizontalSpace(source, index);
+    if (source[next] === '\\') {
+      const followEnd = readWrapableLatex(source, next);
+      if (followEnd > next) index = followEnd;
+    } else if (source[next] === '{') {
+      index = readBalancedGroup(source, next, '{', '}');
+      index = readSupSubSuffix(source, index);
+    }
+  }
+
+  return index;
+}
+
+export type LatexChunkKind = 'display' | 'inline' | 'text';
+
+export interface LatexChunk {
+  kind: LatexChunkKind;
+  value: string;
+}
+
+/** `$...$` と `$$...$$` を先に切り出す。display を優先する。 */
+export function splitLatexChunks(source: string): LatexChunk[] {
+  if (!source) return [];
+  const chunks: LatexChunk[] = [];
+  const matcher = /\$\$([\s\S]+?)\$\$|\$([^$]+)\$/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = matcher.exec(source))) {
+    if (match.index > lastIndex) {
+      chunks.push({ kind: 'text', value: source.slice(lastIndex, match.index) });
+    }
+    if (match[1] != null) {
+      chunks.push({ kind: 'display', value: match[1] });
+    } else {
+      chunks.push({ kind: 'inline', value: match[2] ?? '' });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < source.length) {
+    chunks.push({ kind: 'text', value: source.slice(lastIndex) });
+  }
+  return chunks;
+}
+
+function renderMarkdownPlain(text: string): string {
+  const escaped = escapeHtml(text);
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br />');
 }
 
 function wrapBareLatexInPlainText(text: string): string {
@@ -490,13 +569,11 @@ function wrapBareLatexInPlainText(text: string): string {
  */
 export function wrapBareLatexOutsideMath(source: string): string {
   if (!source) return source;
-  return source
-    .split(/(\$[^$]*\$)/g)
-    .map((part) => {
-      if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
-        return part;
-      }
-      return wrapBareLatexInPlainText(part);
+  return splitLatexChunks(source)
+    .map((chunk) => {
+      if (chunk.kind === 'display') return `$$${chunk.value}$$`;
+      if (chunk.kind === 'inline') return `$${chunk.value}$`;
+      return wrapBareLatexInPlainText(chunk.value);
     })
     .join('');
 }
@@ -516,13 +593,11 @@ export function sanitizeLatex(source: string): string {
     return wrapped;
   }
 
-  return wrapped
-    .split(/(\$[^$]*\$)/g)
-    .map((part) => {
-      if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
-        return `$${sanitizeMathSegment(part.slice(1, -1))}$`;
-      }
-      return part;
+  return splitLatexChunks(wrapped)
+    .map((chunk) => {
+      if (chunk.kind === 'display') return `$$${sanitizeMathSegment(chunk.value)}$$`;
+      if (chunk.kind === 'inline') return `$${sanitizeMathSegment(chunk.value)}$`;
+      return chunk.value;
     })
     .join('');
 }
@@ -552,24 +627,21 @@ function renderKatexHtml(math: string, displayMode: boolean): string {
  */
 export function sanitizeAndRenderLatex(text: string, displayMode: boolean): string {
   const sanitized = sanitizeLatex(text);
-  const segments = sanitized.split(/\$([^$]+)\$/g);
-  const hasDollar = /\$/.test(sanitized);
+  const chunks = splitLatexChunks(sanitized);
+  const hasMath = chunks.some((chunk) => chunk.kind !== 'text');
 
-  if (!hasDollar) {
+  if (!hasMath) {
     const hasCjk = /[\u3040-\u30ff\u3400-\u9fff]/.test(sanitized);
     if (hasCjk) {
-      return escapeHtml(sanitized).replace(/\n/g, '<br />');
+      return renderMarkdownPlain(sanitized);
     }
     return renderKatexHtml(sanitized, displayMode);
   }
 
-  return segments
-    .map((segment, index) => {
-      const isMathSegment = index % 2 === 1;
-      if (!isMathSegment) {
-        return escapeHtml(segment).replace(/\n/g, '<br />');
-      }
-      return renderKatexHtml(sanitizeMathSegment(segment), displayMode);
+  return chunks
+    .map((chunk) => {
+      if (chunk.kind === 'text') return renderMarkdownPlain(chunk.value);
+      return renderKatexHtml(sanitizeMathSegment(chunk.value), chunk.kind === 'display' || displayMode);
     })
     .join('');
 }
