@@ -124,7 +124,11 @@ async function requestGeminiModelText(
     },
     timeoutMs
   );
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    console.error(`[llm] Gemini (${model}) HTTP ${response.status}`, detail.slice(0, 400));
+    return null;
+  }
   const data = (await response.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
@@ -136,15 +140,16 @@ async function requestGeminiModelText(
 }
 
 function buildGeminiBody(params: CompleteJsonParams, jsonMode: boolean): Record<string, unknown> {
-  const parts: Array<Record<string, unknown>> = [{ text: params.userPrompt }];
-  if (params.image) {
+  const parts: Array<Record<string, unknown>> = [];
+  if (params.image?.base64) {
     parts.push({
       inlineData: {
-        mimeType: params.image.mimeType,
+        mimeType: params.image.mimeType || 'image/jpeg',
         data: params.image.base64,
       },
     });
   }
+  parts.push({ text: params.userPrompt });
 
   const generationConfig: Record<string, unknown> = {
     temperature: params.temperature ?? 0.4,
@@ -279,7 +284,7 @@ export async function completeLlmJson(params: CompleteJsonParams): Promise<unkno
   if (viaGemini !== null) return viaGemini;
   if (shouldUseGeminiOnly(params)) {
     if (hasGeminiApiKey()) {
-      console.error('[llm] Gemini 呼び出しに失敗したため、ローカルフォールバックへ落とします');
+      console.error('[llm] Gemini 呼び出しに失敗したため、ダミー問題は返さず失敗とします');
     }
     return null;
   }

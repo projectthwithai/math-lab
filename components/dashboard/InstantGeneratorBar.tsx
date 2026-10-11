@@ -13,9 +13,15 @@ import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_ANALYZE_IMAGE, formatEnergyShortage } from '@/lib/engine/energyCosts';
 import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import { toPatternMatchDigest } from '@/data/patternsData';
+import {
+  IMAGE_ANALYSIS_INVALID_ERROR,
+  IMAGE_ANALYSIS_SERVER_ERROR,
+  isImageAnalysisBlocked,
+  readImageAnalysisError,
+  type ImageAnalysisBlocked,
+} from '@/lib/llm/imageAnalysisVision';
+import { compressImageFile, COMPRESS_MAX_SOURCE_BYTES } from '@/lib/utils/compressImageClient';
 import ImageAnalysisModal from './ImageAnalysisModal';
-
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
 export default function InstantGeneratorBar() {
   const hasHydrated = useUserStore((state) => state.hasHydrated);
@@ -25,7 +31,7 @@ export default function InstantGeneratorBar() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<ImageAnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<ImageAnalysisResult | ImageAnalysisBlocked | null>(null);
 
   const handleImageFile = async (file: File | undefined) => {
     if (!file) return;
@@ -33,8 +39,8 @@ export default function InstantGeneratorBar() {
       setErrorMessage('ステータスを読み込み中です。少し待ってから再試行してください。');
       return;
     }
-    if (file.size > MAX_FILE_BYTES) {
-      setErrorMessage('画像は 4MB 以下にしてください。');
+    if (file.size > COMPRESS_MAX_SOURCE_BYTES) {
+      setErrorMessage('画像は 20MB 以下にしてください。');
       return;
     }
 
@@ -48,27 +54,49 @@ export default function InstantGeneratorBar() {
     setIsAnalyzing(true);
 
     try {
-      const form = new FormData();
-      form.append('image', file);
-      form.append(
-        'existingPatterns',
-        JSON.stringify(discoveredPatterns.map((pattern) => toPatternMatchDigest(pattern)))
-      );
+      const compressed = await compressImageFile(file);
       const response = await fetch('/api/analyze-image', {
         method: 'POST',
-        headers: withAiRouterHeaders(),
-        body: form,
+        headers: withAiRouterHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          imageBase64: compressed.dataUrl,
+          mimeType: compressed.mimeType,
+          existingPatterns: discoveredPatterns.map((pattern) => toPatternMatchDigest(pattern)),
+        }),
       });
-      if (!response.ok) throw new Error(`analyze-image ${response.status}`);
-      const data = (await response.json()) as ImageAnalysisResult;
-      if (!data.variantProblem || !data.pattern) {
-        throw new Error('incomplete analysis');
+      let data: unknown = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
       }
-      setAnalysis(data);
+      if (isImageAnalysisBlocked(data) || !response.ok) {
+        useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);
+        setAnalysis({
+          isValid: false,
+          error: readImageAnalysisError(
+            data,
+            response.ok ? IMAGE_ANALYSIS_INVALID_ERROR : IMAGE_ANALYSIS_SERVER_ERROR
+          ),
+        });
+        return;
+      }
+      const result = data as ImageAnalysisResult;
+      if (!result.variantProblem || !result.pattern) {
+        useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);
+        setAnalysis({ isValid: false, error: IMAGE_ANALYSIS_SERVER_ERROR });
+        return;
+      }
+      setAnalysis(result);
     } catch (error) {
       console.error('[InstantGeneratorBar] 画像解析に失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);
-      setErrorMessage('画像の解析に失敗しました。Energy を返還しました。もう一度試してください。');
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('画像')) {
+        setErrorMessage(message);
+        return;
+      }
+      setAnalysis({ isValid: false, error: IMAGE_ANALYSIS_SERVER_ERROR });
     } finally {
       setIsAnalyzing(false);
     }

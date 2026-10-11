@@ -216,6 +216,7 @@ export interface PatternMatchDigest {
   unitId?: string;
   subtopicId?: string;
   unit: string;
+  subject?: SolutionPattern['subject'];
   patternName: string;
   strategyText: string;
 }
@@ -226,6 +227,7 @@ export function toPatternMatchDigest(pattern: SolutionPattern): PatternMatchDige
     unitId: pattern.unitId,
     subtopicId: pattern.subtopicId,
     unit: pattern.unit,
+    subject: pattern.subject,
     patternName: pattern.patternName,
     strategyText: pattern.strategyText.replace(/\s+/g, ' ').slice(0, 140),
   };

@@ -3,6 +3,9 @@
 // ==========================================
 // Gemini が ```json ... ``` や前後の解説文を付けても、最初の完全な
 // JSON オブジェクトだけを取り出して JSON.parse する。
+// パース後の文字列から絵文字を除去し、API応答に混入させない。
+
+import { stripUnicodeEmojiDeep } from '@/lib/utils/stripUnicodeEmoji';
 
 function stripBom(text: string): string {
   return text.replace(/^\uFEFF/, '').trim();
@@ -101,14 +104,17 @@ export function parseLlmJsonObject(raw: string): unknown | null {
 
   for (const body of collectFenceBodies(trimmed)) {
     const parsed = tryParseObject(body) ?? tryParseObject(extractBalancedJsonObject(body) ?? '');
-    if (parsed) return parsed;
+    if (parsed) return stripUnicodeEmojiDeep(parsed);
   }
 
   const direct = tryParseObject(trimmed);
-  if (direct) return direct;
+  if (direct) return stripUnicodeEmojiDeep(direct);
 
   const balanced = extractBalancedJsonObject(trimmed);
-  if (balanced) return tryParseObject(balanced);
+  if (balanced) {
+    const parsed = tryParseObject(balanced);
+    if (parsed) return stripUnicodeEmojiDeep(parsed);
+  }
 
   return null;
 }

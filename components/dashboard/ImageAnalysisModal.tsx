@@ -6,7 +6,7 @@
 // 原問テキストは表示しない。オリジナル類題と解法パターンだけを見せ、
 // 「類題を解く」「図鑑へ追加」の2アクションのみ提供する。
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { BookPlus, CheckCircle2, Flame, X } from 'lucide-react';
@@ -15,10 +15,39 @@ import type { ImageAnalysisResult } from '@/types/mathLab';
 import { useUserStore } from '@/lib/store/userStore';
 import { setPendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
+import HandwritingReshootAlert from '@/components/workspace/HandwritingReshootAlert';
+import {
+  IMAGE_ANALYSIS_INVALID_ERROR,
+  IMAGE_ANALYSIS_RESHOOT_HEADING,
+  isImageAnalysisBlocked,
+  type ImageAnalysisBlocked,
+} from '@/lib/llm/imageAnalysisVision';
 
 interface ImageAnalysisModalProps {
-  result: ImageAnalysisResult;
+  result: ImageAnalysisResult | ImageAnalysisBlocked;
   onClose: () => void;
+}
+
+function ModalShell({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:p-6"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
+          aria-label="閉じる"
+        >
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
+        </button>
+        {children}
+      </motion.div>
+    </div>
+  );
 }
 
 export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisModalProps) {
@@ -26,6 +55,31 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
   const appendDiscoveredPatterns = useUserStore((state) => state.appendDiscoveredPatterns);
   const incrementPatternVariants = useUserStore((state) => state.incrementPatternVariants);
   const [addedNotice, setAddedNotice] = useState<string | null>(null);
+
+  if (isImageAnalysisBlocked(result)) {
+    return (
+      <ModalShell onClose={onClose}>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
+          Structure Extract / Original Item
+        </p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">再撮影が必要です</h2>
+        <div className="mt-4">
+          <HandwritingReshootAlert
+            heading={IMAGE_ANALYSIS_RESHOOT_HEADING}
+            message={result.error || IMAGE_ANALYSIS_INVALID_ERROR}
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-4 w-full rounded-xl border border-amber-400/40 py-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-400/10 dark:text-amber-100"
+          >
+            写真を撮り直す
+          </button>
+        </div>
+      </ModalShell>
+    );
+  }
+
   const matchedExisting = result.matchedExisting === true;
 
   const openWorkspace = () => {
@@ -54,21 +108,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:p-6"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
-          aria-label="閉じる"
-        >
-          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
-        </button>
-
+    <ModalShell onClose={onClose}>
         <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
           Structure Extract / Original Item
         </p>
@@ -132,7 +172,6 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
             {addedNotice}
           </p>
         )}
-      </motion.div>
-    </div>
+    </ModalShell>
   );
 }

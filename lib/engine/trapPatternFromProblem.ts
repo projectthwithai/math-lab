@@ -6,9 +6,10 @@
 import type { GeneratedProblem, SolutionPattern } from '@/types/mathLab';
 import { findSolutionPatternById } from '@/data/patternsData';
 import { UNITS_DATA, getUnitById } from '@/data/unitsData';
+import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
 
 export function trapPatternName(title: string): string {
-  const trimmed = title.replace(/^⚠️\s*/, '').trim();
+  const trimmed = stripUnicodeEmoji(title).trim();
   if (trimmed.startsWith('罠パターン')) return trimmed;
   return `罠パターン: ${trimmed}`;
 }

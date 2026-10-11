@@ -2,12 +2,20 @@
 // Apex Suite: Math Lab - Handwritten notebook Vision API
 // ==========================================
 // 紙ノート写真を Gemini 1.5 Flash (Vision) で文字起こしし、論理デバッグする。
-// 指揮官は Gemini 永久固定。未設定・失敗時はローカル mock。
+// 無関係画像は捏造せず即ブロック。通信失敗時もダミー要約は返さない。
 
 import { NextResponse } from 'next/server';
 import type { HandwrittenNoteAnalysis } from '@/types/mathLab';
-import { analyzeHandwrittenNoteMock } from '@/lib/mock/analyzeHandwrittenNoteMock';
 import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
+import {
+  HANDWRITING_IRRELEVANT_ERROR,
+  HANDWRITING_SERVER_ERROR,
+  buildHandwrittenNoteVisionSystemPrompt,
+  isVisionBlockedResult,
+  readBlockedError,
+  visionBlockedPayload,
+} from '@/lib/llm/handwritingVision';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 
@@ -72,41 +80,24 @@ async function parseIncoming(request: Request): Promise<{
   }
 }
 
-function normalizeResult(raw: unknown, fallback: HandwrittenNoteAnalysis): HandwrittenNoteAnalysis {
-  if (!raw || typeof raw !== 'object') return fallback;
+function isValidAnalysis(raw: unknown): raw is HandwrittenNoteAnalysis {
+  if (!raw || typeof raw !== 'object') return false;
   const source = raw as Record<string, unknown>;
-  const summaryNote =
-    typeof source.summaryNote === 'string' && source.summaryNote.trim()
-      ? source.summaryNote.trim()
-      : fallback.summaryNote;
-  const logicAudit =
-    typeof source.logicAudit === 'string' && source.logicAudit.trim()
-      ? source.logicAudit.trim()
-      : fallback.logicAudit;
-  return {
-    summaryNote,
-    logicAudit,
-    isSound: source.isSound === true,
-  };
+  if (source.isRelevant === false) return false;
+  return typeof source.summaryNote === 'string' && source.summaryNote.trim().length > 0;
+}
+
+function blockedResponse(error: string, status: number): Response {
+  return NextResponse.json(visionBlockedPayload(error), { status });
 }
 
 async function analyzeViaVision(
   image: ParsedImage,
   context: { title?: string; unit?: string; questionText?: string; keyFormula?: string; commonMistakes?: string },
   userEmail?: string
-): Promise<HandwrittenNoteAnalysis | null> {
-  const systemPrompt =
-    'あなたは高校生の紙ノートを読み取る数学・物理・化学の教師です。' +
-    '手書きの論理ステップを文字起こしして要約し、そのうえで論理デバッグする。' +
-    '論理の飛躍がないか、使っている公式の前提条件は満たされているかを見る。' +
-    '出力はJSONのみ。キーは summaryNote, logicAudit, isSound。' +
-    'summaryNote は生徒の自分流解法メモとして使える、読み取り結果の要約（日本語、数式は $...$）。' +
-    'logicAudit は飛躍・前提条件の抜けを高校生に寄り添って1〜3文で書く。' +
-    'isSound は論理が破綻なく前提も足りていれば true、飛躍や条件不足があれば false。' +
-    '正解の最終値を先に教えず、ノートに書いてあることだけを根拠にする。読めない箇所は断定しない。';
-
+): Promise<HandwrittenNoteAnalysis | { isRelevant: false; error: string } | null> {
   const userPrompt = JSON.stringify({
-    task: '紙ノート写真をOCRし、解法メモ用の要約と論理デバッグを返す',
+    task: '紙ノート写真を精査し、手書き数式が無ければ isRelevant:false。あれば実記述を引用して要約と論理デバッグを返す',
     problem: {
       title: context.title ?? '',
       unit: context.unit ?? '',
@@ -115,7 +106,9 @@ async function analyzeViaVision(
       commonMistakes: context.commonMistakes ?? '',
     },
     outputSchema: {
-      summaryNote: 'string',
+      isRelevant: 'boolean',
+      error: 'string (isRelevant が false のとき必須)',
+      summaryNote: 'string（引用した手書き式を含む）',
       logicAudit: 'string',
       isSound: 'boolean',
     },
@@ -123,7 +116,7 @@ async function analyzeViaVision(
 
   try {
     const routed = await routeLlmJson({
-      systemPrompt,
+      systemPrompt: buildHandwrittenNoteVisionSystemPrompt(),
       userPrompt,
       image: { mimeType: image.mimeType, base64: image.base64 },
       userEmail,
@@ -131,29 +124,49 @@ async function analyzeViaVision(
       timeoutMs: 22000,
       maxGeminiAttempts: 3,
     });
-    if (!routed?.data) return null;
-    return normalizeResult(routed.data, analyzeHandwrittenNoteMock({ ...context, hasImage: true }));
+    const parsed = routed?.data;
+    if (isVisionBlockedResult(parsed)) {
+      return visionBlockedPayload(readBlockedError(parsed, HANDWRITING_IRRELEVANT_ERROR));
+    }
+    if (!isValidAnalysis(parsed)) return null;
+    return {
+      isRelevant: true,
+      summaryNote: stripUnicodeEmoji(parsed.summaryNote).trim(),
+      logicAudit: typeof parsed.logicAudit === 'string' ? stripUnicodeEmoji(parsed.logicAudit).trim() : '',
+      isSound: parsed.isSound === true,
+    };
   } catch (error) {
-    console.error('[analyze-handwritten-note] Vision解析に失敗、モックにフォールバックします', error);
+    console.error('[analyze-handwritten-note] Vision解析に失敗しました', error);
     return null;
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const { image, body } = await parseIncoming(request);
-  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
-  const context = {
-    title: readOptionalString(body, 'title'),
-    unit: readOptionalString(body, 'unit'),
-    questionText: readOptionalString(body, 'questionText'),
-    keyFormula: readOptionalString(body, 'keyFormula'),
-    commonMistakes: readOptionalString(body, 'commonMistakes'),
-  };
+  try {
+    const { image, body } = await parseIncoming(request);
+    const userEmail = await resolveRouterUserEmail(request, body.userEmail);
+    const context = {
+      title: readOptionalString(body, 'title'),
+      unit: readOptionalString(body, 'unit'),
+      questionText: readOptionalString(body, 'questionText'),
+      keyFormula: readOptionalString(body, 'keyFormula'),
+      commonMistakes: readOptionalString(body, 'commonMistakes'),
+    };
 
-  if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
-    return NextResponse.json(analyzeHandwrittenNoteMock({ ...context, hasImage: false }));
+    if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
+      return blockedResponse(HANDWRITING_IRRELEVANT_ERROR, 200);
+    }
+
+    const viaVision = await analyzeViaVision(image, context, userEmail);
+    if (viaVision && 'isRelevant' in viaVision && viaVision.isRelevant === false) {
+      return NextResponse.json(viaVision);
+    }
+    if (viaVision && 'summaryNote' in viaVision) {
+      return NextResponse.json(viaVision);
+    }
+    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
+  } catch (error) {
+    console.error('[analyze-handwritten-note] 通信エラー', error);
+    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
   }
-
-  const viaVision = await analyzeViaVision(image, context, userEmail);
-  return NextResponse.json(viaVision ?? analyzeHandwrittenNoteMock({ ...context, hasImage: true }));
 }

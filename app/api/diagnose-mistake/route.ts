@@ -9,6 +9,7 @@ import type { MistakeDiagnosis } from '@/types/mathLab';
 import { diagnoseMistakeMock } from '@/lib/mock/diagnoseMistakeMock';
 import { isMistakeTag } from '@/lib/engine/mistakeTags';
 import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 
@@ -25,7 +26,7 @@ const SYSTEM_PROMPT =
   '高校生に寄り添って鋭く1~2文で言語化してください。また、最も当てはまるミス原因タグ ' +
   "('calc_error' | 'condition_overlook' | 'formula_unknown' | 'approach_unknown') を特定してください。" +
   '出力はJSONのみ。キーは primaryTag, mistakeAnalysisText。' +
-  'mistakeAnalysisText は「専属ガイド: 」で始め、1〜2文の日本語にする。数式は $...$ で書いてよい。';
+  'mistakeAnalysisText は「専属ガイド: 」で始め、1〜2文の日本語にする。数式は $...$ で書いてよい。絵文字は使わない。';
 
 function stripDataUrl(raw: string): ParsedImage {
   const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
@@ -49,7 +50,7 @@ function normalizeDiagnosis(raw: unknown, fallback: MistakeDiagnosis): MistakeDi
     typeof source.mistakeAnalysisText === 'string' && source.mistakeAnalysisText.trim()
       ? source.mistakeAnalysisText.trim()
       : fallback.mistakeAnalysisText;
-  const stripped = text.replace(/^🤖\s*/, '').replace(/^(AI分析|専属ガイド):\s*/, '');
+  const stripped = stripUnicodeEmoji(text).replace(/^(AI分析|専属ガイド):\s*/, '');
   const prefixed = `専属ガイド: ${stripped}`;
   return {
     primaryTag: isMistakeTag(source.primaryTag) ? source.primaryTag : fallback.primaryTag,

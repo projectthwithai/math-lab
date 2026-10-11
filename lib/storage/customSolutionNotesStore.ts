@@ -1,7 +1,7 @@
 // ==========================================
 // Apex Suite: Math Lab - Custom Solution Notes Store
 // ==========================================
-// 「✍️ 自分の言葉で解説を書き換えてノートに保存」機能のためのLocalStorage永続化。
+// 「自分の言葉で解説を書き換えてノートに保存」機能のためのLocalStorage永続化。
 // LocalStorage と Supabase `user_progress.solution_notes` の両方で永続化する。
 
 import type { CustomSolutionNote } from '@/types/mathLab';

@@ -14,7 +14,9 @@ import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathL
 import { requestScratchpadCorrection } from '@/lib/api/correctScratchpadClient';
 import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_CORRECT_SCRATCHPAD, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import { HANDWRITING_IRRELEVANT_ERROR, isVisionBlockedResult } from '@/lib/llm/handwritingVision';
 import PaperScratchpadModal from '@/components/workspace/PaperScratchpadModal';
+import HandwritingReshootAlert from '@/components/workspace/HandwritingReshootAlert';
 
 const PEN_COLORS = ['#22d3ee', '#f472b6', '#facc15', '#f8fafc'];
 const CANVAS_BG = '#0b1120';
@@ -72,6 +74,7 @@ export default function ScratchpadCanvas({
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correction, setCorrection] = useState<ScratchpadCorrectionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reshootMessage, setReshootMessage] = useState<string | null>(null);
   const [paperOpen, setPaperOpen] = useState(false);
 
   const emitSnapshot = () => {
@@ -175,17 +178,8 @@ export default function ScratchpadCanvas({
     if (!canvas) return;
 
     if (isCanvasBlank(canvas)) {
-      setCorrection({
-        overall: 'empty',
-        summary: '途中式が描かれていません。計算過程を書いてから添削してください。',
-        comments: [
-          {
-            severity: 'warning',
-            text: '展開・場合分け・結論を行に分けて書くと、行番号つきの赤ペンが返ってきます。',
-          },
-        ],
-        source: 'local',
-      });
+      setCorrection(null);
+      setReshootMessage(HANDWRITING_IRRELEVANT_ERROR);
       return;
     }
 
@@ -201,6 +195,8 @@ export default function ScratchpadCanvas({
 
     setIsCorrecting(true);
     setErrorMessage(null);
+    setReshootMessage(null);
+    setCorrection(null);
     try {
       const imageBase64 = canvas.toDataURL('image/png');
       const result = await requestScratchpadCorrection({
@@ -209,11 +205,16 @@ export default function ScratchpadCanvas({
         captureSource: 'canvas',
         problem,
       });
+      if (isVisionBlockedResult(result)) {
+        useUserStore.getState().refundEnergy(ENERGY_COST_CORRECT_SCRATCHPAD);
+        setReshootMessage(result.error);
+        return;
+      }
       setCorrection(result);
     } catch (error) {
       console.error('[ScratchpadCanvas] 添削に失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_CORRECT_SCRATCHPAD);
-      setErrorMessage('添削に失敗したため、Energy を返還しました。もう一度試してください。');
+      setReshootMessage('AI添削サーバーとの通信に失敗しました。時間をおいて再試行してください。');
     } finally {
       setIsCorrecting(false);
     }
@@ -306,9 +307,10 @@ export default function ScratchpadCanvas({
       )}
 
       {errorMessage && <p className="text-xs text-red-400">{errorMessage}</p>}
+      {reshootMessage && <HandwritingReshootAlert message={reshootMessage} />}
 
       <AnimatePresence>
-        {correction && (
+        {correction && !reshootMessage && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -329,12 +331,7 @@ export default function ScratchpadCanvas({
               <h3 className="mt-1 text-lg font-semibold text-red-200">赤ペン添削</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-200">{correction.summary}</p>
               <p className="mt-1 text-[10px] text-slate-500">
-                {correction.overall === 'good'
-                  ? '大きな論理の穴は見当たりません'
-                  : correction.overall === 'empty'
-                    ? '途中式が不足しています'
-                    : '直すべき行があります'}
-                {correction.source === 'local' ? ' · 予備の添削' : ' · Apexエンジン'}
+                {correction.overall === 'good' ? '大きな論理の穴は見当たりません' : '直すべき行があります'}
               </p>
 
               <ul className="mt-4 flex flex-col gap-2">

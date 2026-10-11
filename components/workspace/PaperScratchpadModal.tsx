@@ -14,6 +14,8 @@ import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathL
 import { requestScratchpadCorrection } from '@/lib/api/correctScratchpadClient';
 import { useUserStore } from '@/lib/store/userStore';
 import { ENERGY_COST_CORRECT_SCRATCHPAD, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import { isVisionBlockedResult } from '@/lib/llm/handwritingVision';
+import HandwritingReshootAlert from '@/components/workspace/HandwritingReshootAlert';
 
 const MAX_IMAGE_CHARS = 5_500_000;
 
@@ -62,6 +64,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correction, setCorrection] = useState<ScratchpadCorrectionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reshootMessage, setReshootMessage] = useState<string | null>(null);
 
   const handleFile = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) {
@@ -69,6 +72,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
       return;
     }
     setErrorMessage(null);
+    setReshootMessage(null);
     setCorrection(null);
     try {
       const compressed = await fileToCompressedDataUrl(file);
@@ -98,6 +102,8 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
 
     setIsCorrecting(true);
     setErrorMessage(null);
+    setReshootMessage(null);
+    setCorrection(null);
     try {
       const result = await requestScratchpadCorrection({
         imageBase64: payload.dataUrl,
@@ -105,11 +111,16 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
         captureSource: 'paper-notebook',
         problem,
       });
+      if (isVisionBlockedResult(result)) {
+        useUserStore.getState().refundEnergy(ENERGY_COST_CORRECT_SCRATCHPAD);
+        setReshootMessage(result.error);
+        return;
+      }
       setCorrection(result);
     } catch (error) {
       console.error('[PaperScratchpadModal] 添削に失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_CORRECT_SCRATCHPAD);
-      setErrorMessage('添削に失敗したため、Energy を返還しました。もう一度試してください。');
+      setReshootMessage('AI添削サーバーとの通信に失敗しました。時間をおいて再試行してください。');
     } finally {
       setIsCorrecting(false);
     }
@@ -207,9 +218,14 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
         </button>
 
         {errorMessage && <p className="mt-2 text-xs text-red-400">{errorMessage}</p>}
+        {reshootMessage && (
+          <div className="mt-3">
+            <HandwritingReshootAlert message={reshootMessage} />
+          </div>
+        )}
 
         <AnimatePresence>
-          {correction && (
+          {correction && !reshootMessage && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -217,12 +233,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
             >
               <p className="text-sm leading-relaxed text-slate-200">{correction.summary}</p>
               <p className="mt-1 text-[10px] text-slate-500">
-                {correction.overall === 'good'
-                  ? '大きな論理の穴は見当たりません'
-                  : correction.overall === 'empty'
-                    ? '途中式が不足しています'
-                    : '直すべき行があります'}
-                {correction.source === 'local' ? ' · 予備の添削' : ' · Apexエンジン'}
+                {correction.overall === 'good' ? '大きな論理の穴は見当たりません' : '直すべき行があります'}
               </p>
               <ul className="mt-3 flex flex-col gap-2">
                 {correction.comments.map((comment, index) => (

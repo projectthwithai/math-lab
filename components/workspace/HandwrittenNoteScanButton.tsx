@@ -10,7 +10,9 @@ import { AlertCircle, Camera, Check, Loader2 } from 'lucide-react';
 import type { GeneratedProblem, HandwrittenNoteAnalysis } from '@/types/mathLab';
 import { requestHandwrittenNoteAnalysis } from '@/lib/api/analyzeHandwrittenNoteClient';
 import { ENERGY_COST_ANALYZE_HANDWRITTEN_NOTE, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import { isVisionBlockedResult } from '@/lib/llm/handwritingVision';
 import { useUserStore } from '@/lib/store/userStore';
+import HandwritingReshootAlert from '@/components/workspace/HandwritingReshootAlert';
 
 interface HandwrittenNoteScanButtonProps {
   problem?: GeneratedProblem | null;
@@ -28,6 +30,7 @@ export default function HandwrittenNoteScanButton({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reshootMessage, setReshootMessage] = useState<string | null>(null);
   const [audit, setAudit] = useState<HandwrittenNoteAnalysis | null>(null);
 
   const flashNotice = (message: string) => {
@@ -58,6 +61,8 @@ export default function HandwrittenNoteScanButton({
     }
 
     setBusy(true);
+    setAudit(null);
+    setReshootMessage(null);
     try {
       const imageBase64 = await readFileAsDataUrl(file);
       const result = await requestHandwrittenNoteAnalysis({
@@ -66,12 +71,17 @@ export default function HandwrittenNoteScanButton({
         problem,
         userEmail,
       });
+      if (isVisionBlockedResult(result)) {
+        useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_HANDWRITTEN_NOTE);
+        setReshootMessage(result.error);
+        return;
+      }
       setAudit(result);
       onSummary(result.summaryNote);
     } catch (error) {
       console.error('[HandwrittenNoteScanButton] 読み取りに失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_HANDWRITTEN_NOTE);
-      flashNotice('紙ノートの読み取りに失敗しました');
+      setReshootMessage('AI添削サーバーとの通信に失敗しました。時間をおいて再試行してください。');
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -115,6 +125,11 @@ export default function HandwrittenNoteScanButton({
       )}
       {audit?.logicAudit && (
         <p className="text-right text-[10px] leading-relaxed text-fuchsia-200/80">{audit.logicAudit}</p>
+      )}
+      {reshootMessage && (
+        <div className="w-56 max-w-full">
+          <HandwritingReshootAlert compact message={reshootMessage} />
+        </div>
       )}
       {notice && <p className="text-right text-[10px] text-red-300">{notice}</p>}
     </div>

@@ -218,6 +218,8 @@ export type MistakeTag = 'calc_error' | 'condition_overlook' | 'formula_unknown'
 
 /** 紙ノート写真の文字起こし + 論理デバッグ */
 export interface HandwrittenNoteAnalysis {
+  isRelevant?: boolean;
+  error?: string;
   summaryNote: string;
   logicAudit: string;
   isSound: boolean;
@@ -258,6 +260,8 @@ export interface ScratchpadCorrectionComment {
 }
 
 export interface ScratchpadCorrectionResult {
+  isRelevant?: boolean;
+  error?: string;
   overall: ScratchpadCorrectionOverall;
   summary: string;
   comments: ScratchpadCorrectionComment[];
@@ -375,6 +379,8 @@ export interface ImageLogicSummary {
 }
 
 export interface ImageAnalysisResult {
+  isValid?: boolean;
+  error?: string;
   /** 抽象化した解法構造のみ。原問の文章・数値・設定は含めない */
   logic: ImageLogicSummary;
   /** 100%オリジナルの新規創作問題（類題） */

@@ -1,8 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Scratchpad Red-Pen API
 // ==========================================
-// 手書きキャンバス画像（base64）をハイブリッドAIルーター経由で OCR・赤ペン添削する。
-// 指揮官は Gemini Vision 永久固定。未設定・タイムアウト時のみローカル mock。
+// 手書きキャンバス／紙ノート画像を Gemini Vision で OCR・赤ペン添削する。
+// 無関係画像は捏造せず即ブロック。通信失敗時もダミー添削は返さない。
 
 import { NextResponse } from 'next/server';
 import type {
@@ -11,8 +11,16 @@ import type {
   ScratchpadCorrectionOverall,
   ScratchpadCorrectionResult,
 } from '@/types/mathLab';
-import { correctScratchpadMock } from '@/lib/mock/correctScratchpadMock';
 import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
+import {
+  HANDWRITING_IRRELEVANT_ERROR,
+  HANDWRITING_SERVER_ERROR,
+  buildScratchpadVisionSystemPrompt,
+  isVisionBlockedResult,
+  readBlockedError,
+  visionBlockedPayload,
+} from '@/lib/llm/handwritingVision';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 const OVERALLS: ScratchpadCorrectionOverall[] = ['good', 'needs_fix', 'empty'];
@@ -92,7 +100,9 @@ function normalizeComments(raw: unknown): ScratchpadCorrectionComment[] {
     .map((item): ScratchpadCorrectionComment | null => {
       if (!item || typeof item !== 'object') return null;
       const source = item as Record<string, unknown>;
-      if (typeof source.text !== 'string' || !source.text.trim()) return null;
+      if (typeof source.text !== 'string') return null;
+      const text = stripUnicodeEmoji(source.text).trim();
+      if (!text) return null;
       const severity = SEVERITIES.includes(source.severity as ScratchpadCommentSeverity)
         ? (source.severity as ScratchpadCommentSeverity)
         : 'warning';
@@ -100,7 +110,7 @@ function normalizeComments(raw: unknown): ScratchpadCorrectionComment[] {
         typeof source.line === 'number' && Number.isFinite(source.line) && source.line > 0
           ? Math.round(source.line)
           : undefined;
-      return { line, severity, text: source.text.trim() };
+      return { line, severity, text };
     })
     .filter((item): item is ScratchpadCorrectionComment => item !== null);
 }
@@ -108,11 +118,16 @@ function normalizeComments(raw: unknown): ScratchpadCorrectionComment[] {
 function isCorrectionResult(value: unknown): value is ScratchpadCorrectionResult {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
+  if (candidate.isRelevant === false) return false;
   return (
     OVERALLS.includes(candidate.overall as ScratchpadCorrectionOverall) &&
     typeof candidate.summary === 'string' &&
     candidate.summary.trim().length > 0
   );
+}
+
+function blockedResponse(error: string, status: number): Response {
+  return NextResponse.json(visionBlockedPayload(error), { status });
 }
 
 export const maxDuration = 45;
@@ -121,27 +136,12 @@ async function correctViaVision(
   image: ParsedImage,
   context: CorrectionContext,
   userEmail?: string
-): Promise<ScratchpadCorrectionResult | null> {
+): Promise<ScratchpadCorrectionResult | { isRelevant: false; error: string } | null> {
   const isPaper = context.captureSource === 'paper-notebook';
-  const systemPrompt =
-    'あなたは高校生の手書き途中式を赤ペンで添削する数学・物理・化学の教師です。' +
-    (isPaper
-      ? '入力は紙のノート・計算用紙の写真である。罫線・消しゴム跡・影があっても手書き数式をOCRして読む。'
-      : '入力はデジタル手書きキャンバスの画像である。') +
-    '書かれている文字・数式・計算ステップを実際に読み取る。読めない部分は断定しない。' +
-    '出力はJSONのみ。キーは overall, summary, comments。' +
-    'overall は good / needs_fix / empty。' +
-    'comments は { line?, severity, text } の配列。severity は error / warning / ok。' +
-    'text は必ずピンポイントな赤ペン指導にする。行が読み取れるなら必ず line を付け、' +
-    '「ノートの2行目で符号ミスです」「3行目で余弦定理への辺の代入が誤りです」のように具体的に書く。' +
-    '公式名を挙げ、どの文字をどこへ代入したかが違うのかを指摘する。' +
-    '正解の最終値を先に教えず、どこが論理的・計算的に危ういかを具体的に指す。' +
-    '空欄・ほぼ白紙・数式が全く写っていないなら overall=empty。数式は $...$ の LaTeX で書いてよい。';
-
   const userText = JSON.stringify({
     task: isPaper
-      ? '紙ノート写真をOCRしたうえで、行番号つきの赤ペン添削をしてください。符号ミス・公式への代入誤りをピンポイントで指摘する。'
-      : '手書き画像をOCRしたうえで赤ペン添削してください。行番号が読み取れるなら line を付ける。',
+      ? '紙ノート写真を精査し、手書き数式が無ければ isRelevant:false。あれば実記述を引用して赤ペン添削する。'
+      : '手書きキャンバスを精査し、数式が無ければ isRelevant:false。あれば実記述を引用して赤ペン添削する。',
     problem: {
       title: context.title ?? '',
       unit: context.unit ?? '',
@@ -151,15 +151,17 @@ async function correctViaVision(
       explanationSteps: context.explanationSteps ?? [],
     },
     outputSchema: {
-      overall: 'good | needs_fix | empty',
-      summary: 'string',
-      comments: [{ line: 'number (optional, 1-based)', severity: 'error | warning | ok', text: 'string' }],
+      isRelevant: 'boolean',
+      error: 'string (isRelevant が false のとき必須)',
+      overall: 'good | needs_fix',
+      summary: 'string（引用した手書き式を含む）',
+      comments: [{ line: 'number (optional, 1-based)', severity: 'error | warning | ok', text: 'string（実記述の引用必須）' }],
     },
   });
 
   try {
     const routed = await routeLlmJson({
-      systemPrompt,
+      systemPrompt: buildScratchpadVisionSystemPrompt(isPaper),
       userPrompt: userText,
       image: { mimeType: image.mimeType, base64: image.base64 },
       userEmail,
@@ -168,17 +170,21 @@ async function correctViaVision(
       maxGeminiAttempts: 3,
     });
     const parsed = routed?.data;
+    if (isVisionBlockedResult(parsed) || (parsed && typeof parsed === 'object' && (parsed as { overall?: string }).overall === 'empty')) {
+      return visionBlockedPayload(readBlockedError(parsed, HANDWRITING_IRRELEVANT_ERROR));
+    }
     if (!isCorrectionResult(parsed)) return null;
 
-    const comments = normalizeComments((parsed as ScratchpadCorrectionResult).comments);
+    const comments = normalizeComments(parsed.comments);
     return {
-      overall: parsed.overall,
-      summary: parsed.summary.trim(),
+      isRelevant: true,
+      overall: parsed.overall === 'empty' ? 'needs_fix' : parsed.overall,
+      summary: stripUnicodeEmoji(parsed.summary).trim(),
       comments,
       source: 'llm',
     };
   } catch (error) {
-    console.error('[correct-scratchpad] Vision添削に失敗、モックにフォールバックします', error);
+    console.error('[correct-scratchpad] Vision添削に失敗しました', error);
     return null;
   }
 }
@@ -194,22 +200,20 @@ export async function POST(request: Request): Promise<Response> {
   const userEmail = await resolveRouterUserEmail(request, body.userEmail);
   const { image, context } = parseIncoming(body);
   if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
-    return NextResponse.json(
-      correctScratchpadMock({
-        ...context,
-        imageByteLength: 0,
-        captureSource: context.captureSource,
-      })
-    );
+    return blockedResponse(HANDWRITING_IRRELEVANT_ERROR, 200);
   }
 
-  const viaVision = await correctViaVision(image, context, userEmail);
-  return NextResponse.json(
-    viaVision ??
-      correctScratchpadMock({
-        ...context,
-        imageByteLength: image.base64.length,
-        captureSource: context.captureSource,
-      })
-  );
+  try {
+    const viaVision = await correctViaVision(image, context, userEmail);
+    if (viaVision && 'isRelevant' in viaVision && viaVision.isRelevant === false) {
+      return NextResponse.json(viaVision);
+    }
+    if (viaVision && 'overall' in viaVision) {
+      return NextResponse.json(viaVision);
+    }
+    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
+  } catch (error) {
+    console.error('[correct-scratchpad] 通信エラー', error);
+    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
+  }
 }

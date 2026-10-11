@@ -3,6 +3,7 @@
 // ==========================================
 
 import type { MistakeTag } from '@/types/mathLab';
+import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
 
 export interface MistakeTagMeta {
   id: MistakeTag;
@@ -54,7 +55,7 @@ export const MISTAKE_TAG_BY_ID: Record<MistakeTag, MistakeTagMeta> = Object.from
 
 /** 旧データに残った絵文字プレフィックスを表示時に外す */
 export function displayMistakeNote(text: string): string {
-  return text.replace(/^🤖\s*/, '').replace(/^⚠️\s*/, '').replace(/^AI分析:\s*/, '専属ガイド: ');
+  return stripUnicodeEmoji(text).replace(/^AI分析:\s*/, '専属ガイド: ');
 }
 
 export function isMistakeTag(value: unknown): value is MistakeTag {
