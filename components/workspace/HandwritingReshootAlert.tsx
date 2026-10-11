@@ -30,7 +30,11 @@ export default function HandwritingReshootAlert({
         <p className={`font-semibold tracking-tight ${compact ? 'text-[11px]' : 'text-sm'}`}>
           {title}
         </p>
-        <p className={`mt-0.5 leading-relaxed text-amber-100/80 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+        <p
+          className={`mt-0.5 break-words whitespace-pre-wrap leading-relaxed text-amber-100/80 ${
+            compact ? 'text-[10px]' : 'text-xs'
+          }`}
+        >
           {detail}
         </p>
       </div>

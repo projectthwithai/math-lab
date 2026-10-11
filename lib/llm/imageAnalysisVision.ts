@@ -12,6 +12,22 @@ export const IMAGE_ANALYSIS_INVALID_ERROR =
 export const IMAGE_ANALYSIS_SERVER_ERROR =
   'AI解析サーバーとの通信に失敗しました。時間をおいて再試行してください。';
 
+export const IMAGE_ANALYSIS_ERROR_PREFIX = 'AI解析エラー: ';
+
+export function formatAiAnalysisError(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : '';
+  const detail = stripUnicodeEmoji(raw || '通信エラー').trim() || '通信エラー';
+  if (detail.startsWith(IMAGE_ANALYSIS_ERROR_PREFIX.trim())) {
+    return detail;
+  }
+  return `${IMAGE_ANALYSIS_ERROR_PREFIX}${detail}`;
+}
+
 export const IMAGE_ANALYSIS_RESHOOT_HEADING = '問題文が認識できませんでした';
 
 export interface ImageAnalysisBlocked {

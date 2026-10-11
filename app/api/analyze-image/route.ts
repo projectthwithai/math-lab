@@ -12,8 +12,7 @@ import { NextResponse } from 'next/server';
 import type { ImageAnalysisResult, ImageLogicSummary, SolutionPattern, Subject } from '@/types/mathLab';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
-import { completeLlmJson, hasGeminiApiKey } from '@/lib/llm/completeJson';
-import { parseLlmJsonObject } from '@/lib/llm/parseLlmJson';
+import { completeGeminiVisionJson, hasGeminiApiKey, parseGeminiJsonText } from '@/lib/llm/completeJson';
 import { resolveRouterUserEmail } from '@/lib/engine/aiRouter';
 import {
   findSolutionPatternById,
@@ -23,19 +22,20 @@ import {
 import { findPatternInPools } from '@/lib/engine/patternPool';
 import {
   IMAGE_ANALYSIS_INVALID_ERROR,
-  IMAGE_ANALYSIS_SERVER_ERROR,
   buildImageAnalysisVisionSystemPrompt,
+  formatAiAnalysisError,
   imageAnalysisBlockedPayload,
   isImageAnalysisBlocked,
   readImageAnalysisError,
   type ImageAnalysisBlocked,
 } from '@/lib/llm/imageAnalysisVision';
 
+export const maxDuration = 60; // タイムアウトを最大60秒に延長
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const MAX_IMAGE_CHARS = 2_000_000;
 const MAX_CATALOG_FOR_PROMPT = 40;
-
-export const runtime = 'nodejs';
-export const maxDuration = 60;
 
 interface ParsedImage {
   base64: string;
@@ -46,12 +46,15 @@ function isSubject(value: unknown): value is Subject {
   return value === 'math' || value === 'physics' || value === 'chemistry';
 }
 
-function stripDataUrl(raw: string): ParsedImage {
-  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (match) {
-    return { mimeType: match[1], base64: match[2] };
-  }
-  return { mimeType: 'image/jpeg', base64: raw.replace(/\s/g, '') };
+function stripDataUrl(rawBase64: string): ParsedImage {
+  const trimmed = rawBase64.trim();
+  const mimeTypeMatch = trimmed.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+  const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+  const cleanBase64 = trimmed
+    .replace(/^data:image\/[a-zA-Z+]+;base64,/, '')
+    .replace(/\s+/g, '')
+    .trim();
+  return { mimeType, base64: cleanBase64 };
 }
 
 function parsePatternDigests(raw: unknown): PatternMatchDigest[] {
@@ -211,10 +214,10 @@ function resolveCatalogPattern(
 }
 
 function coerceVisionJson(value: unknown): unknown {
-  if (typeof value === 'string') return parseLlmJsonObject(value);
+  if (typeof value === 'string') return parseGeminiJsonText(value);
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    if (typeof record.data === 'string') return parseLlmJsonObject(record.data) ?? record;
+    if (typeof record.data === 'string') return parseGeminiJsonText(record.data) ?? record;
   }
   return value;
 }
@@ -226,8 +229,10 @@ function blockedResponse(error: string, status: number): Response {
 async function analyzeViaVision(
   image: ParsedImage,
   extraPatterns: PatternMatchDigest[]
-): Promise<ImageAnalysisResult | ImageAnalysisBlocked | null> {
-  if (!image.base64) return null;
+): Promise<ImageAnalysisResult | ImageAnalysisBlocked> {
+  if (!image.base64) {
+    throw new Error('画像データが空です');
+  }
 
   const catalog = mergePatternMatchDigests(extraPatterns).slice(0, MAX_CATALOG_FOR_PROMPT);
   const catalogForPrompt = catalog.map((item) => ({
@@ -237,108 +242,102 @@ async function analyzeViaVision(
     method: item.strategyText,
   }));
 
-  try {
-    const routed = await completeLlmJson({
-      systemPrompt: buildImageAnalysisVisionSystemPrompt(),
-      userPrompt:
-        '【重要】このリクエストには写真が添付されている。写真を必ず見て教科を判定すること。' +
-        '写真が数学なら physics / chemistry の類題は禁止。斜面の物体など定番の力学ダミーを出すことは禁止。' +
-        '問題が無ければ isValid:false。あれば OCR したうえで同じ教科・同じ単元のオリジナル類題とパターンを返す。原問は書き写さない。\n' +
-        JSON.stringify({ existingCatalog: catalogForPrompt }),
-      image: { mimeType: image.mimeType || 'image/jpeg', base64: image.base64 },
-      forceProvider: 'gemini',
-      geminiOnly: true,
-      temperature: 0.2,
-      timeoutMs: 35000,
-      maxGeminiAttempts: 3,
-    });
-    if (routed == null) return null;
-    const parsedRaw = coerceVisionJson(routed);
-    if (isImageAnalysisBlocked(parsedRaw)) {
-      return imageAnalysisBlockedPayload(readImageAnalysisError(parsedRaw, IMAGE_ANALYSIS_INVALID_ERROR));
+  const routed = await completeGeminiVisionJson({
+    systemPrompt: buildImageAnalysisVisionSystemPrompt(),
+    userPrompt:
+      '【重要】このリクエストには写真が添付されている。写真を必ず見て教科を判定すること。' +
+      '写真が数学なら physics / chemistry の類題は禁止。斜面の物体など定番の力学ダミーを出すことは禁止。' +
+      '問題が無ければ isValid:false。あれば OCR したうえで同じ教科・同じ単元のオリジナル類題とパターンを返す。原問は書き写さない。\n' +
+      JSON.stringify({ existingCatalog: catalogForPrompt }),
+    image: { mimeType: image.mimeType || 'image/jpeg', base64: image.base64 },
+    forceProvider: 'gemini',
+    geminiOnly: true,
+    temperature: 0.2,
+    timeoutMs: 55_000,
+    maxGeminiAttempts: 1,
+  });
+  const parsedRaw = coerceVisionJson(routed);
+  if (isImageAnalysisBlocked(parsedRaw)) {
+    return imageAnalysisBlockedPayload(readImageAnalysisError(parsedRaw, IMAGE_ANALYSIS_INVALID_ERROR));
+  }
+  if (!parsedRaw || typeof parsedRaw !== 'object') {
+    throw new Error('Gemini の JSON を解析できませんでした');
+  }
+  const parsed = parsedRaw as Record<string, unknown>;
+  if (parsed.isValid === false) {
+    return imageAnalysisBlockedPayload(readImageAnalysisError(parsed, IMAGE_ANALYSIS_INVALID_ERROR));
+  }
+
+  const logic = logicFromPayload(parsed.logic);
+  if (!logic) throw new Error('教科・単元を特定できませんでした');
+
+  const matchRaw = parsed.match;
+  const matchExisting =
+    Boolean(matchRaw && typeof matchRaw === 'object' && (matchRaw as { existing?: unknown }).existing === true);
+  const matchIdRaw =
+    matchRaw && typeof matchRaw === 'object' ? (matchRaw as { patternId?: unknown }).patternId : undefined;
+  const matchId = typeof matchIdRaw === 'string' ? matchIdRaw.trim() : undefined;
+
+  const variantProblem = problemFromPayload(parsed.variantProblem, {
+    unit: logic.unit,
+    subject: logic.subject,
+    difficulty: DEFAULT_DIFFICULTY,
+    idPrefix: 'ocr-original',
+  });
+  if (!variantProblem) throw new Error('類題 JSON が不完全です');
+  if (variantProblem.subject !== logic.subject) {
+    variantProblem.subject = logic.subject;
+    variantProblem.unit = logic.unit;
+  }
+
+  const catalogHit = matchExisting ? resolveCatalogPattern(matchId, extraPatterns) : null;
+  if (catalogHit) {
+    if (catalogHit.subject !== logic.subject) {
+      throw new Error('既存パターンの教科が写真の教科と一致しません');
     }
-    if (!parsedRaw || typeof parsedRaw !== 'object') {
-      return imageAnalysisBlockedPayload(IMAGE_ANALYSIS_INVALID_ERROR);
-    }
-    const parsed = parsedRaw as Record<string, unknown>;
-    if (parsed.isValid === false) {
-      return imageAnalysisBlockedPayload(readImageAnalysisError(parsed, IMAGE_ANALYSIS_INVALID_ERROR));
-    }
-
-    const logic = logicFromPayload(parsed.logic);
-    if (!logic) return imageAnalysisBlockedPayload(IMAGE_ANALYSIS_INVALID_ERROR);
-
-    const matchRaw = parsed.match;
-    const matchExisting =
-      Boolean(matchRaw && typeof matchRaw === 'object' && (matchRaw as { existing?: unknown }).existing === true);
-    const matchIdRaw =
-      matchRaw && typeof matchRaw === 'object' ? (matchRaw as { patternId?: unknown }).patternId : undefined;
-    const matchId = typeof matchIdRaw === 'string' ? matchIdRaw.trim() : undefined;
-
-    const variantProblem = problemFromPayload(parsed.variantProblem, {
-      unit: logic.unit,
-      subject: logic.subject,
-      difficulty: DEFAULT_DIFFICULTY,
-      idPrefix: 'ocr-original',
-    });
-    if (!variantProblem) return imageAnalysisBlockedPayload(IMAGE_ANALYSIS_INVALID_ERROR);
-    if (variantProblem.subject !== logic.subject) {
-      variantProblem.subject = logic.subject;
-      variantProblem.unit = logic.unit;
-    }
-
-    const catalogHit = matchExisting ? resolveCatalogPattern(matchId, extraPatterns) : null;
-    if (catalogHit) {
-      if (catalogHit.subject !== logic.subject) {
-        return imageAnalysisBlockedPayload(IMAGE_ANALYSIS_INVALID_ERROR);
-      }
-      return sanitizeOriginalCopy({
-        logic,
-        variantProblem: { ...variantProblem, subject: logic.subject, unit: logic.unit, patternId: catalogHit.id },
-        pattern: catalogHit,
-        source: 'llm',
-        matchedExisting: true,
-      });
-    }
-
-    const pattern = patternFromPayload(parsed.pattern, {
-      id: `ocr-pat-${unitSlug(logic.unit, logic.subject)}-${Date.now()}`,
-      unit: logic.unit,
-      unitId: unitSlug(logic.unit, logic.subject),
-      subject: logic.subject,
-      exampleQuestion: variantProblem.questionText,
-    });
-    if (!pattern) return imageAnalysisBlockedPayload(IMAGE_ANALYSIS_INVALID_ERROR);
-
     return sanitizeOriginalCopy({
       logic,
-      variantProblem: {
-        ...variantProblem,
-        subject: logic.subject,
-        unit: logic.unit,
-        patternId: pattern.id,
-      },
-      pattern: {
-        ...pattern,
-        subject: logic.subject,
-        unit: logic.unit,
-        exampleQuestion: pattern.exampleQuestion || variantProblem.questionText,
-        discovered: true,
-      },
+      variantProblem: { ...variantProblem, subject: logic.subject, unit: logic.unit, patternId: catalogHit.id },
+      pattern: catalogHit,
       source: 'llm',
-      matchedExisting: false,
+      matchedExisting: true,
     });
-  } catch (error) {
-    console.error('[analyze-image] Vision解析に失敗しました', error);
-    return null;
   }
+
+  const pattern = patternFromPayload(parsed.pattern, {
+    id: `ocr-pat-${unitSlug(logic.unit, logic.subject)}-${Date.now()}`,
+    unit: logic.unit,
+    unitId: unitSlug(logic.unit, logic.subject),
+    subject: logic.subject,
+    exampleQuestion: variantProblem.questionText,
+  });
+  if (!pattern) throw new Error('パターン JSON が不完全です');
+
+  return sanitizeOriginalCopy({
+    logic,
+    variantProblem: {
+      ...variantProblem,
+      subject: logic.subject,
+      unit: logic.unit,
+      patternId: pattern.id,
+    },
+    pattern: {
+      ...pattern,
+      subject: logic.subject,
+      unit: logic.unit,
+      exampleQuestion: pattern.exampleQuestion || variantProblem.questionText,
+      discovered: true,
+    },
+    source: 'llm',
+    matchedExisting: false,
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {
   try {
     await resolveRouterUserEmail(request);
     if (!hasGeminiApiKey()) {
-      return blockedResponse(IMAGE_ANALYSIS_SERVER_ERROR, 503);
+      throw new Error('GEMINI_API_KEY が設定されていません');
     }
 
     let image: ParsedImage | null = null;
@@ -348,8 +347,8 @@ export async function POST(request: Request): Promise<Response> {
       image = parsed.image;
       extraPatterns = parsed.extraPatterns;
     } catch (error) {
-      console.error('[analyze-image] 画像の読み取りに失敗しました', error);
-      return blockedResponse(IMAGE_ANALYSIS_INVALID_ERROR, 200);
+      console.error('Gemini Vision Error:', error);
+      return blockedResponse(formatAiAnalysisError(error), 200);
     }
 
     if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
@@ -363,9 +362,9 @@ export async function POST(request: Request): Promise<Response> {
     if (viaVision && 'variantProblem' in viaVision) {
       return NextResponse.json(viaVision);
     }
-    return blockedResponse(IMAGE_ANALYSIS_SERVER_ERROR, 503);
+    throw new Error('通信エラー');
   } catch (error) {
-    console.error('[analyze-image] 通信エラー', error);
-    return blockedResponse(IMAGE_ANALYSIS_SERVER_ERROR, 503);
+    console.error('Gemini Vision Error:', error);
+    return NextResponse.json(imageAnalysisBlockedPayload(formatAiAnalysisError(error)), { status: 200 });
   }
 }

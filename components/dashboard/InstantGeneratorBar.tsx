@@ -15,7 +15,7 @@ import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
 import { toPatternMatchDigest } from '@/data/patternsData';
 import {
   IMAGE_ANALYSIS_INVALID_ERROR,
-  IMAGE_ANALYSIS_SERVER_ERROR,
+  formatAiAnalysisError,
   isImageAnalysisBlocked,
   readImageAnalysisError,
   type ImageAnalysisBlocked,
@@ -76,7 +76,7 @@ export default function InstantGeneratorBar() {
           isValid: false,
           error: readImageAnalysisError(
             data,
-            response.ok ? IMAGE_ANALYSIS_INVALID_ERROR : IMAGE_ANALYSIS_SERVER_ERROR
+            response.ok ? IMAGE_ANALYSIS_INVALID_ERROR : formatAiAnalysisError(`HTTP ${response.status}`)
           ),
         });
         return;
@@ -84,7 +84,7 @@ export default function InstantGeneratorBar() {
       const result = data as ImageAnalysisResult;
       if (!result.variantProblem || !result.pattern) {
         useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);
-        setAnalysis({ isValid: false, error: IMAGE_ANALYSIS_SERVER_ERROR });
+        setAnalysis({ isValid: false, error: formatAiAnalysisError('類題 JSON が不完全です') });
         return;
       }
       setAnalysis(result);
@@ -96,7 +96,7 @@ export default function InstantGeneratorBar() {
         setErrorMessage(message);
         return;
       }
-      setAnalysis({ isValid: false, error: IMAGE_ANALYSIS_SERVER_ERROR });
+      setAnalysis({ isValid: false, error: formatAiAnalysisError(error) });
     } finally {
       setIsAnalyzing(false);
     }

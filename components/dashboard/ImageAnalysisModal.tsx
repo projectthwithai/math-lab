@@ -57,16 +57,20 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
   const [addedNotice, setAddedNotice] = useState<string | null>(null);
 
   if (isImageAnalysisBlocked(result)) {
+    const errorText = result.error?.trim() || IMAGE_ANALYSIS_INVALID_ERROR;
+    const isApiError = errorText.startsWith('AI解析エラー');
     return (
       <ModalShell onClose={onClose}>
         <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
           Structure Extract / Original Item
         </p>
-        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">再撮影が必要です</h2>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          {isApiError ? '解析に失敗しました' : '再撮影が必要です'}
+        </h2>
         <div className="mt-4">
           <HandwritingReshootAlert
-            heading={IMAGE_ANALYSIS_RESHOOT_HEADING}
-            message={result.error || IMAGE_ANALYSIS_INVALID_ERROR}
+            heading={isApiError ? '解析に失敗しました' : IMAGE_ANALYSIS_RESHOOT_HEADING}
+            message={errorText}
           />
           <button
             type="button"
