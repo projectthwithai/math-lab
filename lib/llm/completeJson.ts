@@ -5,6 +5,7 @@
 // Gemini は gemini-1.5-flash を優先し、廃止済みなら無料枠の Flash 系へ自動フォールバックする。
 
 import { parseLlmJsonObject } from '@/lib/llm/parseLlmJson';
+import { callGeminiVisionJson } from '@/lib/engine/geminiVisionCaller';
 
 export interface LlmImagePart {
   mimeType: string;
@@ -29,12 +30,11 @@ export interface CompleteJsonParams {
 }
 
 const GEMINI_MODEL_CANDIDATES = [
-  'gemini-1.5-flash',
   'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-latest',
   'gemini-3.5-flash',
   'gemini-2.5-flash-lite',
 ];
@@ -70,22 +70,6 @@ function stripMarkdownFence(raw: string): string {
 export function parseGeminiJsonText(raw: string): unknown | null {
   const withoutFence = stripMarkdownFence(raw);
   return parseJsonObject(withoutFence) ?? parseJsonObject(raw);
-}
-
-function readGoogleErrorMessage(status: number, body: string): string {
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string } };
-    const message = parsed.error?.message?.trim();
-    if (message) return `Gemini HTTP ${status}: ${message}`;
-  } catch {
-    // 本文が JSON でない場合は生テキストを使う
-  }
-  const clipped = body.replace(/\s+/g, ' ').trim().slice(0, 240);
-  return clipped ? `Gemini HTTP ${status}: ${clipped}` : `Gemini HTTP ${status}`;
-}
-
-function isAbortError(error: unknown): boolean {
-  return Boolean(error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError');
 }
 
 function geminiHeaders(apiKey: string): HeadersInit {
@@ -342,89 +326,18 @@ export async function completeGeminiJson(params: CompleteJsonParams): Promise<un
   return completeLlmJson({ ...params, geminiOnly: true, forceProvider: 'gemini' });
 }
 
-const VISION_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-3.8-flash',
-  'gemini-flash-latest',
-  'gemini-2.5-flash',
-] as const;
-
 /**
- * 画像解析専用。gemini-1.5-flash を直接呼び、失敗時は null を返さず Error を投げる。
+ * 画像解析専用。Gemini 3 世代を 429 で自動フォールバックする。
  */
 export async function completeGeminiVisionJson(params: CompleteJsonParams): Promise<unknown> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY が設定されていません');
-  }
   if (!params.image?.base64) {
     throw new Error('画像データが空です');
   }
-
-  const timeoutMs = params.timeoutMs ?? 55_000;
-  const body = buildGeminiBody(
-    { ...params, forceProvider: 'gemini', geminiOnly: true },
-    true
-  );
-  const failures: string[] = [];
-
-  for (const model of VISION_MODELS) {
-    let response: Response;
-    try {
-      response = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: 'POST',
-          headers: geminiHeaders(apiKey),
-          body: JSON.stringify(body),
-        },
-        timeoutMs
-      );
-    } catch (error) {
-      if (isAbortError(error)) {
-        throw new Error(`Gemini が時間内に応答しませんでした（${Math.round(timeoutMs / 1000)}秒）`);
-      }
-      const message = error instanceof Error ? error.message : '通信エラー';
-      failures.push(`${model}: ${message}`);
-      continue;
-    }
-
-    const raw = await response.text();
-    if (!response.ok) {
-      const message = readGoogleErrorMessage(response.status, raw);
-      console.error('Gemini Vision Error:', message);
-      failures.push(`${model}: ${message}`);
-      if (response.status === 404 || response.status === 429 || response.status === 503) continue;
-      throw new Error(message);
-    }
-
-    let payload: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    try {
-      payload = JSON.parse(raw) as typeof payload;
-    } catch {
-      throw new Error('Gemini 応答の JSON を解析できませんでした');
-    }
-
-    const text = (payload.candidates?.[0]?.content?.parts ?? [])
-      .map((part) => part.text ?? '')
-      .join('')
-      .trim();
-    if (!text) {
-      throw new Error('Gemini から空の応答が返りました');
-    }
-
-    const parsed = parseGeminiJsonText(text);
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('Gemini の JSON を解析できませんでした（マークダウン除去後）');
-    }
-    cachedGeminiModel = model;
-    console.info(`[llm] Gemini Vision (${model}) で JSON を生成しました`);
-    return parsed;
-  }
-
-  throw new Error(
-    failures.find((item) => item.includes('HTTP 429')) ||
-      failures[failures.length - 1] ||
-      'Gemini Vision との通信に失敗しました'
-  );
+  return callGeminiVisionJson({
+    systemPrompt: params.systemPrompt,
+    userPrompt: params.userPrompt,
+    image: params.image,
+    temperature: params.temperature,
+    timeoutMs: params.timeoutMs ?? 55_000,
+  });
 }

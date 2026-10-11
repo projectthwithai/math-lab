@@ -11,11 +11,12 @@ import type {
   ScratchpadCorrectionOverall,
   ScratchpadCorrectionResult,
 } from '@/types/mathLab';
-import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import { resolveRouterUserEmail } from '@/lib/engine/aiRouter';
+import { callGeminiVisionJson } from '@/lib/engine/geminiVisionCaller';
 import { stripUnicodeEmoji } from '@/lib/utils/stripUnicodeEmoji';
+import { formatAiAnalysisError } from '@/lib/llm/imageAnalysisVision';
 import {
   HANDWRITING_IRRELEVANT_ERROR,
-  HANDWRITING_SERVER_ERROR,
   buildScratchpadVisionSystemPrompt,
   isVisionBlockedResult,
   readBlockedError,
@@ -41,12 +42,19 @@ interface CorrectionContext {
   captureSource?: 'canvas' | 'paper-notebook';
 }
 
-function stripDataUrl(raw: string): ParsedImage {
-  const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (match) {
-    return { mimeType: match[1], base64: match[2] };
-  }
-  return { mimeType: 'image/png', base64: raw.replace(/\s/g, '') };
+export const maxDuration = 60; // タイムアウトを最大60秒に延長
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+function stripDataUrl(rawBase64: string): ParsedImage {
+  const trimmed = rawBase64.trim();
+  const mimeTypeMatch = trimmed.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+  const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+  const cleanBase64 = trimmed
+    .replace(/^data:image\/[a-zA-Z+]+;base64,/, '')
+    .replace(/\s+/g, '')
+    .trim();
+  return { mimeType, base64: cleanBase64 };
 }
 
 function readOptionalString(source: Record<string, unknown>, key: string): string | undefined {
@@ -130,13 +138,10 @@ function blockedResponse(error: string, status: number): Response {
   return NextResponse.json(visionBlockedPayload(error), { status });
 }
 
-export const maxDuration = 45;
-
 async function correctViaVision(
   image: ParsedImage,
-  context: CorrectionContext,
-  userEmail?: string
-): Promise<ScratchpadCorrectionResult | { isRelevant: false; error: string } | null> {
+  context: CorrectionContext
+): Promise<ScratchpadCorrectionResult | { isRelevant: false; error: string }> {
   const isPaper = context.captureSource === 'paper-notebook';
   const userText = JSON.stringify({
     task: isPaper
@@ -159,34 +164,28 @@ async function correctViaVision(
     },
   });
 
-  try {
-    const routed = await routeLlmJson({
-      systemPrompt: buildScratchpadVisionSystemPrompt(isPaper),
-      userPrompt: userText,
-      image: { mimeType: image.mimeType, base64: image.base64 },
-      userEmail,
-      temperature: 0.2,
-      timeoutMs: 22000,
-      maxGeminiAttempts: 3,
-    });
-    const parsed = routed?.data;
-    if (isVisionBlockedResult(parsed) || (parsed && typeof parsed === 'object' && (parsed as { overall?: string }).overall === 'empty')) {
-      return visionBlockedPayload(readBlockedError(parsed, HANDWRITING_IRRELEVANT_ERROR));
-    }
-    if (!isCorrectionResult(parsed)) return null;
-
-    const comments = normalizeComments(parsed.comments);
-    return {
-      isRelevant: true,
-      overall: parsed.overall === 'empty' ? 'needs_fix' : parsed.overall,
-      summary: stripUnicodeEmoji(parsed.summary).trim(),
-      comments,
-      source: 'llm',
-    };
-  } catch (error) {
-    console.error('[correct-scratchpad] Vision添削に失敗しました', error);
-    return null;
+  const parsed = await callGeminiVisionJson({
+    systemPrompt: buildScratchpadVisionSystemPrompt(isPaper),
+    userPrompt: userText,
+    image: { mimeType: image.mimeType || 'image/jpeg', base64: image.base64 },
+    temperature: 0.2,
+    timeoutMs: 55_000,
+  });
+  if (isVisionBlockedResult(parsed) || (parsed && typeof parsed === 'object' && (parsed as { overall?: string }).overall === 'empty')) {
+    return visionBlockedPayload(readBlockedError(parsed, HANDWRITING_IRRELEVANT_ERROR));
   }
+  if (!isCorrectionResult(parsed)) {
+    throw new Error('添削 JSON が不完全です');
+  }
+
+  const comments = normalizeComments(parsed.comments);
+  return {
+    isRelevant: true,
+    overall: parsed.overall === 'empty' ? 'needs_fix' : parsed.overall,
+    summary: stripUnicodeEmoji(parsed.summary).trim(),
+    comments,
+    source: 'llm',
+  };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -197,23 +196,23 @@ export async function POST(request: Request): Promise<Response> {
     body = {};
   }
 
-  const userEmail = await resolveRouterUserEmail(request, body.userEmail);
+  await resolveRouterUserEmail(request, body.userEmail);
   const { image, context } = parseIncoming(body);
   if (!image || !image.base64 || image.base64.length > MAX_IMAGE_CHARS) {
     return blockedResponse(HANDWRITING_IRRELEVANT_ERROR, 200);
   }
 
   try {
-    const viaVision = await correctViaVision(image, context, userEmail);
+    const viaVision = await correctViaVision(image, context);
     if (viaVision && 'isRelevant' in viaVision && viaVision.isRelevant === false) {
       return NextResponse.json(viaVision);
     }
     if (viaVision && 'overall' in viaVision) {
       return NextResponse.json(viaVision);
     }
-    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
+    throw new Error('通信エラー');
   } catch (error) {
-    console.error('[correct-scratchpad] 通信エラー', error);
-    return blockedResponse(HANDWRITING_SERVER_ERROR, 503);
+    console.error('Gemini Vision Error:', error);
+    return blockedResponse(formatAiAnalysisError(error), 200);
   }
 }

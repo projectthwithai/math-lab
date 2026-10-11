@@ -12,7 +12,8 @@ import { NextResponse } from 'next/server';
 import type { ImageAnalysisResult, ImageLogicSummary, SolutionPattern, Subject } from '@/types/mathLab';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
-import { completeGeminiVisionJson, hasGeminiApiKey, parseGeminiJsonText } from '@/lib/llm/completeJson';
+import { hasGeminiApiKey, parseGeminiJsonText } from '@/lib/llm/completeJson';
+import { callGeminiVisionJson } from '@/lib/engine/geminiVisionCaller';
 import { resolveRouterUserEmail } from '@/lib/engine/aiRouter';
 import {
   findSolutionPatternById,
@@ -242,7 +243,7 @@ async function analyzeViaVision(
     method: item.strategyText,
   }));
 
-  const routed = await completeGeminiVisionJson({
+  const routed = await callGeminiVisionJson({
     systemPrompt: buildImageAnalysisVisionSystemPrompt(),
     userPrompt:
       '【重要】このリクエストには写真が添付されている。写真を必ず見て教科を判定すること。' +
@@ -250,11 +251,8 @@ async function analyzeViaVision(
       '問題が無ければ isValid:false。あれば OCR したうえで同じ教科・同じ単元のオリジナル類題とパターンを返す。原問は書き写さない。\n' +
       JSON.stringify({ existingCatalog: catalogForPrompt }),
     image: { mimeType: image.mimeType || 'image/jpeg', base64: image.base64 },
-    forceProvider: 'gemini',
-    geminiOnly: true,
     temperature: 0.2,
     timeoutMs: 55_000,
-    maxGeminiAttempts: 1,
   });
   const parsedRaw = coerceVisionJson(routed);
   if (isImageAnalysisBlocked(parsedRaw)) {
