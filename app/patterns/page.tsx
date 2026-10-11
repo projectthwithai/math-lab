@@ -8,7 +8,6 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen } from 'lucide-react';
-import CatalogFamilySwitch from '@/components/layout/CatalogFamilySwitch';
 import SolutionPatternGrid from '@/components/patterns/SolutionPatternGrid';
 import { selectLivePatternProgress, useUserStore } from '@/lib/store/userStore';
 
@@ -30,7 +29,6 @@ function PatternsCatalogPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10">
-      <CatalogFamilySwitch active="patterns" />
       <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
         <BookOpen className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
         パターン図鑑
@@ -40,7 +38,7 @@ function PatternsCatalogPage() {
         {completionSummary.completionPercent}% 制覇）
       </p>
       <p className="mb-5 text-sm text-slate-500 dark:text-zinc-400">
-        単元、サブトピック、入試解法パターンの3層で探す。静的図鑑に加え、単元を開いて「新パターン解析（-10 Energy）」すると新しいパターンが追加されます。
+        教科タブから単元・サブトピック・パターンへドリルダウン。各階層から演習でき、パターン名は自由にリネームできます。新パターン解析に件数上限はありません。
       </p>
       <SolutionPatternGrid />
     </main>

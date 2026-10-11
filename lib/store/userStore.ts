@@ -4,7 +4,7 @@
 // アプリ全体で共有する「ユーザー状態」の単一の情報源（Single Source of Truth）。
 // - 獲得XP・プレイヤーレベル
 // - 連続学習ストリーク（日数）
-// - Energy（スタミナ。1日1回リフィル。同一端末での無料200の二重付与は deviceLock で防止）
+// - Energy（スタミナ。1日1回リフィル。同一端末での無料300の二重付与は deviceLock で防止）
 // - クリアした解法パターンIDリスト（パターン図鑑・デイリーミッションが参照する）
 // - 発掘パターン（discoveredPatterns。図鑑保存 → 単元演習の出題プール）
 // - 解法メモ（patternNotes。patternId をキーに図鑑・ワークスペースで共有）
@@ -17,7 +17,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { PatternNotesMap, SolutionPattern } from '@/types/mathLab';
+import type { PatternNotesMap, PatternVariant, SolutionPattern } from '@/types/mathLab';
 import {
   collectLegacyPatternNotes,
   mergePatternNoteMaps,
@@ -33,6 +33,7 @@ import {
 import {
   DEFAULT_MAX_ENERGY,
   DAILY_QUEST_ENERGY_REWARD,
+  ENERGY_OVERCAP_MAX,
   LEGACY_MAX_ENERGY,
   applyEnergyReward,
 } from '@/lib/engine/energyCosts';
@@ -43,13 +44,14 @@ import {
 import { clampDifficulty, DEFAULT_DIFFICULTY, DIFFICULTY_SCALE_VERSION, migrateStoredDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 import {
+  findSolutionPatternById,
   getCompletionSummary,
   getWeaknessRadarData,
   type PatternCompletionSummary,
   type WeaknessRadarAxis,
 } from '@/data/patternsData';
 
-export { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD };
+export { DEFAULT_MAX_ENERGY, DAILY_QUEST_ENERGY_REWARD, ENERGY_OVERCAP_MAX };
 export type { CustomDailyQuest } from '@/types/mathLab';
 
 function nextMasteredIds(ids: string[]): { clearedPatternIds: string[]; masteredPatterns: string[] } {
@@ -89,6 +91,52 @@ function readLegacyDiscoveredPatterns(): SolutionPattern[] {
     console.error('[userStore] 旧発掘パターンの読み込みに失敗しました', error);
   }
   return [];
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object') return {};
+  const next: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof item === 'string' && item.trim()) next[key] = item.trim();
+  }
+  return next;
+}
+
+function normalizeNumberRecord(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') return {};
+  const next: Record<string, number> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const parsed = typeof item === 'number' ? item : Number(item);
+    if (Number.isFinite(parsed) && parsed > 0) next[key] = Math.round(parsed);
+  }
+  return next;
+}
+
+function isGeneratedProblemLike(value: unknown): value is PatternVariant['problem'] {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.id === 'string' && typeof candidate.questionText === 'string';
+}
+
+function normalizePatternVariants(value: unknown): Record<string, PatternVariant[]> {
+  if (!value || typeof value !== 'object') return {};
+  const next: Record<string, PatternVariant[]> = {};
+  for (const [patternId, items] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(items)) continue;
+    const variants = items.filter((item): item is PatternVariant => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as Record<string, unknown>;
+      return (
+        typeof candidate.id === 'string' &&
+        typeof candidate.patternId === 'string' &&
+        typeof candidate.label === 'string' &&
+        typeof candidate.styleLabel === 'string' &&
+        isGeneratedProblemLike(candidate.problem)
+      );
+    });
+    if (variants.length > 0) next[patternId] = variants;
+  }
+  return next;
 }
 
 function mergeDiscoveredPatterns(
@@ -153,7 +201,7 @@ interface UserStoreState {
   /** 3問達成で付与した直後のトースト用。永続化しない */
   pendingStreakCelebration: number | null;
 
-  // --- Energy（スタミナ。標準上限 200。デイリークエスト報酬で 250〜300 の限界突破可） ---
+  // --- Energy（スタミナ。標準上限 300。デイリークエスト報酬で最大 400 まで限界突破可） ---
   energy: number;
   maxEnergy: number;
   lastEnergyRefillDateISO: string | null;
@@ -178,6 +226,13 @@ interface UserStoreState {
 
   // --- 解法メモ（patternId がプライマリキー。図鑑・ワークスペースで共有） ---
   patternNotes: PatternNotesMap;
+
+  /** パターンの自由リネーム。未設定なら図鑑の defaultName（patternName）を表示 */
+  patternCustomNames: Record<string, string>;
+  /** 既存パターンに分類した形式違い類題の加算数 */
+  patternVariantCounts: Record<string, number>;
+  /** 新バリエーション解析で蓄積した変装問題（patternId 傘下） */
+  patternVariants: Record<string, PatternVariant[]>;
 
   // --- 解放した武器（閲覧で収集。空でも図鑑は全公開） ---
   unlockedWeaponIds: string[];
@@ -221,7 +276,7 @@ interface UserStoreState {
   refundEnergy: (amount?: number) => void;
   /** デイリークエスト等から XP を直接付与する */
   grantXp: (amount: number) => XpGainResult;
-  /** デイリークエスト等から Energy を回復する（maxEnergy を超える限界突破を許可） */
+  /** デイリークエスト等から Energy を回復する（最大 400 までの限界突破を許可） */
   restoreEnergy: (amount?: number) => void;
   /** デイリークエスト達成時の標準 Energy 回復（+30） */
   restoreDailyQuestEnergy: () => void;
@@ -231,10 +286,18 @@ interface UserStoreState {
   markWeaponMastered: (weaponId: string) => void;
   /** 成り立ち試練の MASTER を解除し、未習得に戻す */
   unmasterWeapon: (weaponId: string) => void;
-  /** 図鑑で発掘した新パターンを出題プールへ追加（重複はスキップ） */
+  /** 図鑑で発掘した新パターンを出題プールへ追加（重複はスキップ。件数上限なし） */
   appendDiscoveredPatterns: (incoming: SolutionPattern[]) => SolutionPattern[];
   /** 発掘パターンの方針文を更新する */
   updateDiscoveredPatternStrategy: (patternId: string, strategyText: string) => void;
+  /** パターン名を自由にリネームする。空文字で既定名に戻す */
+  renamePattern: (patternId: string, newName: string) => void;
+  /** 既存パターンのバリエーションとして 1 件加算する */
+  incrementPatternVariants: (patternId: string) => void;
+  /** 変装バリエーションをパターン傘下へ追加保存する */
+  appendPatternVariant: (patternId: string, variant: PatternVariant) => PatternVariant;
+  /** 表示用パターン名（カスタム名優先） */
+  getPatternDisplayName: (patternId: string) => string;
   /** パターンIDをキーに自分流解法メモを保存する（図鑑と双方向同期） */
   upsertPatternNote: (patternId: string, customText: string, aiFeedback?: string) => void;
   /** 保存済みの自分流解法メモ本文を返す */
@@ -273,6 +336,9 @@ export const useUserStore = create<UserStoreState>()(
       masteredPatterns: [],
       discoveredPatterns: [],
       patternNotes: {},
+      patternCustomNames: {},
+      patternVariantCounts: {},
+      patternVariants: {},
       unlockedWeaponIds: [],
       masteredWeaponIds: [],
 
@@ -524,6 +590,75 @@ export const useUserStore = create<UserStoreState>()(
         }));
       },
 
+      renamePattern: (patternId, newName) => {
+        const id = patternId.trim();
+        if (!id) return;
+        const trimmed = newName.trim();
+        const patternCustomNames = { ...get().patternCustomNames };
+        if (!trimmed) {
+          delete patternCustomNames[id];
+        } else {
+          patternCustomNames[id] = trimmed;
+        }
+        set({
+          patternCustomNames,
+          discoveredPatterns: get().discoveredPatterns.map((pattern) =>
+            pattern.id === id ? { ...pattern, customName: trimmed || undefined } : pattern
+          ),
+          progressUpdatedAt: stampProgress(),
+        });
+      },
+
+      incrementPatternVariants: (patternId) => {
+        const id = patternId.trim();
+        if (!id) return;
+        set((state) => ({
+          patternVariantCounts: {
+            ...state.patternVariantCounts,
+            [id]: (state.patternVariantCounts[id] ?? 0) + 1,
+          },
+          discoveredPatterns: state.discoveredPatterns.map((pattern) =>
+            pattern.id === id
+              ? { ...pattern, variantsCount: (pattern.variantsCount ?? 1) + 1 }
+              : pattern
+          ),
+          progressUpdatedAt: stampProgress(),
+        }));
+      },
+
+      appendPatternVariant: (patternId, variant) => {
+        const id = patternId.trim();
+        const stored: PatternVariant = {
+          ...variant,
+          patternId: id || variant.patternId,
+        };
+        if (!id) return stored;
+        set((state) => {
+          const existing = state.patternVariants[id] ?? [];
+          const nextList = [...existing, stored];
+          const nextCount = Math.max(state.patternVariantCounts[id] ?? 0, nextList.length);
+          return {
+            patternVariants: { ...state.patternVariants, [id]: nextList },
+            patternVariantCounts: { ...state.patternVariantCounts, [id]: nextCount },
+            discoveredPatterns: state.discoveredPatterns.map((pattern) =>
+              pattern.id === id ? { ...pattern, variantsCount: nextCount } : pattern
+            ),
+            progressUpdatedAt: stampProgress(),
+          };
+        });
+        return stored;
+      },
+
+      getPatternDisplayName: (patternId) => {
+        const id = patternId.trim();
+        if (!id) return '';
+        const custom = get().patternCustomNames[id]?.trim();
+        if (custom) return custom;
+        const discovered = get().discoveredPatterns.find((pattern) => pattern.id === id);
+        if (discovered) return discovered.customName?.trim() || discovered.patternName;
+        return findSolutionPatternById(id)?.patternName ?? '';
+      },
+
       upsertPatternNote: (patternId, customText, aiFeedback) => {
         const id = patternId.trim();
         if (!id) return;
@@ -616,8 +751,10 @@ export const useUserStore = create<UserStoreState>()(
           typeof incoming.maxEnergy === 'number' && incoming.maxEnergy > 0
             ? incoming.maxEnergy
             : LEGACY_MAX_ENERGY;
-        const migratedEnergy =
-          incomingMax < DEFAULT_MAX_ENERGY && energy === incomingMax ? DEFAULT_MAX_ENERGY : energy;
+        const migratedEnergy = Math.min(
+          ENERGY_OVERCAP_MAX,
+          incomingMax < DEFAULT_MAX_ENERGY && energy === incomingMax ? DEFAULT_MAX_ENERGY : energy
+        );
         const incomingScale =
           typeof (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion === 'number'
             ? (incoming as { difficultyScaleVersion?: number }).difficultyScaleVersion
@@ -647,6 +784,11 @@ export const useUserStore = create<UserStoreState>()(
             : current.masteredWeaponIds,
           ...nextMasteredIds(incomingCleared),
           patternNotes: normalizePatternNotes(incoming.patternNotes ?? current.patternNotes),
+          patternCustomNames: normalizeStringRecord(incoming.patternCustomNames ?? current.patternCustomNames),
+          patternVariantCounts: normalizeNumberRecord(
+            incoming.patternVariantCounts ?? current.patternVariantCounts
+          ),
+          patternVariants: normalizePatternVariants(incoming.patternVariants ?? current.patternVariants),
           lastStreakGrantDateISO:
             typeof incoming.lastStreakGrantDateISO === 'string'
               ? incoming.lastStreakGrantDateISO

@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Compass, BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
+import { BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
 
 import { useUserStore, DEFAULT_MAX_ENERGY, isQuestStreakGrantedToday } from '@/lib/store/userStore';
 import { STREAK_QUEST_GOAL } from '@/data/dailyQuests';
@@ -22,15 +22,14 @@ import { signOut } from '@/lib/supabase/authSync';
 interface NavTab {
   href: string;
   label: string;
-  icon: typeof Compass;
+  icon: typeof BookOpen;
   exact?: boolean;
 }
 
 const NAV_TABS: NavTab[] = [
   { href: '/', label: 'ホーム', icon: Home, exact: true },
-  { href: '/units', label: '単元選択', icon: Compass },
-  { href: '/mock-exam', label: '模試', icon: ClipboardCheck },
   { href: '/patterns', label: 'パターン図鑑', icon: BookOpen },
+  { href: '/mock-exam', label: '模試', icon: ClipboardCheck },
   { href: '/armory', label: '武器庫', icon: Shield },
   { href: '/library', label: 'ライブラリ', icon: Library },
 ];
@@ -106,7 +105,13 @@ export default function Navbar() {
                     ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-600 dark:border-cyan-400/40 dark:bg-zinc-950/80 dark:text-cyan-300'
                     : 'border-slate-200 bg-white text-amber-500 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-amber-400'
               }`}
-              title={isDeveloper ? '無限スタミナ (Dev Mode)' : isOvercapped ? 'Energy 限界突破' : 'Energy'}
+              title={
+                isDeveloper
+                  ? '無限スタミナ (Dev Mode)'
+                  : isOvercapped
+                    ? 'Energy 限界突破（最大 400）'
+                    : 'Energy（1日 300 / 限界突破 400）'
+              }
             >
               <Zap className="h-3.5 w-3.5" />
               {isDeveloper ? (

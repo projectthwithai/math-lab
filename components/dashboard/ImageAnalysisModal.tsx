@@ -24,7 +24,9 @@ interface ImageAnalysisModalProps {
 export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisModalProps) {
   const router = useRouter();
   const appendDiscoveredPatterns = useUserStore((state) => state.appendDiscoveredPatterns);
+  const incrementPatternVariants = useUserStore((state) => state.incrementPatternVariants);
   const [addedNotice, setAddedNotice] = useState<string | null>(null);
+  const matchedExisting = result.matchedExisting === true;
 
   const openWorkspace = () => {
     setPendingWorkspaceProblem(result.variantProblem);
@@ -32,6 +34,11 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
   };
 
   const handleAddPattern = () => {
+    if (matchedExisting) {
+      incrementPatternVariants(result.pattern.id);
+      setAddedNotice('既存パターンのバリエーションとして記録しました。');
+      return;
+    }
     const added = appendDiscoveredPatterns([
       {
         ...result.pattern,
@@ -90,9 +97,11 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
 
         <section className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-            解法パターン
+            {matchedExisting ? '既存パターンのバリエーション' : '解法パターン'}
           </p>
-          <p className="text-sm font-bold text-slate-900 dark:text-white">{result.pattern.patternName}</p>
+          <p className="text-sm font-bold text-slate-900 dark:text-white">
+            {result.pattern.customName?.trim() || result.pattern.patternName}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
             {result.pattern.strategyText}
           </p>
@@ -113,7 +122,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
             className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-slate-700"
           >
             <BookPlus className="h-3.5 w-3.5" />
-            この解法パターンを図鑑に自動追加する
+            {matchedExisting ? '既存パターンの類題として記録する' : 'この解法パターンを図鑑に自動追加する'}
           </button>
         </div>
 

@@ -13,6 +13,12 @@ import { analyzeImageMock } from '@/lib/mock/analyzeImageMock';
 import { problemFromPayload } from '@/lib/engine/problemFromPayload';
 import { resolvePromptIntent } from '@/lib/engine/promptIntent';
 import { resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
+import {
+  findSolutionPatternById,
+  mergePatternMatchDigests,
+  type PatternMatchDigest,
+} from '@/data/patternsData';
+import { findPatternInPools } from '@/lib/engine/patternPool';
 
 const MAX_IMAGE_CHARS = 6_000_000;
 
@@ -35,34 +41,66 @@ function stripDataUrl(raw: string): ParsedImage {
   return { mimeType: 'image/jpeg', base64: raw.replace(/\s/g, '') };
 }
 
-async function parseIncomingImage(request: Request): Promise<ParsedImage | null> {
+function parsePatternDigests(raw: unknown): PatternMatchDigest[] {
+  if (typeof raw === 'string') {
+    try {
+      return parsePatternDigests(JSON.parse(raw) as unknown);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const source = item as Record<string, unknown>;
+    if (typeof source.id !== 'string' || typeof source.patternName !== 'string') return [];
+    return [
+      {
+        id: source.id,
+        unitId: typeof source.unitId === 'string' ? source.unitId : undefined,
+        subtopicId: typeof source.subtopicId === 'string' ? source.subtopicId : undefined,
+        unit: typeof source.unit === 'string' ? source.unit : '',
+        patternName: source.patternName,
+        strategyText: typeof source.strategyText === 'string' ? source.strategyText : '',
+      },
+    ];
+  });
+}
+
+async function parseIncomingAnalysis(
+  request: Request
+): Promise<{ image: ParsedImage | null; extraPatterns: PatternMatchDigest[] }> {
   const contentType = request.headers.get('content-type') ?? '';
 
   if (contentType.includes('multipart/form-data')) {
     const form = await request.formData();
+    const extraPatterns = parsePatternDigests(form.get('existingPatterns'));
     const file = form.get('image') ?? form.get('file');
     if (file instanceof Blob) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const mimeType = file.type || 'image/jpeg';
-      return { base64: buffer.toString('base64'), mimeType };
+      return { image: { base64: buffer.toString('base64'), mimeType }, extraPatterns };
     }
     const raw = form.get('imageBase64');
-    if (typeof raw === 'string' && raw.trim()) return stripDataUrl(raw.trim());
-    return null;
+    if (typeof raw === 'string' && raw.trim()) {
+      return { image: stripDataUrl(raw.trim()), extraPatterns };
+    }
+    return { image: null, extraPatterns };
   }
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
+    const extraPatterns = parsePatternDigests(body.existingPatterns);
     const raw =
       typeof body.imageBase64 === 'string' ? body.imageBase64 : typeof body.image === 'string' ? body.image : '';
-    if (!raw.trim()) return null;
+    if (!raw.trim()) return { image: null, extraPatterns };
     const parsed = stripDataUrl(raw.trim());
     if (typeof body.mimeType === 'string' && body.mimeType.startsWith('image/')) {
       parsed.mimeType = body.mimeType;
     }
-    return parsed;
+    return { image: parsed, extraPatterns };
   } catch {
-    return null;
+    return { image: null, extraPatterns: [] };
   }
 }
 
@@ -108,37 +146,76 @@ function patternFromPayload(raw: unknown, fallback: SolutionPattern): SolutionPa
 function sanitizeOriginalCopy(result: ImageAnalysisResult): ImageAnalysisResult {
   return {
     logic: result.logic,
-    variantProblem: result.variantProblem,
+    variantProblem: {
+      ...result.variantProblem,
+      patternId: result.pattern.id,
+    },
     pattern: result.pattern,
     source: result.source,
+    matchedExisting: result.matchedExisting === true,
   };
+}
+
+function resolveCatalogPattern(
+  patternId: string | undefined,
+  extra: PatternMatchDigest[]
+): SolutionPattern | null {
+  if (!patternId) return null;
+  const discoveredLike: SolutionPattern[] = extra.map((item) => ({
+    id: item.id,
+    subject: 'math',
+    unit: item.unit,
+    unitId: item.unitId,
+    subtopicId: item.subtopicId,
+    level: 'standard',
+    patternName: item.patternName,
+    strategyText: item.strategyText,
+    exampleQuestion: '',
+    discovered: true,
+  }));
+  const pooled = findPatternInPools(patternId, discoveredLike)?.pattern;
+  if (pooled) return pooled;
+  return findSolutionPatternById(patternId) ?? null;
 }
 
 async function analyzeViaVision(
   image: ParsedImage,
-  userEmail?: string
+  userEmail: string | undefined,
+  extraPatterns: PatternMatchDigest[]
 ): Promise<ImageAnalysisResult | null> {
+  const catalog = mergePatternMatchDigests(extraPatterns);
+  const catalogForPrompt = catalog.map((item) => ({
+    id: item.id,
+    unit: item.unit,
+    patternName: item.patternName,
+    method: item.strategyText,
+  }));
+
   const systemPrompt =
     'あなたは高校の数学・物理・化学の問題写真を Vision で解析する作問者です。' +
     '写真から単元・解法ロジック・条件の種類を読み取る。' +
     '著作権遵守: 画像内の原問テキスト・固有設定・数値を書き写して再現してはならない。' +
-    '出力はJSONのみ。キーは logic, variantProblem, pattern。' +
+    '最重要: 文章や見た目が違っても、解き方の骨格が existingCatalog のどれかと同一なら既存パターンとして分類する。' +
+    '出力はJSONのみ。キーは logic, variantProblem, pattern, match。' +
+    'match は { existing: boolean, patternId?: string }。existing=true のとき patternId は existingCatalog の id。' +
+    '既存一致なら新しい pattern カードは作らず、patternId だけ返す。' +
+    '完全に異なる解法のときだけ existing=false とし、新規 pattern（patternName, strategyText, exampleQuestion）を返す。' +
     'logic は { subject, unit, techniques[] }。techniques は一般的な手法名のみ。' +
     'variantProblem は完全オリジナルの類題。数値・物語・記号を写真と一致させない。' +
     'questionText / templateText / hints / keyFormula / commonMistakes / explanation.stepByStep には $...$ の LaTeX を含める。' +
     'variantProblem は title, unit, subject, difficulty, format, questionText, templateText, ' +
     'variables, calcLogicJS, hints, keyFormula, commonMistakes を持つ。' +
-    'calcLogicJS は vars を受け取り { vars, correctAnswer, explanationSteps } を返す関数本体。' +
-    'pattern は動的に新規生成する patternName, strategyText, exampleQuestion（類題の要約、LaTeX可）。';
+    'calcLogicJS は vars を受け取り { vars, correctAnswer, explanationSteps } を返す関数本体。';
 
   try {
     const routed = await routeLlmJson({
       systemPrompt,
       userPrompt:
-        '写真をVisionで解析し、単元と解法ロジックを抽出したうえで、完全オリジナルの類題（LaTeX付き）と新規パターンカードをJSONで返してください。原問は書き写さない。',
+        '写真をVisionで解析し、解法骨格を existingCatalog と照合してください。原問は書き写さない。\n' +
+        JSON.stringify({ existingCatalog: catalogForPrompt }),
       image: { mimeType: image.mimeType, base64: image.base64 },
       userEmail,
-      temperature: 0.45,
+      temperature: 0.35,
       timeoutMs: 25000,
       maxGeminiAttempts: 3,
     });
@@ -148,6 +225,12 @@ async function analyzeViaVision(
     const fallback = analyzeImageMock(Date.now());
     const logic = logicFromPayload(parsed.logic, fallback.logic);
     const intent = resolvePromptIntent(`${logic.unit} ${logic.techniques.join(' ')}`);
+    const matchRaw = parsed.match;
+    const matchExisting =
+      Boolean(matchRaw && typeof matchRaw === 'object' && (matchRaw as { existing?: unknown }).existing === true);
+    const matchIdRaw =
+      matchRaw && typeof matchRaw === 'object' ? (matchRaw as { patternId?: unknown }).patternId : undefined;
+    const matchId = typeof matchIdRaw === 'string' ? matchIdRaw.trim() : undefined;
 
     const variantProblem =
       problemFromPayload(parsed.variantProblem, {
@@ -156,6 +239,17 @@ async function analyzeViaVision(
         difficulty: intent.difficulty,
         idPrefix: 'ocr-original',
       }) ?? fallback.variantProblem;
+
+    const catalogHit = matchExisting ? resolveCatalogPattern(matchId, extraPatterns) : null;
+    if (catalogHit) {
+      return sanitizeOriginalCopy({
+        logic,
+        variantProblem: { ...variantProblem, patternId: catalogHit.id },
+        pattern: catalogHit,
+        source: 'llm',
+        matchedExisting: true,
+      });
+    }
 
     const pattern = patternFromPayload(parsed.pattern, {
       ...fallback.pattern,
@@ -169,13 +263,14 @@ async function analyzeViaVision(
 
     return sanitizeOriginalCopy({
       logic,
-      variantProblem,
+      variantProblem: { ...variantProblem, patternId: pattern.id },
       pattern: {
         ...pattern,
         exampleQuestion: variantProblem.questionText,
         discovered: true,
       },
       source: 'llm',
+      matchedExisting: false,
     });
   } catch (error) {
     console.error('[analyze-image] Vision解析に失敗、モックにフォールバックします', error);
@@ -185,8 +280,11 @@ async function analyzeViaVision(
 
 export async function POST(request: Request): Promise<Response> {
   let image: ParsedImage | null = null;
+  let extraPatterns: PatternMatchDigest[] = [];
   try {
-    image = await parseIncomingImage(request);
+    const parsed = await parseIncomingAnalysis(request);
+    image = parsed.image;
+    extraPatterns = parsed.extraPatterns;
   } catch (error) {
     console.error('[analyze-image] 画像の読み取りに失敗しました', error);
   }
@@ -196,6 +294,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const userEmail = await resolveRouterUserEmail(request);
-  const viaVision = await analyzeViaVision(image, userEmail);
+  const viaVision = await analyzeViaVision(image, userEmail, extraPatterns);
   return NextResponse.json(sanitizeOriginalCopy(viaVision ?? analyzeImageMock(image.base64.length)));
 }

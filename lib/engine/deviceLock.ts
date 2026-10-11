@@ -128,7 +128,7 @@ export function syncDeviceEnergyRemaining(remaining: number, userId?: string | n
  * 日次の無料 Energy 付与を端末ロック付きで解決する。
  * - 開発者: 制限なし（記録も更新しない）
  * - この端末で本日未付与: 通常リフィルし、日付と残りを記録
- * - この端末で本日付与済み + 別アカウント: 二重の 200 は出さず、残り Energy を引き継ぐ
+ * - この端末で本日付与済み + 別アカウント: 二重の日次付与は出さず、残り Energy を引き継ぐ
  */
 export function resolveDeviceLockedDailyEnergy(
   input: ResolveDeviceEnergyInput

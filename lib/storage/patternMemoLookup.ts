@@ -53,5 +53,7 @@ export function findPatternLinkedMemo(patternId: string | undefined): PatternLin
 
 export function getPatternDisplayName(patternId: string | undefined): string | undefined {
   if (!patternId) return undefined;
+  const fromStore = useUserStore.getState().getPatternDisplayName(patternId);
+  if (fromStore) return fromStore;
   return findSolutionPatternById(patternId)?.patternName;
 }

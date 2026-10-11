@@ -210,4 +210,40 @@ export function getCatalogPatternsForSubtopic(
   return collectPatternCatalog(discoveredPatterns).filter((pattern) => pattern.subtopicId === subtopicId);
 }
 
+/** Vision照合用の短い解法骨子。文章が違っても同一解法かを判定させる。 */
+export interface PatternMatchDigest {
+  id: string;
+  unitId?: string;
+  subtopicId?: string;
+  unit: string;
+  patternName: string;
+  strategyText: string;
+}
+
+export function toPatternMatchDigest(pattern: SolutionPattern): PatternMatchDigest {
+  return {
+    id: pattern.id,
+    unitId: pattern.unitId,
+    subtopicId: pattern.subtopicId,
+    unit: pattern.unit,
+    patternName: pattern.patternName,
+    strategyText: pattern.strategyText.replace(/\s+/g, ' ').slice(0, 140),
+  };
+}
+
+export function buildStaticPatternMatchDigest(): PatternMatchDigest[] {
+  return SOLUTION_PATTERNS.map(toPatternMatchDigest);
+}
+
+export function mergePatternMatchDigests(
+  extra: PatternMatchDigest[] = []
+): PatternMatchDigest[] {
+  const byId = new Map<string, PatternMatchDigest>();
+  for (const item of [...buildStaticPatternMatchDigest(), ...extra]) {
+    if (!item?.id) continue;
+    byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
 export { PATTERN_STAR_ARCHETYPES };

@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, RefreshCw, HelpCircle, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator, BookOpen, FileText, LineChart } from 'lucide-react';
+import { Clock, RefreshCw, HelpCircle, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator, BookOpen, FileText, LineChart, Eye, ChevronDown, Sparkles } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -29,6 +29,7 @@ import {
   formatEnergyShortage,
   getGenerateEnergyCost,
   isLibraryReviewSource,
+  isPatternVariantSource,
 } from '@/lib/engine/energyCosts';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
@@ -76,6 +77,8 @@ interface WorkspaceViewProps {
   mode?: string;
   /** ライブラリ復習時の SolvedProblemRecord.id または problem.id */
   problemId?: string;
+  /** 図鑑に蓄積した変装バリエーション */
+  variantId?: string;
 }
 
 export default function WorkspaceView({
@@ -88,6 +91,7 @@ export default function WorkspaceView({
   questId,
   mode,
   problemId,
+  variantId,
 }: WorkspaceViewProps) {
   const router = useRouter();
   const recordAnswer = useUserStore((state) => state.recordAnswer);
@@ -113,6 +117,7 @@ export default function WorkspaceView({
   const [workspaceNote, setWorkspaceNote] = useState('');
   const [isSolved, setIsSolved] = useState(false);
   const [isVisualOpen, setIsVisualOpen] = useState(false);
+  const [isPatternPeekOpen, setIsPatternPeekOpen] = useState(false);
   /** 同一問題への再送信による二重XPを防ぐ。モーダルを閉じても解除しない */
   const [isSubmitted, setIsSubmitted] = useState(false);
   /** 採点モーダル。「閉じる」後も submission を残し、解説を見る で再表示する */
@@ -122,6 +127,7 @@ export default function WorkspaceView({
   const fetchingRef = useRef(false);
   const reviewRecordIdRef = useRef<string | null>(null);
   const isReviewMode = mode === 'review' || isLibraryReviewSource(source);
+  const isVariantMode = Boolean(variantId) || isPatternVariantSource(source);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
   const visualEnabled = isActiveVisualType(problem?.visualType);
@@ -177,6 +183,7 @@ export default function WorkspaceView({
     setElapsedSeconds(0);
     setSubmission(null);
     setIsMemoOpen(false);
+    setIsPatternPeekOpen(false);
     setIsSolved(false);
     setIsVisualOpen(false);
     setIsSubmitted(false);
@@ -217,6 +224,27 @@ export default function WorkspaceView({
           applyNewProblem(pending);
           return;
         }
+      }
+
+      if (isVariantMode && patternId) {
+        const variants = useUserStore.getState().patternVariants[patternId] ?? [];
+        const stored =
+          (variantId ? variants.find((item) => item.id === variantId) : undefined) ?? variants[0];
+        if (!stored?.problem) {
+          setEnergyError('蓄積したバリエーションが見つかりません。図鑑から選び直してください。');
+          setIsLoading(false);
+          return;
+        }
+        setEnergyError(null);
+        setIsLoading(true);
+        applyNewProblem(
+          regenerateProblemLocally({
+            ...stored.problem,
+            id: `${stored.problem.id}-play-${Date.now()}`,
+            patternId,
+          })
+        );
+        return;
       }
 
       const store = useUserStore.getState();
@@ -266,7 +294,7 @@ export default function WorkspaceView({
       fetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem, isReviewMode, problemId]);
+  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem, isReviewMode, isVariantMode, problemId, variantId]);
 
   useEffect(() => {
     // 発掘パターンを出題プールに含めるため、Zustand ハイドレーション後に生成する。
@@ -324,7 +352,7 @@ export default function WorkspaceView({
     if (fetchingRef.current || isLoading) return;
     setIsScoreModalOpen(false);
     setSubmission(null);
-    if (isReviewMode) {
+    if (isReviewMode || isVariantMode) {
       handleRegenerateLocally();
       return;
     }
@@ -397,6 +425,46 @@ export default function WorkspaceView({
             図鑑で発掘したパターンからの出題
           </div>
         )}
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setIsPatternPeekOpen((open) => !open)}
+            aria-expanded={isPatternPeekOpen}
+            className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-medium tracking-tight text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-900"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            解法パターンを確認する（タップで展開）
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isPatternPeekOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence initial={false}>
+            {isPatternPeekOpen && (
+              <motion.div
+                key="pattern-peek"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-slate-200 px-3 py-3 dark:border-slate-800">
+                  {patternName ? (
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{patternName}</p>
+                  ) : (
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 dark:text-amber-200">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      新パターン（未登録）
+                    </p>
+                  )}
+                  <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">自分流解法メモ</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {workspaceNote.trim() || patternMemo?.content || '自分流メモはまだありません。'}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-medium ${accent.text}`}>
@@ -423,7 +491,6 @@ export default function WorkspaceView({
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-300">
                 <BookOpen className="h-3.5 w-3.5 shrink-0" />
                 自分流解法メモ
-                {patternName ? ` · ${patternName}` : ''}
               </p>
               <HandwrittenNoteScanButton
                 compact

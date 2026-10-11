@@ -34,7 +34,7 @@ function normalizeId(raw: unknown): string | undefined {
 function parseCount(raw: unknown): number {
   const parsed = typeof raw === 'number' ? raw : Number(raw);
   if (!Number.isFinite(parsed)) return 4;
-  return Math.max(3, Math.min(5, Math.round(parsed)));
+  return Math.max(1, Math.min(8, Math.round(parsed)));
 }
 
 function parseExistingNames(raw: unknown): string[] {
@@ -92,7 +92,7 @@ async function generateViaLlm(params: {
     subject,
     unitTitle,
     count: params.count,
-    avoidPatternNames: params.existingNames.slice(0, 40),
+    avoidPatternNames: params.existingNames.slice(0, 200),
   });
 
   try {
@@ -117,7 +117,7 @@ async function generateViaLlm(params: {
         discovered: true,
       })) satisfies SolutionPattern[];
 
-    return patterns.length >= 3 ? patterns : null;
+    return patterns.length >= 1 ? patterns : null;
   } catch (error) {
     console.error('[generate-patterns] LLM発掘に失敗、ローカルにフォールバックします', error);
     return null;

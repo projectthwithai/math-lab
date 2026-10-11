@@ -102,14 +102,20 @@ export interface SolutionPattern {
   /** 単元 ➔ サブトピック ➔ パターンの3層ツリー用 */
   subtopicId?: string;
   level: PatternLevel;
-  /** 解法パターン名（例: "パターン2: 軸が動く2次関数の最大・最小"） */
+  /** 既定の解法パターン名（例: "パターン2: 軸が動く2次関数の最大・最小"） */
   patternName: string;
+  /** ユーザーが自由に付けた表示名。未設定なら patternName を使う */
+  customName?: string;
   /** 具体的な例題文（LaTeX数式は `$...$` で囲む。KaTeXBlock/KaTeXTextで描画） */
   exampleQuestion: string;
   /** Apexガイドが書いた、このパターンを見抜くコツ・解答方針 */
   strategyText: string;
   /** ★1〜★5。図鑑の標準4型は ★1〜★4 */
   difficulty?: number;
+  /** 見た目・形式違いの類題数（同一解法のバリエーション） */
+  variantsCount?: number;
+  /** 蓄積した変装バリエーション（ストア側 patternVariants が正本） */
+  variants?: PatternVariant[];
   /** 図鑑の「新パターン解析」で後から追加されたパターン */
   discovered?: boolean;
   /** 反例克服ストーリーで登録した「罠パターン」 */
@@ -117,22 +123,37 @@ export interface SolutionPattern {
 }
 
 // ------------------------------------------
-// PatternItem（弱点分析・アダプティブ出題エンジン用の汎用習熟度パターン）
+// PatternItem（6層カタログの第5層。Subject→課程→単元→サブトピック→パターン→類題）
 // ------------------------------------------
 
 export type PatternMasteryLevel = 'locked' | 'seen' | 'practicing' | 'mastered';
 
 export interface PatternItem {
   id: string;
+  subtopicId: string;
+  unitId: string;
   subject: Subject;
-  unit: string;
-  patternName: string;
-  description: string;
+  /** 例: "パターン1: 軸が動く最大・最小" */
+  defaultName: string;
+  /** ユーザーが自由にリネームした名前 */
+  customName?: string;
   difficulty: number;
-  masteryLevel: PatternMasteryLevel;
-  solvedCount: number;
-  correctCount: number;
-  iconKey?: string;
+  strategyText: string;
+  exampleQuestion: string;
+  variantsCount?: number;
+  variants?: PatternVariant[];
+  isMastered?: boolean;
+}
+
+export interface PatternVariant {
+  id: string;
+  patternId: string;
+  /** 表示用。例: バリエーション 2 (図形文章) */
+  label: string;
+  /** カモフラージュ種別。例: 図形文章 / 共通テスト風 / 日常会話 */
+  styleLabel: string;
+  problem: GeneratedProblem;
+  createdAt: string;
 }
 
 // ------------------------------------------
@@ -360,4 +381,6 @@ export interface ImageAnalysisResult {
   variantProblem: GeneratedProblem;
   pattern: SolutionPattern;
   source: 'llm' | 'local';
+  /** 解き方が既存パターンと同一で、バリエーションとして分類したとき true */
+  matchedExisting?: boolean;
 }

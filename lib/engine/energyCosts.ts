@@ -3,19 +3,25 @@
 // ==========================================
 // 1日の標準Energyと、有料アクションの消費量を固定する。
 // 「数字を変えて再生成」「武器庫/図鑑閲覧」「過去問復習」「デイリークエスト経由の生成」は 0 Energy。
-// 図鑑の「新パターン解析」は問題生成と同じ 10 Energy。
+// 図鑑の「新パターン解析」「新バリエーション解析」は問題生成と同じ 10 Energy。
 
 /** 1日の標準Energy（日次リフィル上限） */
-export const DEFAULT_MAX_ENERGY = 200;
+export const DEFAULT_MAX_ENERGY = 300;
 
-/** 旧バージョンの日次上限。persist 移行で満タンユーザーを 200 に引き上げる */
+/** 旧バージョンの日次上限。persist 移行で満タンユーザーを現行上限へ引き上げる */
 export const LEGACY_MAX_ENERGY = 100;
+
+/** デイリークエスト等の報酬による限界突破（オーバーキャップ）の絶対上限 */
+export const ENERGY_OVERCAP_MAX = 400;
 
 /** 問題生成（/api/generate-problem） */
 export const ENERGY_COST_GENERATE_PROBLEM = 10;
 
 /** 新パターン解析（/api/generate-patterns） */
 export const ENERGY_COST_DISCOVER_PATTERNS = 10;
+
+/** 新バリエーション解析（/api/generate-variant）。同一解法の変装問題を1問発掘 */
+export const ENERGY_COST_GENERATE_VARIANT = 10;
 
 /** 画像解析（/api/analyze-image） */
 export const ENERGY_COST_ANALYZE_IMAGE = 15;
@@ -47,6 +53,9 @@ export const ENERGY_COST_GUEST_DEMO = 0;
 /** マイライブラリからの過去問復習。常に 0 Energy */
 export const ENERGY_COST_LIBRARY_REVIEW = 0;
 
+/** 蓄積済みバリエーションの演習。解析時に課金済みなので常に 0 Energy */
+export const ENERGY_COST_PATTERN_VARIANT = 0;
+
 /** デイリークエスト達成時の Energy 回復量 */
 export const DAILY_QUEST_ENERGY_REWARD = 30;
 
@@ -62,11 +71,16 @@ export function isLibraryReviewSource(source?: string | null): boolean {
   return source === 'review';
 }
 
-/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験 / 過去問復習は常に 0 */
+export function isPatternVariantSource(source?: string | null): boolean {
+  return source === 'variant';
+}
+
+/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験 / 過去問復習 / 蓄積バリエーションは常に 0 */
 export function getGenerateEnergyCost(source?: string | null): number {
   if (isDailyQuestSource(source)) return ENERGY_COST_DAILY_QUEST;
   if (isGuestDemoSource(source)) return ENERGY_COST_GUEST_DEMO;
   if (isLibraryReviewSource(source)) return ENERGY_COST_LIBRARY_REVIEW;
+  if (isPatternVariantSource(source)) return ENERGY_COST_PATTERN_VARIANT;
   return ENERGY_COST_GENERATE_PROBLEM;
 }
 
@@ -78,14 +92,15 @@ export function formatEnergyShortage(cost: number, remaining: number): string {
   );
 }
 
-/** デイリークエスト等の報酬。maxEnergy を超えるオーバーキャップを許可する（目安 250〜300） */
+/** デイリークエスト等の報酬。maxEnergy を超えるオーバーキャップを ENERGY_OVERCAP_MAX まで許可する */
 export function applyEnergyReward(energy: number, amount: number): number {
-  return Math.max(0, energy + Math.max(0, amount));
+  const next = Math.max(0, energy + Math.max(0, amount));
+  return Math.min(ENERGY_OVERCAP_MAX, next);
 }
 
 /**
  * 日次リセット。
- * Energy が通常上限未満なら上限まで回復し、上限以上（限界突破）は維持する。
+ * Energy が通常上限未満なら上限まで回復し、上限以上（限界突破）は値を維持する。
  */
 export function applyDailyEnergyRefill(energy: number, maxEnergy = DEFAULT_MAX_ENERGY): number {
   const current = Number.isFinite(energy) ? energy : 0;

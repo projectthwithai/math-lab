@@ -8,7 +8,7 @@ import MockExamSetup from '@/components/mock-exam/MockExamSetup';
 export default function MockExamPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
-      <PageBackButton fallbackHref="/units" />
+      <PageBackButton fallbackHref="/patterns" />
       <h1 className="mb-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
         全国統一 AI実践模試
       </h1>

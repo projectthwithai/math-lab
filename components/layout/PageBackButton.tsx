@@ -3,7 +3,7 @@
 // ==========================================
 // Apex Suite: Math Lab - 画面左上の戻るボタン
 // ==========================================
-// 同一オリジンからの遷移なら router.back()、直リンク等は単元選択へ退避する。
+// 同一オリジンからの遷移なら router.back()、直リンク等はパターン図鑑へ退避する。
 
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -14,7 +14,7 @@ interface PageBackButtonProps {
   href?: string;
 }
 
-export default function PageBackButton({ fallbackHref = '/units', href }: PageBackButtonProps) {
+export default function PageBackButton({ fallbackHref = '/patterns', href }: PageBackButtonProps) {
   const router = useRouter();
 
   const handleBack = () => {

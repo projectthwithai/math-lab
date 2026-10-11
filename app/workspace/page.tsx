@@ -28,6 +28,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   const rawQuestId = searchParams.questId;
   const rawMode = searchParams.mode;
   const rawProblemId = searchParams.problemId;
+  const rawVariantId = searchParams.variantId;
 
   const unitId = typeof rawUnitId === 'string' ? rawUnitId : undefined;
   const patternId = typeof rawPatternId === 'string' ? rawPatternId : undefined;
@@ -37,6 +38,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   const questId = typeof rawQuestId === 'string' ? rawQuestId : undefined;
   const mode = typeof rawMode === 'string' ? rawMode : undefined;
   const problemId = typeof rawProblemId === 'string' ? rawProblemId : undefined;
+  const variantId = typeof rawVariantId === 'string' ? rawVariantId : undefined;
   const parsedDifficulty = typeof rawDifficulty === 'string' ? Number(rawDifficulty) : NaN;
   const difficulty =
     Number.isFinite(parsedDifficulty) && parsedDifficulty >= 1 && parsedDifficulty <= 5
@@ -49,7 +51,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
       <PageBackButton
         href={isReview ? '/library' : undefined}
-        fallbackHref={isReview ? '/library' : '/units'}
+        fallbackHref={isReview ? '/library' : '/patterns'}
       />
       {isReview && (
         <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200">
@@ -57,8 +59,14 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
           過去問復習モード (0 Energy)
         </div>
       )}
+      {workspaceSource === 'variant' && (
+        <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-200">
+          <RefreshCw className="h-3.5 w-3.5" />
+          変装バリエーション演習（数字を変えて再生成 0 Energy）
+        </div>
+      )}
       <WorkspaceView
-        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${workspaceSource ?? ''}::${questId ?? ''}::${mode ?? ''}::${problemId ?? ''}`}
+        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${workspaceSource ?? ''}::${questId ?? ''}::${mode ?? ''}::${problemId ?? ''}::${variantId ?? ''}`}
         unitId={unitId}
         patternId={patternId}
         initialDifficulty={difficulty}
@@ -68,6 +76,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
         questId={questId}
         mode={mode}
         problemId={problemId}
+        variantId={variantId}
       />
     </main>
   );

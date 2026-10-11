@@ -3,19 +3,20 @@
 // ==========================================
 // Apex Suite: Math Lab - Mobile Bottom Nav
 // ==========================================
-// スマホ専用 5 タブ。全角 2 文字ラベルで親指操作・文字見切れを防ぐ。
+// 黄金の5大タブ。全角 2 文字ラベルで親指操作・文字見切れを防ぐ。
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookMarked, BookOpen, GraduationCap, Home, RotateCcw } from 'lucide-react';
+import { BookOpen, GraduationCap, Home, Library, Shield } from 'lucide-react';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: Home, match: (path: string) => path === '/' },
   {
-    href: '/units',
-    label: '学習',
+    href: '/patterns',
+    label: '図鑑',
     icon: BookOpen,
-    match: (path: string) => path === '/unit' || path.startsWith('/units') || path.startsWith('/workspace'),
+    match: (path: string) =>
+      path === '/unit' || path.startsWith('/units') || path.startsWith('/patterns') || path.startsWith('/workspace'),
   },
   {
     href: '/mock-exam',
@@ -24,15 +25,15 @@ const TABS = [
     match: (path: string) => path.startsWith('/mock-exam'),
   },
   {
-    href: '/patterns',
-    label: '図鑑',
-    icon: BookMarked,
-    match: (path: string) => path.startsWith('/patterns') || path.startsWith('/armory'),
+    href: '/armory',
+    label: '武器庫',
+    icon: Shield,
+    match: (path: string) => path.startsWith('/armory'),
   },
   {
     href: '/library',
     label: '復習',
-    icon: RotateCcw,
+    icon: Library,
     match: (path: string) => path.startsWith('/library'),
   },
 ] as const;
