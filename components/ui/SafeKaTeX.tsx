@@ -8,6 +8,7 @@
 // 赤文字の生コードエラー（\vec / \dfrac 等）を画面に出さない。
 
 import 'katex/dist/katex.min.css';
+import { braceMultiDigitSubscripts } from '@/lib/utils/mathFormatter';
 import { sanitizeAndRenderLatex } from '@/lib/utils/sanitizeLatex';
 
 interface SafeKaTeXProps {
@@ -17,7 +18,7 @@ interface SafeKaTeXProps {
 }
 
 export default function SafeKaTeX({ latex, className, displayMode = false }: SafeKaTeXProps) {
-  const html = sanitizeAndRenderLatex(latex ?? '', displayMode);
+  const html = sanitizeAndRenderLatex(braceMultiDigitSubscripts(latex ?? ''), displayMode);
   const Tag = displayMode || html.includes('katex-display') ? 'div' : 'span';
   const overflowClass = displayMode ? 'min-w-0 w-full max-w-full overflow-x-auto scrollbar-none' : '';
   return (

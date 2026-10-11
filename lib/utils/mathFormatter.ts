@@ -9,6 +9,16 @@ import type { GeneratedProblem } from '@/types/mathLab';
 /** 変数記号・LaTeXコマンド・括弧の直前にある係数 1 を消す対象 */
 const AFTER_ONE = '(?:[A-Za-zθπΔδλμσω]|\\\\[A-Za-z]+|\\()';
 
+/**
+ * 波括弧のない2桁以上の下付きを教科書表記へ直す。
+ * `S_14` → `S_{14}` / `a_10` → `a_{10}` / `x_23` → `x_{23}`
+ * 既に `S_{14}` やテンプレート `S_{{n}}` は触らない。
+ */
+export function braceMultiDigitSubscripts(source: string): string {
+  if (!source) return source;
+  return source.replace(/(?<!\\)([A-Za-z\u0370-\u03FF])_(\d{2,})(?!\})/g, '$1_{$2}');
+}
+
 function cleanOnce(source: string): string {
   // 下付き `_1x` や `{1}` の 1 は係数ではないので消さない（x_1x_2 → x_x_2 を防止）
   return source
@@ -23,7 +33,7 @@ function cleanOnce(source: string): string {
  */
 export function cleanLatexFormula(latex: string): string {
   if (!latex) return latex;
-  let current = latex;
+  let current = braceMultiDigitSubscripts(latex);
   for (let i = 0; i < 3; i += 1) {
     const next = cleanOnce(current);
     if (next === current) break;

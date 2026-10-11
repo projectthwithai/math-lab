@@ -2,6 +2,7 @@
 // Apex Suite: Math Lab - Workspace Page
 // ==========================================
 // `searchParams`（Next.js 16ではPromise）から`unitId`/`patternId`を取得し、
+// 図鑑からの遷移では `patternId` を最優先で WorkspaceView に渡す。
 // それらが変わるたびに`WorkspaceView`を強制的に再マウントする（key prop）。
 // グラフ・図形は visualType が none / 無効なら WorkspaceView で枠ごと非表示。
 // visualType がある問題だけ、初期折りたたみのアコーディオンを出す。
@@ -14,32 +15,23 @@
 import { RefreshCw } from 'lucide-react';
 
 import PageBackButton from '@/components/layout/PageBackButton';
+import { firstQueryValue } from '@/lib/engine/queryParam';
 import WorkspaceView from './WorkspaceView';
 
 export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   const searchParams = await props.searchParams;
 
-  const rawUnitId = searchParams.unitId;
-  const rawPatternId = searchParams.patternId;
-  const rawDifficulty = searchParams.difficulty;
-  const rawPrompt = searchParams.prompt;
-  const rawSource = searchParams.source;
-  const rawSubtopicId = searchParams.subtopicId;
-  const rawQuestId = searchParams.questId;
-  const rawMode = searchParams.mode;
-  const rawProblemId = searchParams.problemId;
-  const rawVariantId = searchParams.variantId;
-
-  const unitId = typeof rawUnitId === 'string' ? rawUnitId : undefined;
-  const patternId = typeof rawPatternId === 'string' ? rawPatternId : undefined;
-  const prompt = typeof rawPrompt === 'string' ? rawPrompt : undefined;
-  const source = typeof rawSource === 'string' ? rawSource : undefined;
-  const subtopicId = typeof rawSubtopicId === 'string' ? rawSubtopicId : undefined;
-  const questId = typeof rawQuestId === 'string' ? rawQuestId : undefined;
-  const mode = typeof rawMode === 'string' ? rawMode : undefined;
-  const problemId = typeof rawProblemId === 'string' ? rawProblemId : undefined;
-  const variantId = typeof rawVariantId === 'string' ? rawVariantId : undefined;
-  const parsedDifficulty = typeof rawDifficulty === 'string' ? Number(rawDifficulty) : NaN;
+  const unitId = firstQueryValue(searchParams.unitId);
+  const patternId = firstQueryValue(searchParams.patternId);
+  const prompt = firstQueryValue(searchParams.prompt);
+  const source = firstQueryValue(searchParams.source);
+  const subtopicId = firstQueryValue(searchParams.subtopicId);
+  const questId = firstQueryValue(searchParams.questId);
+  const mode = firstQueryValue(searchParams.mode);
+  const problemId = firstQueryValue(searchParams.problemId);
+  const variantId = firstQueryValue(searchParams.variantId);
+  const rawDifficulty = firstQueryValue(searchParams.difficulty);
+  const parsedDifficulty = rawDifficulty ? Number(rawDifficulty) : NaN;
   const difficulty =
     Number.isFinite(parsedDifficulty) && parsedDifficulty >= 1 && parsedDifficulty <= 5
       ? Math.round(parsedDifficulty)

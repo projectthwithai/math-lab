@@ -4,6 +4,8 @@
 // 低レベル呼び出し。プロバイダ選択は `lib/engine/aiRouter.ts` が行う。
 // Gemini は gemini-1.5-flash を優先し、廃止済みなら無料枠の Flash 系へ自動フォールバックする。
 
+import { parseLlmJsonObject } from '@/lib/llm/parseLlmJson';
+
 export interface LlmImagePart {
   mimeType: string;
   base64: string;
@@ -53,22 +55,8 @@ export function hasGeminiApiKey(): boolean {
   return Boolean(getGeminiApiKey());
 }
 
-function extractJsonText(raw: string): string {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) return fenced[1].trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
-}
-
 function parseJsonObject(raw: string): unknown | null {
-  try {
-    return JSON.parse(extractJsonText(raw));
-  } catch {
-    return null;
-  }
+  return parseLlmJsonObject(raw);
 }
 
 function geminiHeaders(apiKey: string): HeadersInit {

@@ -38,8 +38,12 @@ export function pickPracticePattern(params: {
   subtopicId?: string;
   discoveredPatterns: SolutionPattern[];
 }): PickedPracticePattern {
-  const explicit = findPatternInPools(params.patternId, params.discoveredPatterns);
-  if (explicit) return explicit;
+  if (params.patternId) {
+    const explicit = findPatternInPools(params.patternId, params.discoveredPatterns);
+    if (explicit) return explicit;
+    // URL の patternId を最優先。見つからなくても単元ランダムへ落とさない。
+    return { pattern: null, fromDiscovered: false };
+  }
 
   const unitId = params.unitId;
   const catalog = unitId ? getSolutionPatternsByUnit(unitId) : [];

@@ -1031,7 +1031,7 @@ function sequenceByTier(tier: DifficultyTier, difficulty: number): TemplateBluep
         d: { min: 2, max: 4, step: 1 },
         n: { min: 8, max: 15, step: 1 },
       },
-      templateText: '初項 {{a1}}、公差 {{d}} の等差数列の初項から第 {{n}} 項までの和 $S_{{n}}$ を求めよ。',
+      templateText: '初項 {{a1}}、公差 {{d}} の等差数列の初項から第 {{n}} 項までの和 $S_{{{n}}}$ を求めよ。',
       calcLogicJS: `
         const a1 = vars.a1, d = vars.d, n = vars.n;
         const an = a1 + (n - 1) * d;
@@ -1063,7 +1063,7 @@ function sequenceByTier(tier: DifficultyTier, difficulty: number): TemplateBluep
       n: { min: 4, max: 6, step: 1 },
     },
     templateText:
-      '$a_1={{a1}}$，$a_{n+1}={{p}}a_n+{{q}}$ で定まる数列の第 {{n}} 項 $a_{{n}}$ を求めよ。',
+      '$a_1={{a1}}$，$a_{n+1}={{p}}a_n+{{q}}$ で定まる数列の第 {{n}} 項 $a_{{{n}}}$ を求めよ。',
     calcLogicJS: `
       const a1 = vars.a1, p = vars.p, q = vars.q, n = vars.n;
       const alpha = q / (1 - p);

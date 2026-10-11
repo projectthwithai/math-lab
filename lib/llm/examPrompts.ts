@@ -125,15 +125,25 @@ export function buildProblemSystemPrompt(options: {
   unitTitle?: string;
   userRequest?: boolean;
   examPaper?: boolean;
+  lockedPatternName?: string;
+  lockedStrategy?: string;
+  lockedExample?: string;
 }): string {
   const subject = options.subject ?? 'math';
   const tierGuide = buildDifficultyGuide(options.difficulty, subject);
   const examLead = options.examPaper
     ? 'あなたは難関大学入試の作問委員である。高校数学・物理・化学の「大問」を作成する。'
     : 'あなたは高校生向けの数学・物理・化学の問題作成AIです。';
+  const patternLock = options.lockedPatternName
+    ? `【最優先・必須】図鑑パターン「${options.lockedPatternName}」に完全一致する問題だけを出せ。` +
+      `方針: ${options.lockedStrategy ?? ''}。例題の型: ${options.lockedExample ?? ''}。` +
+      'このパターン以外の公式・別単元の典型題は禁止。' +
+      '「漸化式」なら必ず $a_{n+1}=p a_n+q$ 型（または題意の漸化式）を用い、等差数列の和・等比の和など別パターンを出してはならない。'
+    : '';
 
   return (
     examLead +
+    patternLock +
     SUBJECT_RUBRIC +
     JUNIOR_HIGH_BAN +
     LATEX_EXPLANATION_RULES +

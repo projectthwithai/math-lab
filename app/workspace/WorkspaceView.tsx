@@ -284,7 +284,7 @@ export default function WorkspaceView({
           difficulty,
           prompt,
           discoveredPatterns: prompt ? [] : excavatedForUnit,
-        }),
+        }), // patternId があれば API 側が最優先でピン留めする
       });
       if (!response.ok) throw new Error(`generate-problem ${response.status}`);
       const data = (await response.json()) as GeneratedProblem;

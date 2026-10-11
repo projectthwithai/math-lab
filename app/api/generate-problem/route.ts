@@ -29,6 +29,7 @@ import { parseVisualType } from '@/lib/engine/visualNeed';
 import { routeLlmJson, resolveRouterUserEmail } from '@/lib/engine/aiRouter';
 import { buildDifficultyGuide, buildProblemSystemPrompt } from '@/lib/llm/examPrompts';
 import { ensureProblemHasCorrectAnswer, isPlaceholderCorrectAnswer } from '@/lib/engine/correctAnswer';
+import { problemTextMatchesPattern } from '@/lib/mock/patternLockedBlueprints';
 
 interface GenerateProblemParams {
   unitId?: string;
@@ -37,6 +38,7 @@ interface GenerateProblemParams {
   difficulty?: number;
   discoveredPatterns?: SolutionPattern[];
   prompt?: string;
+  lockedPattern?: SolutionPattern;
 }
 
 function parseDifficulty(raw: unknown): number | undefined {
@@ -60,10 +62,22 @@ function finalizeGeneratedProblem(
   viaLlm: GeneratedProblem | null,
   params: GenerateProblemParams
 ): GeneratedProblem {
-  if (viaLlm && !isPlaceholderCorrectAnswer(viaLlm.correctAnswer)) {
+  const llmUsable =
+    viaLlm &&
+    !isPlaceholderCorrectAnswer(viaLlm.correctAnswer) &&
+    (!params.lockedPattern || problemTextMatchesPattern(viaLlm.questionText, params.lockedPattern));
+  if (llmUsable && viaLlm) {
     return ensureProblemHasCorrectAnswer(viaLlm);
   }
-  return ensureProblemHasCorrectAnswer(generateMockProblem(params));
+  return ensureProblemHasCorrectAnswer(
+    generateMockProblem({
+      unitId: params.unitId,
+      patternId: params.patternId,
+      subtopicId: params.subtopicId ?? params.lockedPattern?.subtopicId,
+      difficulty: params.difficulty,
+      lockedPattern: params.lockedPattern,
+    })
+  );
 }
 
 function parseDiscoveredPatterns(raw: unknown): SolutionPattern[] {
@@ -122,20 +136,28 @@ async function generateViaLlm(
   const tier = getDifficultyTier(difficulty);
   const tierGuide = buildDifficultyGuide(difficulty, unit?.subject ?? 'math');
 
+  const locked = params.lockedPattern;
   const systemPrompt = buildProblemSystemPrompt({
     difficulty,
-    subject: unit?.subject ?? 'math',
-    unitTitle: unit?.title,
+    subject: unit?.subject ?? locked?.subject ?? 'math',
+    unitTitle: unit?.title ?? locked?.unit,
     userRequest: Boolean(params.prompt),
+    lockedPatternName: locked?.patternName,
+    lockedStrategy: locked?.strategyText,
+    lockedExample: locked?.exampleQuestion,
   });
 
   const userPrompt = JSON.stringify({
-    subject: unit?.subject ?? 'math',
-    unitTitle: unit?.title ?? '数学の基本問題',
+    subject: unit?.subject ?? locked?.subject ?? 'math',
+    unitTitle: unit?.title ?? locked?.unit ?? '数学の基本問題',
     difficulty,
     difficultyTier: tier,
     difficultyGuide: tierGuide,
-    patternName: params.patternId,
+    patternId: params.patternId,
+    patternName: locked?.patternName ?? params.patternId,
+    strategyText: locked?.strategyText ?? '',
+    exampleQuestion: locked?.exampleQuestion ?? '',
+    subtopicId: locked?.subtopicId ?? params.subtopicId,
     userRequest: params.prompt ?? '',
     outputSchema: {
       title: `string（先頭に ${meta.starLabel}${meta.label} を付ける）`,
@@ -208,6 +230,7 @@ async function handleGenerateProblem(
       difficulty: params.difficulty ?? intent.difficulty,
       prompt: params.prompt,
       patternId: params.patternId,
+      subtopicId: params.subtopicId,
     };
     const picked = pickPracticePattern({
       unitId: generationParams.unitId,
@@ -217,6 +240,8 @@ async function handleGenerateProblem(
     });
     if (picked.pattern) {
       generationParams.patternId = picked.pattern.id;
+      generationParams.lockedPattern = picked.pattern;
+      generationParams.subtopicId = picked.pattern.subtopicId ?? generationParams.subtopicId;
     }
     const viaPrompt = await generateViaLlm(generationParams, userEmail);
     const base = finalizeGeneratedProblem(viaPrompt, generationParams);
@@ -245,8 +270,10 @@ async function handleGenerateProblem(
   const generationParams: GenerateProblemParams = {
     unitId: resolvedUnitId,
     patternId: resolvedPatternId,
+    subtopicId: params.subtopicId ?? picked.pattern?.subtopicId,
     difficulty: resolvedDifficulty,
     prompt: params.prompt,
+    lockedPattern: picked.pattern ?? undefined,
   };
 
   const viaLlm = await generateViaLlm(generationParams, userEmail);

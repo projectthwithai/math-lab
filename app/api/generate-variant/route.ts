@@ -13,12 +13,15 @@ import { parseGeometryScene } from '@/lib/engine/geometryVisual';
 import { parseVisualType } from '@/lib/engine/visualNeed';
 import { isCommanderUser, resolveRouterUserEmail, routeLlmJson } from '@/lib/engine/aiRouter';
 import { completeLlmJson } from '@/lib/llm/completeJson';
+import { parseLlmJsonObject } from '@/lib/llm/parseLlmJson';
 import { buildExamVariantSystemPrompt } from '@/lib/llm/examPrompts';
 import { ensureProblemHasCorrectAnswer, isPlaceholderCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { normalizeThemeLabel, pickExamThemeLabel } from '@/lib/engine/patternVariant';
 import { isExamQualityVariantText } from '@/lib/engine/variantQuality';
 import { wrapBareLatexOutsideMath } from '@/lib/utils/sanitizeLatex';
 import { clampDifficulty, DEFAULT_DIFFICULTY } from '@/lib/engine/difficultyScale';
+import { generateExamVariantFallback } from '@/lib/mock/generateExamVariantFallback';
+import { problemTextMatchesPattern } from '@/lib/mock/patternLockedBlueprints';
 
 interface GenerateVariantBody {
   patternId?: unknown;
@@ -64,6 +67,23 @@ function parseExistingCount(raw: unknown): number {
   return Math.round(parsed);
 }
 
+function coerceVariantPayload(value: unknown): unknown {
+  if (value == null) return null;
+  if (typeof value === 'string') return parseLlmJsonObject(value);
+  if (typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  if (isValidLlmVariantPayload(record)) return record;
+  for (const key of ['problem', 'data', 'variant', 'result']) {
+    const nested = record[key];
+    if (isValidLlmVariantPayload(nested)) return nested;
+    if (typeof nested === 'string') {
+      const parsed = parseLlmJsonObject(nested);
+      if (isValidLlmVariantPayload(parsed)) return parsed;
+    }
+  }
+  return value;
+}
+
 function isValidLlmVariantPayload(value: unknown): value is LlmVariantPayload {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
@@ -96,14 +116,15 @@ async function completeVariantJson(params: {
     geminiOnly: true,
     temperature: 0.75,
   });
-  if (gemini !== null) return gemini;
+  const geminiPayload = coerceVariantPayload(gemini);
+  if (geminiPayload != null) return geminiPayload;
   if (isCommanderUser(params.userEmail)) return null;
   const routed = await routeLlmJson({
     systemPrompt: params.systemPrompt,
     userPrompt: params.userPrompt,
     userEmail: params.userEmail,
   });
-  return routed?.data ?? null;
+  return coerceVariantPayload(routed?.data ?? null);
 }
 
 async function generateVariantViaLlm(params: {
@@ -146,11 +167,13 @@ async function generateVariantViaLlm(params: {
   });
 
   try {
-    const parsed = await completeVariantJson({
-      systemPrompt: buildExamVariantSystemPrompt(params.patternName, params.strategyText),
-      userPrompt,
-      userEmail: params.userEmail,
-    });
+    const parsed = coerceVariantPayload(
+      await completeVariantJson({
+        systemPrompt: buildExamVariantSystemPrompt(params.patternName, params.strategyText),
+        userPrompt,
+        userEmail: params.userEmail,
+      })
+    );
     if (!isValidLlmVariantPayload(parsed)) return null;
     if (!isExamQualityVariantText(parsed.templateText)) return null;
     if (!isExamQualityVariantText(parsed.title)) return null;
@@ -197,6 +220,7 @@ async function generateVariantViaLlm(params: {
     const problem = ensureProblemHasCorrectAnswer(regenerateProblemLocally(base));
     if (isPlaceholderCorrectAnswer(problem.correctAnswer)) return null;
     if (!isExamQualityVariantText(problem.questionText)) return null;
+    if (catalog && !problemTextMatchesPattern(problem.questionText, catalog)) return null;
     return { problem, styleLabel };
   } catch (error) {
     console.error('[generate-variant] 入試バリエーションの生成に失敗しました', error);
@@ -230,25 +254,34 @@ export async function POST(request: Request): Promise<Response> {
   const existingCount = parseExistingCount(body.existingCount);
   const userEmail = await resolveRouterUserEmail(request, body.userEmail);
 
-  const viaLlm = await generateVariantViaLlm({
-    patternId,
-    patternName,
-    strategyText,
-    unitId,
-    subject,
-    existingCount,
-    userEmail,
-  });
-
-  if (!viaLlm) {
-    return NextResponse.json(
-      { error: '入試レベルのバリエーションを生成できませんでした。手抜きテンプレートでは代替しません。' },
-      { status: 503 }
-    );
+  let viaLlm: { problem: GeneratedProblem; styleLabel: string } | null = null;
+  try {
+    viaLlm = await generateVariantViaLlm({
+      patternId,
+      patternName,
+      strategyText,
+      unitId,
+      subject,
+      existingCount,
+      userEmail,
+    });
+  } catch (error) {
+    console.error('[generate-variant] LLM経路で例外。パターン固定フォールバックへ切り替えます', error);
   }
 
+  const result =
+    viaLlm ??
+    generateExamVariantFallback({
+      patternId,
+      patternName,
+      strategyText,
+      unitId,
+      subject,
+      existingCount,
+    });
+
   return NextResponse.json({
-    problem: viaLlm.problem,
-    styleLabel: viaLlm.styleLabel,
+    problem: result.problem,
+    styleLabel: result.styleLabel,
   });
 }

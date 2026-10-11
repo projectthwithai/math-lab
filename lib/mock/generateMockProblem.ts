@@ -13,7 +13,7 @@
 // バックスラッシュ系LaTeXコマンド（\sin, \frac 等）を使わず、Unicode数学記号
 // （θ, π, °, ², √, ・ 等）とASCII表記（^, /, ()）のみで数式を表現する。
 
-import type { GeneratedProblem, Subject } from '@/types/mathLab';
+import type { GeneratedProblem, SolutionPattern, Subject } from '@/types/mathLab';
 import { regenerateProblemLocally } from '@/lib/engine/localRegenerator';
 import { ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { getUnitById } from '@/data/unitsData';
@@ -28,6 +28,7 @@ import {
 import { buildTieredBlueprint } from '@/lib/mock/tieredBlueprints';
 import { createVariantSeed, pickBlueprint } from '@/lib/mock/variantPools';
 import { getExtraBlueprints } from '@/lib/mock/extraUnitVariants';
+import { buildPatternLockedBlueprint } from '@/lib/mock/patternLockedBlueprints';
 
 export type { PatternKey };
 
@@ -1492,7 +1493,10 @@ function buildBlueprint(patternKey: PatternKey, difficulty: number, unitTitle: s
 export interface GenerateMockProblemParams {
   unitId?: string;
   patternId?: string;
+  subtopicId?: string;
   difficulty?: number;
+  /** 図鑑／発掘パターン。patternId より実体を優先する */
+  lockedPattern?: SolutionPattern;
   /** 模試フォールバック: 基礎ドリル用 extra を混ぜず、単元の本問テンプレートのみ */
   examQuality?: boolean;
 }
@@ -1500,36 +1504,52 @@ export interface GenerateMockProblemParams {
 export function generateMockProblem({
   unitId,
   patternId,
+  subtopicId,
   difficulty,
+  lockedPattern,
   examQuality,
 }: GenerateMockProblemParams): GeneratedProblem {
   let resolvedUnitId = unitId;
   let resolvedDifficulty = difficulty;
+  const catalogPattern = lockedPattern ?? (patternId ? findSolutionPatternById(patternId) : undefined);
 
-  if (patternId) {
-    const pattern = findSolutionPatternById(patternId);
-    if (pattern) {
-      resolvedUnitId = resolvedUnitId ?? pattern.unitId;
-      resolvedDifficulty = resolvedDifficulty ?? getPatternStarDifficulty(pattern);
-    }
+  if (catalogPattern) {
+    resolvedUnitId = resolvedUnitId ?? catalogPattern.unitId;
+    resolvedDifficulty = resolvedDifficulty ?? getPatternStarDifficulty(catalogPattern);
   }
 
   const unit = resolvedUnitId ? getUnitById(resolvedUnitId) : undefined;
   const subject: Subject = unit?.subject ?? 'math';
   const finalDifficulty = clampDifficulty(resolvedDifficulty ?? DEFAULT_DIFFICULTY);
+  const unitTitle = unit?.title ?? catalogPattern?.unit ?? '数学';
+
+  const patternForLock: SolutionPattern | undefined = catalogPattern
+    ? catalogPattern
+    : subtopicId
+      ? {
+          id: patternId ?? subtopicId,
+          subject,
+          unit: unitTitle,
+          unitId: resolvedUnitId,
+          subtopicId,
+          level: 'standard',
+          patternName: '',
+          exampleQuestion: '',
+          strategyText: '',
+        }
+      : undefined;
+
+  const lockedBlueprint = buildPatternLockedBlueprint(patternForLock, finalDifficulty, unitTitle);
 
   const patternKey: PatternKey =
     (resolvedUnitId ? UNIT_ID_PATTERN_MAP[resolvedUnitId] : undefined) ?? genericKeyForSubject(subject);
 
-  const unitTitle = unit?.title ?? '数学';
-  const primary = buildBlueprint(patternKey, finalDifficulty, unitTitle);
-  // ★8-10 では基本計算の extra バリアントを混ぜず、難関テンプレートだけを出す。
+  const primary = lockedBlueprint ?? buildBlueprint(patternKey, finalDifficulty, unitTitle);
   const extras =
-    examQuality || getDifficultyTier(finalDifficulty) === 'hard'
+    lockedBlueprint || examQuality || getDifficultyTier(finalDifficulty) === 'hard'
       ? []
       : getExtraBlueprints(resolvedUnitId, finalDifficulty, unitTitle);
-  // 図鑑から patternId 指定時は主テンプレートを維持。単元指定のみのときは複数パターンから抽選。
-  const pool = patternId || examQuality ? [primary] : [primary, ...extras];
+  const pool = patternId || examQuality || lockedBlueprint ? [primary] : [primary, ...extras];
   const seed = createVariantSeed();
   const blueprint = pickBlueprint(pool, seed);
 
