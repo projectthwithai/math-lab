@@ -170,7 +170,7 @@ export default function Navbar() {
             role="status"
           >
             <p className="text-center text-sm font-bold leading-relaxed text-orange-100 sm:text-base">
-              🔥 本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
+              本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
             </p>
           </motion.div>
         )}
@@ -190,10 +190,10 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setAuthNotice(null)}
-                className="rounded-full p-0.5 text-amber-300/70 hover:text-white"
+                className="rounded-full p-1 text-zinc-400 transition-colors hover:text-zinc-100"
                 aria-label="閉じる"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
               </button>
             </div>
           </motion.div>

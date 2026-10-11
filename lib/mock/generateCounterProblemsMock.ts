@@ -23,9 +23,9 @@ function inferSubject(questionText: string, fallback?: Subject): Subject {
 }
 
 function stampTrap(problem: GeneratedProblem): GeneratedProblem {
-  const titled = problem.title.startsWith('⚠️')
+  const titled = problem.title.startsWith('罠パターン')
     ? problem
-    : { ...problem, title: `⚠️ 罠パターン: ${problem.title}` };
+    : { ...problem, title: `罠パターン: ${problem.title}` };
   return ensureProblemHasCorrectAnswer({
     ...titled,
     fromDiscoveredPattern: true,

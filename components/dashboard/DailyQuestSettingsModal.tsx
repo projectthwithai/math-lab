@@ -106,10 +106,10 @@ export default function DailyQuestSettingsModal({
         <button
           type="button"
           onClick={handleDiscard}
-          className="absolute right-6 top-6 rounded-full border border-slate-700 bg-slate-900/80 p-2 text-slate-300 transition hover:border-slate-500 hover:text-white md:right-10 md:top-10"
+          className="absolute right-6 top-6 rounded-full border border-zinc-800 bg-zinc-950/80 p-2 text-zinc-400 transition-colors hover:text-zinc-100 md:right-10 md:top-10"
           aria-label="保存せずに閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         <header className="pr-14">
@@ -309,18 +309,18 @@ export default function DailyQuestSettingsModal({
           <button
             type="button"
             onClick={handleDiscard}
-            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900 py-4 text-sm font-semibold text-slate-200 transition hover:border-slate-400 hover:bg-slate-800"
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900 py-4 text-sm font-medium tracking-tight text-slate-200 transition hover:border-slate-400 hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
-            ✕ 保存せずに閉じる
+            保存せずに閉じる
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-400/60 bg-cyan-400/15 py-4 text-sm font-bold text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.35)] transition hover:bg-cyan-400/25"
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-400/60 bg-cyan-400/15 py-4 text-sm font-medium tracking-tight text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.35)] transition hover:bg-cyan-400/25"
           >
             <Check className="h-4 w-4" />
-            ✓ 設定を保存して閉じる
+            設定を保存して閉じる
           </button>
         </div>
       </div>

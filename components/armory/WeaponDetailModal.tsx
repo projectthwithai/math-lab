@@ -40,7 +40,7 @@ function WeaponMasteredBadge({ weaponId }: { weaponId: string }) {
         title="習得をリセット"
         aria-label="MASTERED を解除"
       >
-        💎 MASTERED
+        MASTERED
       </button>
       <button
         type="button"
@@ -48,7 +48,7 @@ function WeaponMasteredBadge({ weaponId }: { weaponId: string }) {
         className="inline-flex items-center gap-0.5 rounded-full border border-slate-300/70 bg-white/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 transition hover:border-amber-400/50 hover:text-amber-700 dark:border-slate-600 dark:bg-slate-900/80 dark:text-slate-400 dark:hover:text-amber-200"
       >
         <RotateCcw className="h-2.5 w-2.5" />
-        ↺ 習得をリセット
+        習得をリセット
       </button>
     </span>
   );
@@ -72,10 +72,10 @@ export default function WeaponDetailModal({ weapon, onClose }: WeaponDetailModal
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
           aria-label="閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         <span className={`rounded-full border ${accent.border} px-2.5 py-1 text-[11px] font-bold ${accent.text}`}>

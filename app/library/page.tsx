@@ -4,7 +4,7 @@
 // Apex Suite: Math Lab - マイライブラリ ＆ 忘却曲線復習画面
 // ==========================================
 // 過去に解いた問題（マイ問題集）を一覧表示し、エビングハウスの忘却曲線に基づき
-// 「🔥 今日復習すべき過去問」を優先バッジで示す。正否タブ・失点原因フィルターと
+// 「今日復習すべき過去問」を優先バッジで示す。正否タブ・失点原因フィルターと
 // ミス分析ダッシュボードで弱点克服の演習ループを回す。
 // 「数字を変えて即挑戦」は簡易モーダルではなく /workspace?mode=review の全画面へ遷移する。
 
@@ -25,8 +25,8 @@ type ResultFilter = 'all' | 'correct' | 'incorrect';
 
 const RESULT_TABS: Array<{ id: ResultFilter; label: string; icon: typeof Layers }> = [
   { id: 'all', label: 'すべて', icon: Layers },
-  { id: 'correct', label: '⭕️ 正解した問題', icon: CircleCheck },
-  { id: 'incorrect', label: '❌ 間違えた問題（要復習）', icon: CircleX },
+  { id: 'correct', label: '正解した問題', icon: CircleCheck },
+  { id: 'incorrect', label: '間違えた問題', icon: CircleX },
 ];
 
 export default function LibraryPage() {

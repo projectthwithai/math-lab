@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Flag, LineChart } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import KaTeXText from '@/components/workspace/KaTeXText';
@@ -169,13 +169,7 @@ export default function MockExamPlay() {
   if (!problems || !problem) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-6 px-4 py-16">
-        <DynamicLoadingCircle
-          size="lg"
-          label="Gemini が難関大レベルの大問を構成しています"
-        />
-        <p className="max-w-md text-center text-sm text-zinc-400">
-          模試APIが gemini-1.5-flash / gemini-2.0-flash で5問を生成します。中学の展開ドリルは使いません。
-        </p>
+        <DynamicLoadingCircle size="lg" />
       </div>
     );
   }
@@ -268,9 +262,10 @@ export default function MockExamPlay() {
               <button
                 type="button"
                 onClick={() => setVisualOpen((open) => !open)}
-                className="w-full bg-slate-50 px-3 py-2 text-xs font-semibold dark:bg-slate-950/80"
+                className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2 text-xs font-medium tracking-tight dark:bg-slate-950/80"
               >
-                📈 グラフ・図形を表示する (タップで展開)
+                <LineChart className="h-3.5 w-3.5" />
+                図形
               </button>
               {visualOpen && (
                 <div className="border-t border-slate-200 p-2 dark:border-slate-800">
@@ -351,26 +346,26 @@ export default function MockExamPlay() {
           <button
             type="button"
             onClick={goPrev}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-cyan-400/50 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:text-cyan-200"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white py-3 text-sm font-medium tracking-tight text-slate-700 transition-colors hover:border-cyan-400/50 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:text-cyan-200"
           >
             <ChevronLeft className="h-4 w-4" />
-            ⬅️ 前の問題へ
+            前へ
           </button>
         )}
         {isLast ? (
           <button
             type="button"
             onClick={goNext}
-            className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-400/10 py-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
+            className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-400/10 py-3 text-sm font-medium tracking-tight text-amber-700 transition-colors hover:bg-amber-400/20 dark:text-amber-200"
           >
             <Flag className="h-4 w-4" />
-            🏁 模試を完了して採点する
+            模試を完了して採点する
           </button>
         ) : (
           <button
             type="button"
             onClick={goNext}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-semibold text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-3 text-sm font-medium tracking-tight text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
           >
             次の問題へ
             <ChevronRight className="h-4 w-4" />

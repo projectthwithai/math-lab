@@ -125,10 +125,10 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-full p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+          className="absolute right-3 top-3 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
           aria-label="閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">Paper Notebook</p>
@@ -202,7 +202,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
               赤ペン添削中...
             </>
           ) : (
-            'この写真をAI添削する'
+            'この写真を添削する'
           )}
         </button>
 
@@ -222,7 +222,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
                   : correction.overall === 'empty'
                     ? '途中式が不足しています'
                     : '直すべき行があります'}
-                {correction.source === 'local' ? ' · 通信エラー時の予備添削' : ' · Gemini Vision'}
+                {correction.source === 'local' ? ' · 予備の添削' : ' · Apexエンジン'}
               </p>
               <ul className="mt-3 flex flex-col gap-2">
                 {correction.comments.map((comment, index) => (

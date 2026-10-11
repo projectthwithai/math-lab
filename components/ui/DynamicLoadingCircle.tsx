@@ -9,10 +9,13 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const STATUS_MESSAGES = [
-  'AIが問題の条件を構成中...',
-  '数式モデルを解析中...',
-  '思考逆算ツリーを構築中...',
+  '条件を解析中...',
+  '数式モデルを構成中...',
+  '思考の逆算を組み立て中...',
 ] as const;
+
+const DEFAULT_TITLE = '実戦大問セットを構成中';
+const DEFAULT_DESCRIPTION = '思考力・誘導形式の演習を構築しています';
 
 const MESSAGE_INTERVAL_MS = 1500;
 
@@ -21,38 +24,50 @@ type LoadingSize = 'md' | 'lg';
 interface DynamicLoadingCircleProps {
   size?: LoadingSize;
   className?: string;
+  /** メインタイトル。未指定時は既定の洗練コピー */
+  title?: string;
+  /** サブテキスト。未指定時は既定コピー。空文字で非表示 */
+  description?: string;
+  /** 指定時は切り替えアニメーションの代わりにこの1文だけ出す */
   label?: string;
 }
 
-const SIZE: Record<LoadingSize, { box: string; core: string; glow: string; text: string }> = {
+const SIZE: Record<LoadingSize, { box: string; core: string; glow: string; title: string; sub: string }> = {
   md: {
     box: 'h-28 w-28',
     core: 'h-10 w-10',
     glow: 'shadow-[0_0_28px_rgba(34,211,238,0.45)]',
-    text: 'text-xs',
+    title: 'text-sm',
+    sub: 'text-xs',
   },
   lg: {
     box: 'h-44 w-44 sm:h-52 sm:w-52',
     core: 'h-16 w-16 sm:h-20 sm:w-20',
     glow: 'shadow-[0_0_48px_rgba(34,211,238,0.55)]',
-    text: 'text-sm sm:text-base',
+    title: 'text-sm sm:text-base',
+    sub: 'text-xs sm:text-sm',
   },
 };
 
 export default function DynamicLoadingCircle({
   size = 'lg',
   className = '',
+  title = DEFAULT_TITLE,
+  description = DEFAULT_DESCRIPTION,
   label,
 }: DynamicLoadingCircleProps) {
   const spec = SIZE[size];
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
+    if (label) return;
     const timer = window.setInterval(() => {
       setMessageIndex((current) => (current + 1) % STATUS_MESSAGES.length);
     }, MESSAGE_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [label]);
+
+  const liveMessage = label ?? STATUS_MESSAGES[messageIndex];
 
   return (
     <div
@@ -106,21 +121,27 @@ export default function DynamicLoadingCircle({
         </div>
       </div>
 
-      <div className="min-h-8 px-4 text-center">
+      <div className="flex min-h-8 max-w-md flex-col items-center gap-2 px-4 text-center">
+        {title ? (
+          <p className={`font-medium tracking-tight text-zinc-200 ${spec.title}`}>{title}</p>
+        ) : null}
         <AnimatePresence mode="wait">
           <motion.p
-            key={label ?? STATUS_MESSAGES[messageIndex]}
+            key={liveMessage}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className={`font-medium tracking-wide text-slate-500 dark:text-slate-400 ${spec.text}`}
+            className={`font-medium tracking-wide text-slate-500 dark:text-slate-400 ${spec.sub}`}
           >
-            {label ?? STATUS_MESSAGES[messageIndex]}
+            {liveMessage}
           </motion.p>
         </AnimatePresence>
+        {description ? (
+          <p className={`font-medium tracking-tight text-zinc-500 ${spec.sub}`}>{description}</p>
+        ) : null}
       </div>
-      <span className="sr-only">問題を生成しています</span>
+      <span className="sr-only">{title || '実戦大問セットを構成中'}</span>
     </div>
   );
 }

@@ -32,6 +32,12 @@ export const ENERGY_COST_COUNTER_CHALLENGE = 10;
 /** 手書き途中式のAI赤ペン添削（/api/correct-scratchpad） */
 export const ENERGY_COST_CORRECT_SCRATCHPAD = 5;
 
+/** 紙ノート写真の読み取り・論理デバッグ（/api/analyze-handwritten-note） */
+export const ENERGY_COST_ANALYZE_HANDWRITTEN_NOTE = 5;
+
+/** 不正解時の失点原因診断（/api/diagnose-mistake） */
+export const ENERGY_COST_DIAGNOSE_MISTAKE = 5;
+
 /** デイリークエスト経由の問題生成・解答。常に 0 Energy */
 export const ENERGY_COST_DAILY_QUEST = 0;
 

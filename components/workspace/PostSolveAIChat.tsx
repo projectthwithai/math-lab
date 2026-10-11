@@ -30,7 +30,7 @@ interface PostSolveAIChatProps {
 }
 
 const QUICK_QUESTIONS = ['この変形がわからない', '別解はある？', 'もっと分かりやすく'] as const;
-export const MEMO_REVIEW_QUESTION = '📝 私の解法メモ、この考え方で合ってる？';
+export const MEMO_REVIEW_QUESTION = '私の解法メモ、この考え方で合ってる？';
 
 export default function PostSolveAIChat({
   questionText,
@@ -112,7 +112,7 @@ export default function PostSolveAIChat({
       >
         <span className="flex items-center gap-2 text-sm font-bold text-cyan-700 dark:text-cyan-200">
           <MessageCircle className="h-4 w-4 text-cyan-400" />
-          💬 この解説についてAIに質問する
+          専属ガイドに質問する
         </span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-cyan-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -186,7 +186,7 @@ export default function PostSolveAIChat({
                 {isSending && (
                   <p className="flex items-center gap-1.5 text-[11px] text-cyan-500 dark:text-cyan-300">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    専属チューターが解説とメモを踏まえて考えています...
+                    専属ガイドが解説とメモを踏まえて考えています...
                   </p>
                 )}
               </div>

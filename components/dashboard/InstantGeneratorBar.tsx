@@ -119,7 +119,7 @@ export default function InstantGeneratorBar() {
               aria-label="カメラで撮影"
               title="カメラで撮影"
             >
-              <Camera className="h-5 w-5" />
+              <Camera className="h-4 w-4 text-cyan-400" />
             </button>
             <button
               type="button"
@@ -133,7 +133,7 @@ export default function InstantGeneratorBar() {
             <button
               type="submit"
               disabled={prompt.trim().length === 0}
-              className="flex h-12 items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:border-slate-700 hover:bg-slate-800 disabled:opacity-40 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+              className="flex h-12 items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm font-medium tracking-tight text-white transition-colors hover:border-slate-700 hover:bg-slate-800 disabled:opacity-40 dark:border-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
             >
               <Send className="h-4 w-4" />
               生成

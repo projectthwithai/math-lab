@@ -56,10 +56,10 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
           aria-label="閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-300">
@@ -67,8 +67,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
         </p>
         <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">解析結果</h2>
         <p className="mt-1 text-xs text-slate-500">
-          原問の文章は保存・表示しません。解法構造だけを抽出し、完全オリジナルの類題を作りました
-          {result.source === 'local' ? '（APIキー未設定のためサンプル構造）' : ''}。
+          原問の文章は保存・表示しません。解法構造だけを抽出し、完全オリジナルの類題を作りました。
         </p>
 
         <section className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/60">

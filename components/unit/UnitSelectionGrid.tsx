@@ -3,7 +3,7 @@
 // ==========================================
 // Apex Suite: Math Lab - Unit Selection Grid
 // ==========================================
-// 単元カード ➔ サブトピック一覧（ボスバトル＋縦スクロール）➔ 演習開始。
+// 単元カードからサブトピック一覧（ボスバトル＋縦スクロール）へ進み、演習開始。
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -153,7 +153,7 @@ export default function UnitSelectionGrid() {
               <div className="pointer-events-none absolute inset-0 animate-pulse bg-amber-300/5" />
               <p className="relative flex items-center gap-2 text-sm font-black tracking-tight text-amber-200">
                 <Crown className="h-5 w-5 text-amber-300" />
-                🏆 この単元の総復習テスト（全サブトピック網羅）
+                この単元の総復習テスト（全サブトピック網羅）
               </p>
               <p className="relative mt-1 text-xs text-amber-100/80">
                 ボスバトル: 全サブトピックから満遍なく5問。制限時間25分。

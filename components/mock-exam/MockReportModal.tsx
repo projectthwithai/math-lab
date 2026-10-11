@@ -169,10 +169,10 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
           aria-label="閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">National AI Mock Exam</p>
@@ -260,10 +260,10 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
           onClick={() => {
             void handleParentShare();
           }}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-semibold text-cyan-200 transition-colors hover:bg-cyan-400/25"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-medium tracking-tight text-cyan-200 transition-colors hover:bg-cyan-400/25"
         >
           <Share2 className="h-4 w-4" />
-          👨‍👩‍👦 保護者共有レポート
+          保護者共有レポート
         </button>
         {shareNotice && <p className="mt-2 text-center text-[11px] text-slate-400">{shareNotice}</p>}
 

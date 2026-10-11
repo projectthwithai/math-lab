@@ -6,7 +6,6 @@ import type { MistakeTag } from '@/types/mathLab';
 
 export interface MistakeTagMeta {
   id: MistakeTag;
-  emoji: string;
   label: string;
   shortLabel: string;
   fill: string;
@@ -17,8 +16,7 @@ export interface MistakeTagMeta {
 export const MISTAKE_TAGS: MistakeTagMeta[] = [
   {
     id: 'calc_error',
-    emoji: '🔢',
-    label: '🔢 計算ミス',
+    label: '計算ミス',
     shortLabel: '計算ミス',
     fill: '#22d3ee',
     barClass: 'bg-cyan-400',
@@ -26,8 +24,7 @@ export const MISTAKE_TAGS: MistakeTagMeta[] = [
   },
   {
     id: 'condition_overlook',
-    emoji: '👁️',
-    label: '👁️ 条件見落とし',
+    label: '条件見落とし',
     shortLabel: '条件見落とし',
     fill: '#fbbf24',
     barClass: 'bg-amber-400',
@@ -35,8 +32,7 @@ export const MISTAKE_TAGS: MistakeTagMeta[] = [
   },
   {
     id: 'formula_unknown',
-    emoji: '📖',
-    label: '📖 公式・定義忘れ',
+    label: '公式・定義忘れ',
     shortLabel: '公式忘れ',
     fill: '#a78bfa',
     barClass: 'bg-violet-400',
@@ -44,8 +40,7 @@ export const MISTAKE_TAGS: MistakeTagMeta[] = [
   },
   {
     id: 'approach_unknown',
-    emoji: '💡',
-    label: '💡 解法が思いつかなかった',
+    label: '解法が思いつかなかった',
     shortLabel: '解法未修得',
     fill: '#34d399',
     barClass: 'bg-emerald-400',
@@ -56,6 +51,11 @@ export const MISTAKE_TAGS: MistakeTagMeta[] = [
 export const MISTAKE_TAG_BY_ID: Record<MistakeTag, MistakeTagMeta> = Object.fromEntries(
   MISTAKE_TAGS.map((tag) => [tag.id, tag])
 ) as Record<MistakeTag, MistakeTagMeta>;
+
+/** 旧データに残った絵文字プレフィックスを表示時に外す */
+export function displayMistakeNote(text: string): string {
+  return text.replace(/^🤖\s*/, '').replace(/^⚠️\s*/, '').replace(/^AI分析:\s*/, '専属ガイド: ');
+}
 
 export function isMistakeTag(value: unknown): value is MistakeTag {
   return (

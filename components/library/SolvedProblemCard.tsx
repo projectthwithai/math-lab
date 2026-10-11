@@ -4,9 +4,9 @@
 // Apex Suite: Math Lab - Solved Problem Card（マイライブラリの問題カード）
 // ==========================================
 // 過去に解いた問題1件を表示するカード。
-// - 忘却曲線に基づき「🔥 今日復習すべき」バッジを表示
-// - 「🔄 数字を変えて即挑戦（APIコスト0）」ボタン
-// - 「✍️ 解説を自分の言葉でカスタマイズ」インライン編集エリア
+// - 忘却曲線に基づき「今日復習すべき」バッジを表示
+// - 「数字を変えて即挑戦（APIコスト0）」ボタン
+// - 「解説を自分の言葉でカスタマイズ」インライン編集エリア
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import { getOverdueDays, getReviewStageLabel, isDueForReview } from '@/lib/engin
 import { getCustomSolutionNote, saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
 import { setPendingWorkspaceProblem, startLibraryReviewPath } from '@/lib/storage/pendingProblemStore';
-import { MISTAKE_TAG_BY_ID, MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
+import { displayMistakeNote, MISTAKE_TAG_BY_ID, MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { useUserStore } from '@/lib/store/userStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
@@ -149,7 +149,9 @@ export default function SolvedProblemCard({ record, onUpdated }: SolvedProblemCa
             </button>
           </div>
           {record.mistakeNote && !isEditingMistake && (
-            <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">{record.mistakeNote}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">
+              {displayMistakeNote(record.mistakeNote)}
+            </p>
           )}
           {isEditingMistake && (
             <div className="mt-2">

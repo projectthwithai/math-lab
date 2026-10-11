@@ -115,11 +115,13 @@ function PatternCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{pattern.patternName}</h3>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          {pattern.patternName.replace(/^⚠️\s*/, '')}
+        </h3>
         {pattern.trapPattern && (
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
             <AlertTriangle className="h-3 w-3 text-amber-400" />
-            ⚠️ 罠パターン
+            罠パターン
           </span>
         )}
         {pattern.discovered && !pattern.trapPattern && (
@@ -409,9 +411,8 @@ export default function SolutionPatternGrid() {
         discovered: true as const,
       }));
       const added = appendDiscoveredPatterns(stamped);
-      const sourceLabel = data.source === 'llm' ? 'Apexガイド' : 'ローカルエンジン';
       setDiscoverNotice(
-        `${sourceLabel}が ${added.length || incoming.length} 件の新パターンを図鑑に追加しました。すぐ下から自分流メモに編集できます。`
+        `Apexエンジンが ${added.length || incoming.length} 件の新パターンを図鑑に追加しました。すぐ下から自分流メモに編集できます。`
       );
     } catch (error) {
       console.error('[SolutionPatternGrid] パターン発掘に失敗しました', error);

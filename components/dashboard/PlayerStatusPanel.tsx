@@ -4,7 +4,7 @@
 // Apex Suite: Math Lab - Player Status Panel
 // ==========================================
 // ダッシュボード上部に表示する「プレイヤーレベル & XPプログレスバー」
-// 「🔥 連続学習ストリーク」「⚡ Energy」パネル。
+// 「連続学習ストリーク」「Energy」パネル。
 
 import { motion } from 'framer-motion';
 import { Flame, Zap, Trophy, Infinity as InfinityIcon } from 'lucide-react';

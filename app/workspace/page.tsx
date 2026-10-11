@@ -54,7 +54,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
       {isReview && (
         <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200">
           <RefreshCw className="h-3.5 w-3.5" />
-          🔄 過去問復習モード (0 Energy)
+          過去問復習モード (0 Energy)
         </div>
       )}
       <WorkspaceView

@@ -149,7 +149,7 @@ export default function MistakeAnalysisDashboard({ records }: MistakeAnalysisDas
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-bold tracking-tight text-slate-900 dark:text-white">
           <PieChart className="h-4 w-4 text-cyan-400" />
-          📊 ミス分析ダッシュボード
+          ミス分析ダッシュボード
         </h2>
         <p className="text-[11px] text-slate-500">
           不正解 {incorrectCount}問 / 原因タグ {taggedCount}件

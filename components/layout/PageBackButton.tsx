@@ -37,10 +37,10 @@ export default function PageBackButton({ fallbackHref = '/units', href }: PageBa
     <button
       type="button"
       onClick={handleBack}
-      className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-cyan-400/50 hover:text-cyan-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-cyan-300"
+      aria-label="戻る"
+      className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white/80 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950/70"
     >
-      <ArrowLeft className="h-3.5 w-3.5" />
-      戻る
+      <ArrowLeft className="h-5 w-5 text-zinc-400 transition-colors hover:text-zinc-100" />
     </button>
   );
 }

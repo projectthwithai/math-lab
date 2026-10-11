@@ -20,7 +20,7 @@ type InsertMode = 'at' | 'after' | 'before-atom';
 
 const FRACTION_SNIPPET = '\\frac{分子}{分母}';
 const FRACTION_NUMERATOR = '分子';
-const FRACTION_GUIDE = '💡 分数: \\frac{分子(上)}{分母(下)}';
+const FRACTION_GUIDE = '分数: \\frac{分子(上)}{分母(下)}';
 
 function latexForPreview(value: string): string {
   const wrapped = value.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, (_match, num: string, den: string) => {

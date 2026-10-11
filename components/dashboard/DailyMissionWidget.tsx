@@ -55,12 +55,12 @@ export default function DailyMissionWidget() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-7">
-      <div className="relative mb-5 flex flex-wrap items-end justify-between gap-3">
+    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-5">
+      <div className="relative mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Daily Quest</p>
-          <h2 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100 sm:text-3xl">
-            <Target className="h-6 w-6 text-amber-500 dark:text-amber-400" />
+          <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100 sm:text-xl">
+            <Target className="h-5 w-5 text-amber-500 dark:text-amber-400" />
             本日のデイリークエスト
             <span className="text-lg font-medium text-slate-400">
               ({completedCount}/{quests.length})
@@ -106,7 +106,7 @@ export default function DailyMissionWidget() {
               transition={{ duration: 0.55 }}
               className="text-sm font-bold text-orange-800 dark:text-orange-100 sm:text-base"
             >
-              🔥 本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
+              本日の目標達成！ストリーク更新（{pendingStreakCelebration}日連続！）
             </motion.p>
           </motion.div>
         )}

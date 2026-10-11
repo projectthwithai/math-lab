@@ -1,16 +1,16 @@
 // ==========================================
 // Apex Suite: Math Lab - Trap pattern registration
 // ==========================================
-// 反例問題をパターン図鑑の「⚠️ 罠パターン」として登録する。
+// 反例問題をパターン図鑑の「罠パターン」として登録する。
 
 import type { GeneratedProblem, SolutionPattern } from '@/types/mathLab';
 import { findSolutionPatternById } from '@/data/patternsData';
 import { UNITS_DATA, getUnitById } from '@/data/unitsData';
 
 export function trapPatternName(title: string): string {
-  const trimmed = title.trim();
-  if (trimmed.startsWith('⚠️')) return trimmed;
-  return `⚠️ 罠パターン: ${trimmed}`;
+  const trimmed = title.replace(/^⚠️\s*/, '').trim();
+  if (trimmed.startsWith('罠パターン')) return trimmed;
+  return `罠パターン: ${trimmed}`;
 }
 
 export function resolveTrapSourceMeta(

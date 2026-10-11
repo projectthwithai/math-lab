@@ -3,105 +3,75 @@
 // ==========================================
 // Apex Suite: Math Lab - 武器庫カタログ
 // ==========================================
-// 図鑑タブ内と /armory の両方から使う定理・公式一覧。
+// 数I〜数C / 物理 / 化学のタブで絞り込む、静かな公式一覧。
 
 import { useMemo, useState } from 'react';
-import type { Subject, WeaponItem } from '@/types/mathLab';
+import type { WeaponItem } from '@/types/mathLab';
+import { UNIT_CATEGORIES, type UnitCategory } from '@/data/unitsData';
 import { WEAPONS_DATA } from '@/data/weaponsData';
 import WeaponCard from '@/components/armory/WeaponCard';
 import WeaponDetailModal from '@/components/armory/WeaponDetailModal';
 import { useUserStore } from '@/lib/store/userStore';
 
-const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
-const SUBJECT_FILTERS: Array<Subject | 'all'> = ['all', 'math', 'physics', 'chemistry'];
+function weaponCourse(weapon: WeaponItem): UnitCategory {
+  if (weapon.subject === 'physics') return '物理';
+  if (weapon.subject === 'chemistry') return '化学';
+  const match = UNIT_CATEGORIES.find((course) => weapon.category === course || weapon.category.startsWith(`${course}・`));
+  return match ?? '数I';
+}
 
 export default function ArmoryCatalog() {
-  const [subjectFilter, setSubjectFilter] = useState<Subject | 'all'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [course, setCourse] = useState<UnitCategory>('数I');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponItem | null>(null);
   const masteredWeaponIds = useUserStore((state) => state.masteredWeaponIds);
   const masteredSet = useMemo(() => new Set(masteredWeaponIds), [masteredWeaponIds]);
 
-  const categoriesForSubject = useMemo(() => {
-    const relevant =
-      subjectFilter === 'all' ? WEAPONS_DATA : WEAPONS_DATA.filter((weapon) => weapon.subject === subjectFilter);
-    return Array.from(new Set(relevant.map((weapon) => weapon.category)));
-  }, [subjectFilter]);
-
   const filteredWeapons = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return WEAPONS_DATA.filter((weapon) => {
-      const matchesSubject = subjectFilter === 'all' || weapon.subject === subjectFilter;
-      const matchesCategory = categoryFilter === 'all' || weapon.category === categoryFilter;
-      const matchesQuery =
-        query.length === 0 ||
+      if (weaponCourse(weapon) !== course) return false;
+      if (query.length === 0) return true;
+      return (
         weapon.name.toLowerCase().includes(query) ||
-        weapon.usageScenario.toLowerCase().includes(query);
-      return matchesSubject && matchesCategory && matchesQuery;
+        weapon.usageScenario.toLowerCase().includes(query)
+      );
     });
-  }, [subjectFilter, categoryFilter, searchQuery]);
+  }, [course, searchQuery]);
 
   return (
     <div>
-      <p className="mb-6 text-sm text-slate-500">
-        収録数: {WEAPONS_DATA.length}種類（全て解放済み）。成り立ち試練に正解すると 💎 MASTERED が点灯します。
+      <p className="mb-6 text-sm text-zinc-500">
+        {filteredWeapons.length}件 · {course}
       </p>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {SUBJECT_FILTERS.map((subject) => (
-          <button
-            key={subject}
-            type="button"
-            onClick={() => {
-              setSubjectFilter(subject);
-              setCategoryFilter('all');
-            }}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              subjectFilter === subject
-                ? 'border-violet-400/60 bg-violet-400/10 text-violet-300'
-                : 'border-slate-300 text-slate-400 hover:border-slate-500 dark:border-slate-700'
-            }`}
-          >
-            {subject === 'all' ? '全科目' : SUBJECT_LABEL[subject]}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setCategoryFilter('all')}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              categoryFilter === 'all'
-                ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-300'
-                : 'border-slate-300 text-slate-400 hover:border-slate-500 dark:border-slate-700'
-            }`}
-          >
-            すべての分野
-          </button>
-          {categoriesForSubject.map((category) => (
+      <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-zinc-800 pb-px scrollbar-none">
+        {UNIT_CATEGORIES.map((item) => {
+          const active = course === item;
+          return (
             <button
-              key={category}
+              key={item}
               type="button"
-              onClick={() => setCategoryFilter(category)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                categoryFilter === category
-                  ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-300'
-                  : 'border-slate-300 text-slate-400 hover:border-slate-500 dark:border-slate-700'
+              onClick={() => setCourse(item)}
+              className={`shrink-0 border-b-2 px-3.5 py-2.5 text-sm tracking-wide transition ${
+                active
+                  ? 'border-cyan-400 text-zinc-100'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              {category}
+              {item}
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </nav>
+
+      <div className="mb-5">
         <input
-          type="text"
+          type="search"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="公式名で検索..."
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-violet-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:w-64"
+          placeholder="公式名で探す"
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none sm:max-w-xs"
         />
       </div>
 
@@ -115,8 +85,8 @@ export default function ArmoryCatalog() {
           />
         ))}
         {filteredWeapons.length === 0 && (
-          <p className="col-span-full py-10 text-center text-sm text-slate-500">
-            条件に一致する公式が見つかりませんでした。
+          <p className="col-span-full py-16 text-center text-sm text-zinc-500">
+            この分野に一致する公式はありません。
           </p>
         )}
       </div>

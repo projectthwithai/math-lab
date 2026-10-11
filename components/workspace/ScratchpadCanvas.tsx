@@ -8,7 +8,7 @@
 
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Eraser, Loader2, Trash2, X } from 'lucide-react';
+import { Camera, Eraser, Loader2, PenTool, Trash2, X } from 'lucide-react';
 
 import type { GeneratedProblem, ScratchpadCorrectionResult } from '@/types/mathLab';
 import { requestScratchpadCorrection } from '@/lib/api/correctScratchpadClient';
@@ -252,10 +252,11 @@ export default function ScratchpadCanvas({
         <button
           type="button"
           onClick={handleClear}
-          className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/60 hover:text-red-300"
+          aria-label="全消去"
+          title="全消去"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-zinc-400 transition-colors hover:border-rose-400/60 hover:text-rose-400 dark:border-slate-700"
         >
-          <Trash2 className="h-3.5 w-3.5" />
-          全消去
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
@@ -283,15 +284,20 @@ export default function ScratchpadCanvas({
               赤ペン添削中...
             </>
           ) : (
-            <>🔍 途中式をAI添削（{ENERGY_COST_CORRECT_SCRATCHPAD} Energy）</>
+            <span className="inline-flex items-center gap-1.5">
+              <PenTool className="h-3.5 w-3.5" />
+              添削
+            </span>
           )}
         </button>
         <button
           type="button"
           onClick={() => setPaperOpen(true)}
-          className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/5 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/15"
+          aria-label="紙のノートを撮って添削"
+          title="紙のノートを撮って添削"
+          className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-red-400/40 bg-red-500/5 text-cyan-400 transition-colors hover:bg-red-500/15"
         >
-          📷 紙のノートを撮って添削
+          <Camera className="h-4 w-4 text-cyan-400" />
         </button>
       </div>
 
@@ -313,14 +319,14 @@ export default function ScratchpadCanvas({
               <button
                 type="button"
                 onClick={() => setCorrection(null)}
-                className="absolute right-3 top-3 rounded-full p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+                className="absolute right-3 top-3 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
                 aria-label="閉じる"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
               </button>
 
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">Red Pen</p>
-              <h3 className="mt-1 text-lg font-semibold text-red-200">AI赤ペン添削</h3>
+              <h3 className="mt-1 text-lg font-semibold text-red-200">赤ペン添削</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-200">{correction.summary}</p>
               <p className="mt-1 text-[10px] text-slate-500">
                 {correction.overall === 'good'
@@ -328,7 +334,7 @@ export default function ScratchpadCanvas({
                   : correction.overall === 'empty'
                     ? '途中式が不足しています'
                     : '直すべき行があります'}
-                {correction.source === 'local' ? ' · 通信エラー時の予備添削' : ' · Gemini Vision'}
+                {correction.source === 'local' ? ' · 予備の添削' : ' · Apexエンジン'}
               </p>
 
               <ul className="mt-4 flex flex-col gap-2">

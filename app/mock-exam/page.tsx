@@ -13,7 +13,7 @@ export default function MockExamPage() {
         全国統一 AI実践模試
       </h1>
       <p className="mb-6 text-sm text-slate-500">
-        範囲・時間・問題数を選んで、共通テスト型のタイマー模試を開始します。生成はローカルエンジン（追加APIコストなし）です。
+        範囲・時間・問題数を選んで、共通テスト型のタイマー模試を開始します。
       </p>
       <MockExamSetup />
     </main>

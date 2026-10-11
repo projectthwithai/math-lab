@@ -101,7 +101,7 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
             className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-400/20 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.45)] transition hover:opacity-80"
             title="習得をリセット"
           >
-            💎 MASTERED
+            MASTERED
           </button>
         )}
       </div>
@@ -113,10 +113,10 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/15 px-3 py-2.5 text-xs font-bold text-amber-100 shadow-[0_0_16px_rgba(251,191,36,0.25)] transition hover:shadow-[0_0_22px_rgba(34,211,238,0.3)]"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/15 px-3 py-2.5 text-sm font-medium tracking-tight text-amber-100 shadow-[0_0_16px_rgba(251,191,36,0.25)] transition hover:shadow-[0_0_22px_rgba(34,211,238,0.3)]"
         >
-          <Swords className="h-3.5 w-3.5" />
-          ⚔️ この武器の成り立ち試練に挑む (0 Energy)
+          <Swords className="h-4 w-4" />
+          この武器の成り立ち試練に挑む
         </button>
       ) : (
         <div className="mt-3 flex flex-col gap-3">
@@ -199,7 +199,7 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-xl border border-amber-300/40 bg-amber-400/10 p-3"
               >
-                <p className="text-sm font-black tracking-tight text-amber-200">🎉 成り立ちをマスターした！</p>
+                <p className="text-sm font-medium tracking-tight text-amber-200">成り立ちをマスターした！</p>
                 <p className="mt-2 text-xs leading-relaxed text-slate-200">
                   <KaTeXText text={challenge.explanation} />
                 </p>

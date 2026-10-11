@@ -4,7 +4,7 @@
 // Apex Suite: Math Lab - 反例克服ストーリーモード
 // ==========================================
 // インスタストーリー風のフルスクリーン連続出題。
-// 正解で次の反例へ進み、生成パターンは図鑑へ「⚠️ 罠パターン」登録。
+// 正解で次の反例へ進み、生成パターンは図鑑へ「罠パターン」登録。
 // 全問クリア後に祝賀演出を出して、元の採点モーダルへ状態を保ったまま復帰する。
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -402,7 +402,7 @@ export default function CounterChallengeStoryModal({
               animate={{ y: 0, opacity: 1 }}
               className="text-2xl font-black tracking-tight text-cyan-200 drop-shadow-[0_0_18px_rgba(34,211,238,0.8)]"
             >
-              🎉 罠パターン完全克服！
+              罠パターン完全克服！
             </motion.p>
             <p className="mt-3 text-xs text-slate-400">パターン図鑑に登録しました。採点画面へ戻ります…</p>
           </motion.div>

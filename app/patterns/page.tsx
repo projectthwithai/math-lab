@@ -1,115 +1,48 @@
 'use client';
 
 // ==========================================
-// Apex Suite: Math Lab - パターン図鑑 ＆ 武器庫（図鑑タブ）
+// Apex Suite: Math Lab - パターン図鑑
 // ==========================================
+// 武器庫は /armory、弱点レーダーはホームへ一本化。このページは図鑑本体のみ。
 
-import { Suspense, useMemo } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { BookOpen, BarChart3, Shield } from 'lucide-react';
-import WeaknessRadarChart from '@/components/dashboard/WeaknessRadarChart';
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { BookOpen } from 'lucide-react';
+import CatalogFamilySwitch from '@/components/layout/CatalogFamilySwitch';
 import SolutionPatternGrid from '@/components/patterns/SolutionPatternGrid';
-import ArmoryCatalog from '@/components/armory/ArmoryCatalog';
 import { selectLivePatternProgress, useUserStore } from '@/lib/store/userStore';
-
-type CatalogPane = 'patterns' | 'armory';
 
 function PatternsCatalogPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const pane: CatalogPane = searchParams.get('view') === 'armory' ? 'armory' : 'patterns';
   const clearedPatternIds = useUserStore((state) => state.clearedPatternIds);
-  const masteredPatterns = useUserStore((state) => state.masteredPatterns);
   const discoveredPatterns = useUserStore((state) => state.discoveredPatterns);
+  const { summary: completionSummary } = selectLivePatternProgress({
+    clearedPatternIds,
+    discoveredPatterns,
+  });
 
-  const { summary: completionSummary, radarAxes: weaknessAxes } = useMemo(
-    () =>
-      selectLivePatternProgress({
-        clearedPatternIds,
-        masteredPatterns,
-        discoveredPatterns,
-      }),
-    [clearedPatternIds, masteredPatterns, discoveredPatterns]
-  );
-
-  const setPane = (next: CatalogPane) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === 'armory') params.set('view', 'armory');
-    else params.delete('view');
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  };
+  useEffect(() => {
+    if (searchParams.get('view') === 'armory') {
+      router.replace('/armory');
+    }
+  }, [router, searchParams]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-10">
-      <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80">
-        <button
-          type="button"
-          onClick={() => setPane('patterns')}
-          className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:text-sm ${
-            pane === 'patterns'
-              ? 'bg-white text-cyan-600 shadow-sm dark:bg-black dark:text-cyan-400'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <BookOpen className="h-4 w-4 shrink-0" />
-          <span className="truncate">解法パターン図鑑</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPane('armory')}
-          className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:text-sm ${
-            pane === 'armory'
-              ? 'bg-white text-violet-600 shadow-sm dark:bg-black dark:text-violet-300'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Shield className="h-4 w-4 shrink-0" />
-          <span className="truncate">定理・公式の武器庫</span>
-        </button>
-      </div>
-
-      {pane === 'patterns' ? (
-        <>
-          <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-            <BookOpen className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
-            パターン図鑑
-          </h1>
-          <p className="mb-2 text-sm font-semibold tracking-tight text-cyan-700 dark:text-cyan-300">
-            全{completionSummary.totalCount}パターン中 {completionSummary.clearedCount}パターン撃破（
-            {completionSummary.completionPercent}% 制覇）
-          </p>
-          <p className="mb-6 text-sm text-slate-500 dark:text-zinc-400">
-            単元 ➔ サブトピック ➔ 入試解法パターンの3層で探す。静的図鑑に加え、単元を開いて「新パターン解析（-10 Energy）」すると新しいパターンが追加されます。
-          </p>
-
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
-                <BarChart3 className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
-                苦手分野レーダーチャート
-              </h2>
-              <span className="text-xs text-slate-500 dark:text-zinc-400">
-                攻略達成率:{' '}
-                <span className="font-bold text-cyan-600 dark:text-cyan-300">{completionSummary.completionPercent}%</span>{' '}
-                ({completionSummary.clearedCount}/{completionSummary.totalCount})
-              </span>
-            </div>
-            <WeaknessRadarChart axes={weaknessAxes} />
-          </section>
-
-          <SolutionPatternGrid />
-        </>
-      ) : (
-        <>
-          <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-            <Shield className="h-5 w-5 text-violet-500 dark:text-violet-400" />
-            武器庫
-          </h1>
-          <ArmoryCatalog />
-        </>
-      )}
+    <main className="mx-auto w-full max-w-7xl overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10">
+      <CatalogFamilySwitch active="patterns" />
+      <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">
+        <BookOpen className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
+        パターン図鑑
+      </h1>
+      <p className="mb-2 text-sm font-medium tracking-tight text-cyan-700 dark:text-cyan-300">
+        全{completionSummary.totalCount}パターン中 {completionSummary.clearedCount}パターン撃破（
+        {completionSummary.completionPercent}% 制覇）
+      </p>
+      <p className="mb-5 text-sm text-slate-500 dark:text-zinc-400">
+        単元、サブトピック、入試解法パターンの3層で探す。静的図鑑に加え、単元を開いて「新パターン解析（-10 Energy）」すると新しいパターンが追加されます。
+      </p>
+      <SolutionPatternGrid />
     </main>
   );
 }

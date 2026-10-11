@@ -6,16 +6,16 @@
 // 解答送信後に必ず表示される採点結果モーダル。
 // 表示順序（優先度順）:
 //   ① 正誤判定 + XP獲得（コンパクトなヘッダー行）
-//   ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（画面中央に最も大きく強調表示）
-//   ③ ✍️ 自分流のメモとして上書き保存する（patternId で図鑑と一元管理）
-//   ④ ⚠️ なぜ間違えたかメモ（失点タグ + 自由記述。ライブラリへ保存）
-//   ⑤ 💬 この解説についてAIに質問する（解法メモの添削チップ付き）
+//   ② 解法の真髄（Apexガイド） + 鍵となる公式（画面中央に最も大きく強調表示）
+//   ③ 自分流のメモとして上書き保存する（patternId で図鑑と一元管理）
+//   ④ なぜ間違えたかメモ（失点タグ + 自由記述。ライブラリへ保存）
+//   ⑤ この解説についてAIに質問する（解法メモの添削チップ付き）
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame, AlertTriangle, Loader2, Swords } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, BookOpenCheck, X, KeyRound, ArrowUpRight, Flame, AlertTriangle, Loader2, Swords, Check } from 'lucide-react';
 
-import type { GeneratedProblem, MistakeTag } from '@/types/mathLab';
+import type { GeneratedProblem, MistakeDiagnosis, MistakeTag } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
 import KaTeXText from './KaTeXText';
 import KaTeXBlock from './KaTeXBlock';
@@ -25,7 +25,7 @@ import GoalBackwardTree from './GoalBackwardTree';
 import PostSolveAIChat from './PostSolveAIChat';
 import { saveCustomSolutionNote } from '@/lib/storage/customSolutionNotesStore';
 import { getSolvedProblemRecordById, updateSolvedProblemMistake } from '@/lib/storage/solvedProblemsStore';
-import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
+import { displayMistakeNote, MISTAKE_TAG_BY_ID, MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import { useUserStore } from '@/lib/store/userStore';
 import { formatCorrectAnswerForDisplay, ensureProblemHasCorrectAnswer } from '@/lib/engine/correctAnswer';
 import { useAuthSession } from '@/lib/auth/useAuthSession';
@@ -33,8 +33,14 @@ import { signInWithGoogleOAuth } from '@/lib/supabase/client';
 import { isSupabaseNetworkError, SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { activateLocalDeveloperFallback } from '@/lib/auth/developerAccess';
 import { requestRefinedSolutionNote } from '@/lib/api/refineSolutionNoteClient';
-import { ENERGY_COST_REFINE_NOTE, formatEnergyShortage } from '@/lib/engine/energyCosts';
+import { getCachedMistakeDiagnosis, requestMistakeDiagnosis } from '@/lib/api/diagnoseMistakeClient';
+import {
+  ENERGY_COST_DIAGNOSE_MISTAKE,
+  ENERGY_COST_REFINE_NOTE,
+  formatEnergyShortage,
+} from '@/lib/engine/energyCosts';
 import type { CustomSolutionVerifyResult } from '@/types/mathLab';
+import HandwrittenNoteScanButton from './HandwrittenNoteScanButton';
 
 interface ScoreResultModalProps {
   problem: GeneratedProblem;
@@ -95,21 +101,71 @@ export default function ScoreResultModal({
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [noteGlow, setNoteGlow] = useState(false);
+  const [aiDiagnosis, setAiDiagnosis] = useState<MistakeDiagnosis | null>(null);
+  const [diagnosisBusy, setDiagnosisBusy] = useState(false);
+  const diagnosedKeyRef = useRef<string | null>(null);
   const { user, ready: authReady } = useAuthSession();
   const showGuestSignup = isCorrect && authReady && !user;
   const scoredProblem = useMemo(() => ensureProblemHasCorrectAnswer(problem), [problem]);
   const displayedAnswer = formatCorrectAnswerForDisplay(scoredProblem);
   const patternId = scoredProblem.patternId;
   const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
+  const hasHydrated = useUserStore((state) => state.hasHydrated);
 
   useEffect(() => {
-    if (!solvedRecordId || isCorrect) return;
-    const existing = getSolvedProblemRecordById(solvedRecordId);
-    if (!existing) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMistakeTag(existing.mistakeTag ?? null);
-    setMistakeNote(existing.mistakeNote ?? '');
-  }, [solvedRecordId, isCorrect]);
+    if (isCorrect || !hasHydrated) return;
+
+    let cancelled = false;
+    const diagnosisKey = `${scoredProblem.id}:${userAnswer}:${solvedRecordId ?? ''}`;
+    const existing = solvedRecordId ? getSolvedProblemRecordById(solvedRecordId) : null;
+
+    void Promise.resolve().then(async () => {
+      if (cancelled) return;
+      if (existing && diagnosedKeyRef.current !== diagnosisKey) {
+        setMistakeTag(existing.mistakeTag ?? null);
+        setMistakeNote(displayMistakeNote(existing.mistakeNote ?? ''));
+      }
+      if (diagnosedKeyRef.current === diagnosisKey) return;
+
+      const cached = getCachedMistakeDiagnosis(scoredProblem.id, userAnswer);
+      if (cached) {
+        diagnosedKeyRef.current = diagnosisKey;
+        setAiDiagnosis(cached);
+        setMistakeTag(cached.primaryTag);
+        return;
+      }
+
+      const store = useUserStore.getState();
+      if (!store.consumeEnergy(ENERGY_COST_DIAGNOSE_MISTAKE)) {
+        setSaveNotice(formatEnergyShortage(ENERGY_COST_DIAGNOSE_MISTAKE, store.energy));
+        window.setTimeout(() => setSaveNotice(null), 4000);
+        return;
+      }
+
+      diagnosedKeyRef.current = diagnosisKey;
+      setDiagnosisBusy(true);
+      try {
+        const result = await requestMistakeDiagnosis({
+          problem: scoredProblem,
+          userAnswer,
+          userEmail: user?.email,
+        });
+        if (cancelled) return;
+        setAiDiagnosis(result);
+        setMistakeTag(result.primaryTag);
+      } catch (error) {
+        console.error('[ScoreResultModal] 失点診断に失敗しました', error);
+        useUserStore.getState().refundEnergy(ENERGY_COST_DIAGNOSE_MISTAKE);
+        if (!cancelled) diagnosedKeyRef.current = null;
+      } finally {
+        if (!cancelled) setDiagnosisBusy(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, isCorrect, scoredProblem, solvedRecordId, userAnswer, user?.email]);
 
   const handleGoogleSave = async () => {
     setAuthBusy(true);
@@ -147,6 +203,15 @@ export default function ScoreResultModal({
   const handleSaveMistakeNote = () => {
     persistMistake(mistakeTag, mistakeNote);
     setSaveNotice('失点原因メモをライブラリに保存しました');
+    window.setTimeout(() => setSaveNotice(null), 3000);
+  };
+
+  const handleSaveAiDiagnosis = () => {
+    if (!aiDiagnosis) return;
+    setMistakeTag(aiDiagnosis.primaryTag);
+    setMistakeNote(aiDiagnosis.mistakeAnalysisText);
+    persistMistake(aiDiagnosis.primaryTag, aiDiagnosis.mistakeAnalysisText);
+    setSaveNotice('分析をミスメモとしてライブラリに保存しました');
     window.setTimeout(() => setSaveNotice(null), 3000);
   };
 
@@ -202,7 +267,7 @@ export default function ScoreResultModal({
         saveCustomSolutionNote(problem.id, refinedNote);
       }
       setNoteGlow(true);
-      setSaveNotice('AIの指摘を反映して清書しました');
+      setSaveNotice('指摘を反映して清書しました');
       window.setTimeout(() => setNoteGlow(false), 1400);
       window.setTimeout(() => setSaveNotice(null), 3000);
     } catch (error) {
@@ -232,10 +297,10 @@ export default function ScoreResultModal({
             persistMistake(mistakeTag, mistakeNote);
             onClose();
           }}
-          className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
           aria-label="閉じる"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
         </button>
 
         {/* ① 正誤判定 + XP獲得（コンパクトなヘッダー行） */}
@@ -303,10 +368,10 @@ export default function ScoreResultModal({
         {showGuestSignup && (
           <div className="mb-5 rounded-2xl border border-amber-400/50 bg-gradient-to-br from-amber-400/15 via-orange-400/10 to-cyan-400/10 p-5 dark:from-amber-400/20 dark:via-slate-900/40 dark:to-cyan-400/10">
             <p className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
-              🎉 ナイス正解！+100 XP を獲得しました！
+              ナイス正解！+100 XP を獲得しました！
             </p>
             <p className="mt-2 text-sm leading-relaxed text-amber-800 dark:text-amber-100">
-              ⚠️ 現在ゲストモードです。獲得したXPや解法ノート、学習記録をクラウドに永久保存し、106個の武器庫をアンロックするためにGoogleで登録・保存しよう！
+              現在ゲストモードです。獲得したXPや解法ノート、学習記録をクラウドに永久保存し、106個の武器庫をアンロックするためにGoogleで登録・保存しよう！
             </p>
             <button
               type="button"
@@ -314,10 +379,10 @@ export default function ScoreResultModal({
                 void handleGoogleSave();
               }}
               disabled={authBusy}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_28px_rgba(251,191,36,0.25)] transition hover:bg-slate-800 disabled:opacity-60 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-300"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-medium tracking-tight text-white shadow-[0_0_28px_rgba(251,191,36,0.25)] transition hover:bg-slate-800 disabled:opacity-60 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-300"
             >
               <Flame className="h-4 w-4" />
-              🔥 Googleアカウントで記録を保存して始める
+              Googleアカウントで記録を保存して始める
             </button>
             {authNotice && (
               <p className="mt-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{authNotice}</p>
@@ -325,7 +390,7 @@ export default function ScoreResultModal({
           </div>
         )}
 
-        {/* ② 解法の真髄（Apexガイド） + 🔑 鍵となる公式（最も大きく強調表示） */}
+        {/* ② 解法の真髄（Apexガイド） + 鍵となる公式（最も大きく強調表示） */}
         <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
           <h3 className="mb-3 flex items-center justify-center gap-2 text-center text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
             <Sparkles className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
@@ -358,11 +423,18 @@ export default function ScoreResultModal({
         </div>
 
         <div className="mb-5 flex w-full flex-col gap-4">
-          <div className="w-full rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
-            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
-              <BookOpenCheck className="h-4 w-4" />
-              ✍️ 自分流解法メモ
-            </h3>
+          <div className="relative w-full rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <h3 className="flex items-center gap-1.5 text-sm font-bold text-fuchsia-300">
+                <BookOpenCheck className="h-4 w-4" />
+                自分流解法メモ
+              </h3>
+              <HandwrittenNoteScanButton
+                problem={scoredProblem}
+                userEmail={user?.email}
+                onSummary={onSolutionNoteChange}
+              />
+            </div>
             {patternId && (
               <p className="mb-2 text-[11px] text-fuchsia-200/80">
                 このメモは解答前のワークスペースと同じ内容です。編集すると図鑑とも同期されます。
@@ -419,10 +491,10 @@ export default function ScoreResultModal({
                 <button
                   type="button"
                   onClick={() => setChallengeOpen(true)}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/15 via-red-400/10 to-cyan-400/15 px-3 py-2.5 text-xs font-bold text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:shadow-[0_0_24px_rgba(34,211,238,0.35)]"
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/15 via-red-400/10 to-cyan-400/15 px-3 py-2.5 text-sm font-medium tracking-tight text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:shadow-[0_0_24px_rgba(34,211,238,0.35)]"
                 >
-                  <Swords className="h-3.5 w-3.5 text-amber-300" />
-                  ⚔️ この解法が通用しない「罠パターン」に挑戦する
+                  <Swords className="h-4 w-4 text-amber-300" />
+                  罠パターンに挑戦する
                 </button>
               )}
             </div>
@@ -450,7 +522,7 @@ export default function ScoreResultModal({
                 ) : (
                   <span className="inline-flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
-                    ✨ AIの指摘を反映して清書
+                    清書
                   </span>
                 )}
               </button>
@@ -477,11 +549,35 @@ export default function ScoreResultModal({
             <div className="w-full rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
               <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-300">
                 <AlertTriangle className="h-4 w-4" />
-                ⚠️ なぜ間違えたかメモ
+                なぜ間違えたかメモ
               </h3>
               <p className="mb-3 text-[11px] text-amber-200/80">
                 ワンタップで原因を残すと、ライブラリでミス原因別に復習できます。
               </p>
+              {diagnosisBusy && (
+                <p className="mb-3 inline-flex items-center gap-1.5 text-[11px] text-amber-200/90">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  失点原因を診断しています…
+                </p>
+              )}
+              {aiDiagnosis && (
+                <div className="mb-3 rounded-lg border border-amber-400/30 bg-slate-950/50 p-3">
+                  <p className="text-sm leading-relaxed text-amber-50">
+                    {aiDiagnosis.mistakeAnalysisText}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold text-amber-200">
+                    タグ: {MISTAKE_TAG_BY_ID[aiDiagnosis.primaryTag]?.label ?? aiDiagnosis.primaryTag}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveAiDiagnosis}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5 text-sm font-medium tracking-tight text-emerald-200 transition hover:bg-emerald-400/20"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    この分析をミスメモに保存
+                  </button>
+                </div>
+              )}
               <div className="mb-3 flex flex-wrap gap-2">
                 {MISTAKE_TAGS.map((tag) => {
                   const selected = mistakeTag === tag.id;
@@ -541,7 +637,7 @@ export default function ScoreResultModal({
               persistMistake(mistakeTag, mistakeNote);
               onClose();
             }}
-            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm font-medium tracking-tight text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             閉じる
           </button>
@@ -552,7 +648,7 @@ export default function ScoreResultModal({
               onClose();
               onNextProblem();
             }}
-            className="flex-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 py-2.5 text-sm font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
+            className="flex-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 py-2.5 text-sm font-medium tracking-tight text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
           >
             次の問題へ
           </button>

@@ -5,12 +5,14 @@
 // ==========================================
 
 import { Shield } from 'lucide-react';
+import CatalogFamilySwitch from '@/components/layout/CatalogFamilySwitch';
 import ArmoryCatalog from '@/components/armory/ArmoryCatalog';
 
 export default function ArmoryPage() {
   return (
     <main className="mx-auto w-full max-w-full overflow-x-hidden px-4 py-8 sm:px-6 lg:px-10">
       <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-auto">
+        <CatalogFamilySwitch active="armory" />
         <h1 className="mb-1 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
           <Shield className="h-5 w-5 text-violet-500 dark:text-violet-400" />
           武器庫

@@ -93,10 +93,10 @@ export default function AuthButton({ onNotice, onLogout }: AuthButtonProps) {
             <button
               type="button"
               onClick={() => setToast(null)}
-              className="rounded-full p-0.5 text-amber-300/70 hover:text-white"
+              className="rounded-full p-1 text-zinc-400 transition-colors hover:text-zinc-100"
               aria-label="閉じる"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
             </button>
           </div>
         </motion.div>

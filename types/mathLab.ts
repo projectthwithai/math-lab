@@ -104,7 +104,7 @@ export interface SolutionPattern {
   level: PatternLevel;
   /** 解法パターン名（例: "パターン2: 軸が動く2次関数の最大・最小"） */
   patternName: string;
-  /** 📝 具体的な例題文（LaTeX数式は `$...$` で囲む。KaTeXBlock/KaTeXTextで描画） */
+  /** 具体的な例題文（LaTeX数式は `$...$` で囲む。KaTeXBlock/KaTeXTextで描画） */
   exampleQuestion: string;
   /** Apexガイドが書いた、このパターンを見抜くコツ・解答方針 */
   strategyText: string;
@@ -112,7 +112,7 @@ export interface SolutionPattern {
   difficulty?: number;
   /** 図鑑の「新パターン解析」で後から追加されたパターン */
   discovered?: boolean;
-  /** 反例克服ストーリーで登録した「⚠️ 罠パターン」 */
+  /** 反例克服ストーリーで登録した「罠パターン」 */
   trapPattern?: boolean;
 }
 
@@ -194,6 +194,19 @@ export type PatternNotesMap = Record<string, PatternNote>;
 // ------------------------------------------
 
 export type MistakeTag = 'calc_error' | 'condition_overlook' | 'formula_unknown' | 'approach_unknown';
+
+/** 紙ノート写真の文字起こし + 論理デバッグ */
+export interface HandwrittenNoteAnalysis {
+  summaryNote: string;
+  logicAudit: string;
+  isSound: boolean;
+}
+
+/** 不正解時の失点原因診断 */
+export interface MistakeDiagnosis {
+  primaryTag: MistakeTag;
+  mistakeAnalysisText: string;
+}
 
 // ------------------------------------------
 // PatternLinkedMemo（単元演習時にポップアップ表示する自分流メモ）

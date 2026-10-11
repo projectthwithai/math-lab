@@ -3,7 +3,7 @@
 // ==========================================
 // Apex Suite: Math Lab - 逆算型思考ツリー
 // ==========================================
-// ゴール ➔ 武器 ➔ 不足条件 ➔ 逆算アプローチ をカード樹形図で描く。
+// ゴール、武器、不足条件、逆算アプローチをカード樹形図で描く。
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { GitBranch, KeyRound, Target, Unplug } from 'lucide-react';

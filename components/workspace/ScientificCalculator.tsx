@@ -118,10 +118,10 @@ export default function ScientificCalculator({ open, onClose, onApply }: Scienti
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                className="rounded-full p-1.5 text-zinc-400 transition-colors hover:text-zinc-100"
                 aria-label="閉じる"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
               </button>
             </div>
 

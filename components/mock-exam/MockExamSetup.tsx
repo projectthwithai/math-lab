@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Rocket, CheckSquare } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 
 import { UNITS_DATA, UNIT_CATEGORIES, getUnitsBySubject, type UnitCategory } from '@/data/unitsData';
 import type { Subject } from '@/types/mathLab';
@@ -54,9 +54,24 @@ export default function MockExamSetup() {
     );
   };
 
+  const selectCategoryAll = (category: UnitCategory) => {
+    const ids = UNITS_DATA.filter((unit) => unit.category === category).map((unit) => unit.id);
+    setSelectedUnitIds((current) => [...new Set([...current, ...ids])]);
+  };
+
+  const clearCategory = (category: UnitCategory) => {
+    const ids = new Set(UNITS_DATA.filter((unit) => unit.category === category).map((unit) => unit.id));
+    setSelectedUnitIds((current) => current.filter((id) => !ids.has(id)));
+  };
+
   const selectSubject = (subject: Subject) => {
     const ids = getUnitsBySubject(subject).map((unit) => unit.id);
-    setSelectedUnitIds(ids);
+    setSelectedUnitIds((current) => [...new Set([...current, ...ids])]);
+  };
+
+  const clearSubject = (subject: Subject) => {
+    const ids = new Set(getUnitsBySubject(subject).map((unit) => unit.id));
+    setSelectedUnitIds((current) => current.filter((id) => !ids.has(id)));
   };
 
   const handleStart = () => {
@@ -73,52 +88,78 @@ export default function MockExamSetup() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
-            <CheckSquare className="h-4 w-4 text-cyan-400" />
-            単元選択
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold tracking-tight text-zinc-100">単元選択</h2>
+          <div className="flex flex-wrap gap-2">
             {(['math', 'physics', 'chemistry'] as Subject[]).map((subject) => (
-              <button
-                key={subject}
-                type="button"
-                onClick={() => selectSubject(subject)}
-                className="rounded-full border border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:border-cyan-400/50 dark:border-slate-700 dark:text-slate-300"
-              >
-                {SUBJECT_LABEL[subject]}全範囲
-              </button>
+              <div key={subject} className="inline-flex overflow-hidden rounded-xl border border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => selectSubject(subject)}
+                  className="min-h-11 px-3 text-xs font-semibold text-cyan-300 hover:bg-cyan-950/40"
+                >
+                  {SUBJECT_LABEL[subject]} 全選択
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clearSubject(subject)}
+                  className="min-h-11 border-l border-zinc-800 px-3 text-xs font-semibold text-zinc-500 hover:bg-zinc-900"
+                >
+                  全解除
+                </button>
+              </div>
             ))}
-            <button
-              type="button"
-              onClick={() => setSelectedUnitIds(UNITS_DATA.map((unit) => unit.id))}
-              className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-600 dark:text-cyan-300"
-            >
-              全教科
-            </button>
           </div>
         </div>
-        <p className="mb-3 text-xs text-slate-500">数学・物理・化学の全範囲、または特定単元をチェックしてください。</p>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <p className="mb-4 text-xs text-zinc-500">単元をタップして範囲に含めます。</p>
+        <div className="flex flex-col gap-6">
           {UNIT_CATEGORIES.map((category: UnitCategory) => {
             const units = UNITS_DATA.filter((unit) => unit.category === category);
+            const selectedInCategory = units.filter((unit) => selectedUnitIds.includes(unit.id)).length;
             return (
-              <div key={category} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                <p className="mb-2 text-[11px] font-bold tracking-wide text-slate-500">{category}</p>
-                <div className="flex flex-col gap-1.5">
+              <div key={category}>
+                <div className="mb-2.5 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium tracking-wide text-zinc-400">
+                    {category}
+                    <span className="ml-2 text-zinc-600">
+                      {selectedInCategory}/{units.length}
+                    </span>
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => selectCategoryAll(category)}
+                      className="text-[11px] font-semibold text-cyan-400/90 hover:text-cyan-300"
+                    >
+                      全選択
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => clearCategory(category)}
+                      className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-300"
+                    >
+                      全解除
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {units.map((unit) => {
                     const checked = selectedUnitIds.includes(unit.id);
                     return (
-                      <label key={unit.id} className="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleUnit(unit.id)}
-                          className="h-3.5 w-3.5 accent-cyan-400"
-                        />
+                      <button
+                        key={unit.id}
+                        type="button"
+                        aria-pressed={checked}
+                        onClick={() => toggleUnit(unit.id)}
+                        className={`min-h-14 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium tracking-tight transition ${
+                          checked
+                            ? 'border-cyan-500 bg-cyan-950/30 text-cyan-100 shadow-[0_0_18px_rgba(6,182,212,0.28)]'
+                            : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                        }`}
+                      >
                         {unit.title}
-                      </label>
+                      </button>
                     );
                   })}
                 </div>
@@ -208,7 +249,7 @@ export default function MockExamSetup() {
         whileTap={{ scale: 0.98 }}
         onClick={handleStart}
         disabled={selectedUnitIds.length === 0}
-        className="flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/50 bg-cyan-400/15 py-4 text-sm font-bold text-cyan-200 transition-colors hover:bg-cyan-400/25 disabled:opacity-40"
+        className="flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/50 bg-cyan-400/15 py-4 text-sm font-medium tracking-tight text-cyan-200 transition-colors hover:bg-cyan-400/25 disabled:opacity-40"
       >
         <Rocket className="h-5 w-5" />
         模試をスタートする ({minutes}分/{questionCount}問)

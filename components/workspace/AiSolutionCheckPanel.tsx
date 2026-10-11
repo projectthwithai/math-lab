@@ -93,7 +93,7 @@ export default function AiSolutionCheckPanel({
           void handleCheck();
         }}
         disabled={disabled || isChecking}
-        className="rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition-colors hover:bg-cyan-400/20 disabled:opacity-40 dark:text-cyan-300"
+        className="rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-sm font-medium tracking-tight text-cyan-700 transition-colors hover:bg-cyan-400/20 disabled:opacity-40 dark:text-cyan-300"
       >
         {isChecking ? (
           <span className="inline-flex items-center gap-1.5">
