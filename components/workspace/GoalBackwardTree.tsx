@@ -119,10 +119,10 @@ function TreeNode({
   body: ReactNode;
 }) {
   const toneClass = {
-    cyan: 'border-cyan-400/40 bg-slate-950/40',
-    amber: 'border-amber-400/40 bg-slate-950/40',
-    rose: 'border-rose-400/40 bg-slate-950/40',
-    emerald: 'border-emerald-400/40 bg-slate-950/40',
+    cyan: 'border-cyan-400/40 bg-[#12141f] shadow-lg shadow-black/40',
+    amber: 'border-amber-400/40 bg-[#12141f] shadow-lg shadow-black/40',
+    rose: 'border-rose-400/40 bg-[#12141f] shadow-lg shadow-black/40',
+    emerald: 'border-emerald-400/40 bg-[#12141f] shadow-lg shadow-black/40',
   }[tone];
 
   return (

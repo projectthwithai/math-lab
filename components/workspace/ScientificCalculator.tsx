@@ -108,7 +108,7 @@ export default function ScientificCalculator({ open, onClose, onApply }: Scienti
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="fixed right-0 top-0 z-[80] flex h-full w-[min(100vw,22rem)] flex-col border-l border-cyan-400/20 bg-slate-950/95 p-4 shadow-[-12px_0_40px_rgba(8,47,73,0.45)] backdrop-blur-xl"
+            className="fixed right-0 top-0 z-[80] flex h-full w-[min(100vw,22rem)] flex-col border-l border-cyan-400/20 bg-[#0b0d14] p-4 shadow-[-12px_0_40px_rgba(8,47,73,0.45)] backdrop-blur-xl"
           >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-1.5 text-sm font-semibold text-cyan-200">
@@ -125,7 +125,7 @@ export default function ScientificCalculator({ open, onClose, onApply }: Scienti
               </button>
             </div>
 
-            <div className="mb-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+            <div className="mb-3 rounded-xl surface-card p-3">
               <p className="min-h-[1.25rem] break-all font-mono text-xs text-slate-400">
                 {expression || '0'}
               </p>
@@ -171,7 +171,7 @@ export default function ScientificCalculator({ open, onClose, onApply }: Scienti
                       ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300'
                       : key.insert === 'clear'
                         ? 'bg-rose-400/15 text-rose-200 hover:bg-rose-400/25'
-                        : 'border border-slate-800 bg-slate-900 text-slate-100 hover:border-cyan-400/40'
+                        : 'border border-zinc-700/60 bg-[#12141f] text-slate-100 shadow-lg shadow-black/40 hover:border-cyan-400/40'
                   }`}
                 >
                   {key.label}

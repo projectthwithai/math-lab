@@ -55,7 +55,7 @@ export default function DailyMissionWidget() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-5">
+    <section className="relative overflow-hidden rounded-2xl surface-panel p-4 backdrop-blur-md sm:p-5">
       <div className="relative mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-widest text-slate-500">Daily Quest</p>
@@ -124,12 +124,10 @@ export default function DailyMissionWidget() {
           return (
             <li
               key={quest.id}
-              className={`group relative flex flex-col rounded-xl border p-4 backdrop-blur-md transition-colors ${
+              className={`group relative flex flex-col rounded-xl p-4 backdrop-blur-md transition-colors ${
                 quest.isRewardClaimed
-                  ? 'border-emerald-400/30 bg-emerald-50/70 dark:bg-emerald-400/5'
-                  : quest.isCompleted
-                    ? 'border-slate-300 bg-white/90 dark:border-slate-700 dark:bg-slate-900/70'
-                    : 'border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-950/40'
+                  ? 'border border-emerald-400/30 bg-emerald-50/70 dark:bg-emerald-950/40'
+                  : 'surface-card'
               }`}
             >
             {!quest.isCompleted ? (

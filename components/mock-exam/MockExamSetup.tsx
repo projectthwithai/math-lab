@@ -88,12 +88,12 @@ export default function MockExamSetup() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5">
+      <section className="rounded-2xl surface-panel p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold tracking-tight text-zinc-100">単元選択</h2>
           <div className="flex flex-wrap gap-2">
             {(['math', 'physics', 'chemistry'] as Subject[]).map((subject) => (
-              <div key={subject} className="inline-flex overflow-hidden rounded-xl border border-zinc-800">
+              <div key={subject} className="inline-flex overflow-hidden rounded-xl surface-card">
                 <button
                   type="button"
                   onClick={() => selectSubject(subject)}
@@ -155,7 +155,7 @@ export default function MockExamSetup() {
                         className={`min-h-14 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium tracking-tight transition ${
                           checked
                             ? 'border-cyan-500 bg-cyan-950/30 text-cyan-100 shadow-[0_0_18px_rgba(6,182,212,0.28)]'
-                            : 'border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                            : 'border-zinc-700/60 bg-[#12141f] text-zinc-400 shadow-lg shadow-black/40 hover:border-zinc-600 hover:text-zinc-200'
                         }`}
                       >
                         {unit.title}
@@ -169,7 +169,7 @@ export default function MockExamSetup() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+      <section className="rounded-2xl surface-panel p-5">
         <h2 className="mb-4 text-sm font-semibold text-slate-900 dark:text-white">設定</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <fieldset>

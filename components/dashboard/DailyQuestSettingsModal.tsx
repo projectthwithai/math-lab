@@ -106,7 +106,7 @@ export default function DailyQuestSettingsModal({
         <button
           type="button"
           onClick={handleDiscard}
-          className="absolute right-6 top-6 rounded-full border border-zinc-800 bg-zinc-950/80 p-2 text-zinc-400 transition-colors hover:text-zinc-100 md:right-10 md:top-10"
+          className="absolute right-6 top-6 rounded-full border border-zinc-800 bg-[#0b0d14] p-2 text-zinc-400 transition-colors hover:text-zinc-100 md:right-10 md:top-10"
           aria-label="保存せずに閉じる"
         >
           <X className="h-5 w-5 text-zinc-400 hover:text-zinc-100" />
@@ -121,7 +121,7 @@ export default function DailyQuestSettingsModal({
           </p>
         </header>
 
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 md:p-8">
+        <section className="mt-8 rounded-2xl surface-panel p-6 md:p-8">
           <div className="mb-4 flex items-end justify-between gap-3">
             <p className="text-base font-semibold text-white">クエスト総数</p>
             <span className="text-2xl font-bold text-cyan-300">{count}問</span>
@@ -171,7 +171,7 @@ export default function DailyQuestSettingsModal({
             return (
               <li
                 key={quest.id}
-                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70"
+                className="overflow-hidden rounded-2xl surface-panel"
               >
                 <button
                   type="button"
@@ -217,7 +217,7 @@ export default function DailyQuestSettingsModal({
                                   className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                                     checked
                                       ? SUBJECT_CHIP[subject]
-                                      : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500'
+                                      : 'border-zinc-700/60 bg-[#12141f] text-slate-400 shadow-lg shadow-black/40 hover:border-slate-500'
                                   }`}
                                 >
                                   <input
@@ -253,7 +253,7 @@ export default function DailyQuestSettingsModal({
                                           className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-snug transition ${
                                             checked
                                               ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
-                                              : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-600'
+                                              : 'border-zinc-700/60 bg-[#12141f] text-slate-300 shadow-lg shadow-black/40 hover:border-slate-600'
                                           }`}
                                         >
                                           <input
@@ -287,7 +287,7 @@ export default function DailyQuestSettingsModal({
                                 className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                                   quest.difficulty === meta.value
                                     ? 'border-amber-400/70 bg-amber-400/15 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.18)]'
-                                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                                    : 'border-zinc-700/60 bg-[#12141f] text-slate-400 shadow-lg shadow-black/40 hover:border-slate-600 hover:text-slate-200'
                                 }`}
                               >
                                 {meta.starLabel}

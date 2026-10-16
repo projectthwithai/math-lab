@@ -46,7 +46,7 @@ export default function BrandMark({ size = 'nav', className = '' }: BrandMarkPro
   return (
     <span className={`inline-flex min-w-0 items-center gap-2.5 ${className}`}>
       <span
-        className={`flex shrink-0 items-center justify-center border border-slate-200 bg-slate-50 text-cyan-500 dark:border-zinc-800/60 dark:bg-[#0a0a0a] dark:text-cyan-400 ${spec.iconBox}`}
+        className={`flex shrink-0 items-center justify-center border border-slate-200 bg-slate-50 text-cyan-500 dark:border-zinc-800/80 dark:bg-[#12141f] dark:text-cyan-400 ${spec.iconBox}`}
       >
         <Sparkles className={spec.icon} />
       </span>

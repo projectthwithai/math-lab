@@ -21,7 +21,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white transition-colors hover:border-slate-300 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:hover:border-zinc-700"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white transition-colors hover:border-slate-300 dark:border-zinc-800/80 dark:bg-[#0b0d14] dark:hover:border-zinc-700"
       aria-label={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
       title={isDark ? 'ライトモード' : 'ダークモード'}
     >

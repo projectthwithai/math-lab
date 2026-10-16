@@ -450,7 +450,7 @@ export default function MathGraphPlotter({ visualConfig, problem, className, isS
 
   return (
     <figure
-      className={`relative overflow-hidden rounded-xl border border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/60 ${className ?? ''}`}
+      className={`relative overflow-hidden rounded-xl surface-card backdrop-blur-md ${className ?? ''}`}
     >
       <div
         ref={stageRef}

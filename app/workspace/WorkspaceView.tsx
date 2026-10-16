@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, RefreshCw, HelpCircle, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator, BookOpen, FileText, LineChart, Eye, ChevronDown, Sparkles } from 'lucide-react';
+import { Clock, RefreshCw, HelpCircle, PenLine, Keyboard, MessageCircle, Star, Layers, X, ArrowRight, Calculator, BookOpen, FileText, LineChart, Eye, ChevronDown, Sparkles, FolderPlus } from 'lucide-react';
 
 import type { GeneratedProblem } from '@/types/mathLab';
 import type { XpGainResult } from '@/lib/engine/adaptiveEngine';
@@ -26,11 +26,20 @@ import { useUserStore } from '@/lib/store/userStore';
 import { completeDailyQuest } from '@/lib/store/dailyQuestStore';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
 import {
+  ENERGY_COST_CUSTOM_FILE_NEW,
+  ENERGY_COST_CUSTOM_FILE_REVIEW,
   formatEnergyShortage,
   getGenerateEnergyCost,
+  isCustomFileSource,
   isLibraryReviewSource,
   isPatternVariantSource,
 } from '@/lib/engine/energyCosts';
+import {
+  markCustomFileEnergyCharged,
+  resolveCustomFileProblemCost,
+  startCustomFilePracticePath,
+  wasCustomFileEnergyCharged,
+} from '@/lib/engine/customFileProblem';
 import { formatStarDifficulty } from '@/lib/engine/difficultyScale';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 import { withAiRouterHeaders } from '@/lib/api/aiRouterClient';
@@ -53,6 +62,7 @@ import ScoreResultModal from '@/components/workspace/ScoreResultModal';
 import HandwrittenNoteScanButton from '@/components/workspace/HandwrittenNoteScanButton';
 import GoalBackwardTree from '@/components/workspace/GoalBackwardTree';
 import DynamicLoadingCircle from '@/components/ui/DynamicLoadingCircle';
+import AddToFileModal from '@/components/library/AddToFileModal';
 
 type WorkspaceTab = 'memo' | 'input' | 'hints' | 'chat';
 
@@ -80,6 +90,9 @@ interface WorkspaceViewProps {
   problemId?: string;
   /** 図鑑に蓄積した変装バリエーション */
   variantId?: string;
+  /** マイファイル連続演習 */
+  fileId?: string;
+  fileIndex?: string;
 }
 
 export default function WorkspaceView({
@@ -93,6 +106,8 @@ export default function WorkspaceView({
   mode,
   problemId,
   variantId,
+  fileId,
+  fileIndex,
 }: WorkspaceViewProps) {
   const router = useRouter();
   const recordAnswer = useUserStore((state) => state.recordAnswer);
@@ -100,6 +115,9 @@ export default function WorkspaceView({
   const hasHydrated = useUserStore((state) => state.hasHydrated);
   const patternNotes = useUserStore((state) => state.patternNotes);
   const upsertPatternNote = useUserStore((state) => state.upsertPatternNote);
+  const customFiles = useUserStore((state) => state.customFiles);
+  const isDeveloper = useUserStore((state) => state.isDeveloper);
+  const isProblemPracticed = useUserStore((state) => state.isProblemPracticed);
 
   const [problem, setProblem] = useState<GeneratedProblem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,11 +142,19 @@ export default function WorkspaceView({
   /** 採点モーダル。「閉じる」後も submission を残し、解説を見る で再表示する */
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isAddToFileOpen, setIsAddToFileOpen] = useState(false);
   const isSubmittedRef = useRef(false);
   const fetchingRef = useRef(false);
   const reviewRecordIdRef = useRef<string | null>(null);
   const isReviewMode = mode === 'review' || isLibraryReviewSource(source);
   const isVariantMode = Boolean(variantId) || isPatternVariantSource(source);
+  const isCustomFileMode = Boolean(fileId) || isCustomFileSource(source);
+  const customFileIndex = Math.max(0, Number(fileIndex) || 0);
+  const activeCustomFile = isCustomFileMode
+    ? customFiles.find((item) => item.id === fileId)
+    : undefined;
+  const isLastCustomFileProblem =
+    Boolean(activeCustomFile) && customFileIndex + 1 >= (activeCustomFile?.problems.length ?? 0);
 
   const accent = useMemo(() => SUBJECT_ACCENT[problem?.subject ?? 'math'], [problem?.subject]);
   const visualEnabled = isActiveVisualType(problem?.visualType);
@@ -217,6 +243,37 @@ export default function WorkspaceView({
         return;
       }
 
+      if (isCustomFileMode && fileId) {
+        const store = useUserStore.getState();
+        const file = store.customFiles.find((item) => item.id === fileId);
+        const sourceProblem = file?.problems[customFileIndex];
+        if (!file || !sourceProblem) {
+          setEnergyError('マイファイルの問題が見つかりません。ライブラリから選び直してください。');
+          setIsLoading(false);
+          return;
+        }
+        const practiced = store.isProblemPracticed(sourceProblem.id);
+        const developer = hasDeveloperPrivileges() || store.isDeveloper;
+        const fileCost = resolveCustomFileProblemCost({
+          practiced,
+          isDeveloper: developer,
+          alreadyCharged: wasCustomFileEnergyCharged(sourceProblem.id),
+        });
+        if (!store.consumeEnergy(fileCost)) {
+          setEnergyError(
+            `未挑戦の問題は ${ENERGY_COST_CUSTOM_FILE_NEW} Energy 必要です。` +
+              formatEnergyShortage(fileCost, store.energy)
+          );
+          setIsLoading(false);
+          return;
+        }
+        if (fileCost > 0) markCustomFileEnergyCharged(sourceProblem.id);
+        setEnergyError(null);
+        setIsLoading(true);
+        applyNewProblem(sourceProblem);
+        return;
+      }
+
       if (source === 'pending') {
         const pending = consumePendingWorkspaceProblem();
         if (pending) {
@@ -302,7 +359,7 @@ export default function WorkspaceView({
       fetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem, isReviewMode, isVariantMode, problemId, variantId]);
+  }, [unitId, patternId, subtopicId, initialDifficulty, discoveredPatterns, prompt, source, applyNewProblem, isReviewMode, isVariantMode, isCustomFileMode, problemId, variantId, fileId, customFileIndex]);
 
   useEffect(() => {
     // 発掘パターンを出題プールに含めるため、Zustand ハイドレーション後に生成する。
@@ -360,6 +417,16 @@ export default function WorkspaceView({
     if (fetchingRef.current || isLoading) return;
     setIsScoreModalOpen(false);
     setSubmission(null);
+    if (isCustomFileMode && fileId) {
+      const file = useUserStore.getState().customFiles.find((item) => item.id === fileId);
+      const nextIndex = customFileIndex + 1;
+      if (file && nextIndex < file.problems.length) {
+        router.push(startCustomFilePracticePath(fileId, nextIndex));
+        return;
+      }
+      router.push('/library?view=files');
+      return;
+    }
     if (isReviewMode || isVariantMode) {
       handleRegenerateLocally();
       return;
@@ -381,10 +448,10 @@ export default function WorkspaceView({
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 px-4 py-16 text-center">
         <p className="text-sm font-semibold text-amber-600 dark:text-amber-300">{energyError}</p>
-        {isReviewMode ? (
+        {isReviewMode || isCustomFileMode ? (
           <button
             type="button"
-            onClick={() => router.push('/library')}
+            onClick={() => router.push(isCustomFileMode ? '/library?view=files' : '/library')}
             className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-200"
           >
             マイライブラリへ戻る
@@ -420,15 +487,27 @@ export default function WorkspaceView({
         </p>
       )}
       {/* 左: 問題エリア */}
-      <div className={`flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60`}>
+      <div className="flex flex-col gap-4 rounded-2xl surface-panel p-5 backdrop-blur-md">
         {isReviewMode && (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold tracking-tight text-cyan-700 dark:text-cyan-200">
             <RefreshCw className="h-3.5 w-3.5" />
             過去問復習モード (0 Energy)
           </div>
         )}
+        {isCustomFileMode && (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[11px] font-semibold tracking-tight text-cyan-700 dark:text-cyan-200">
+            <FolderPlus className="h-3.5 w-3.5" />
+            マイファイル {customFileIndex + 1}/{activeCustomFile?.problems.length ?? '?'}
+            {' · '}
+            {isDeveloper || hasDeveloperPrivileges()
+              ? `0 Energy`
+              : isProblemPracticed(problem.id)
+                ? `復習 (${ENERGY_COST_CUSTOM_FILE_REVIEW} Energy)`
+                : `未挑戦 (${ENERGY_COST_CUSTOM_FILE_NEW} Energy)`}
+          </div>
+        )}
         {problem.fromDiscoveredPattern && (
-          <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-[11px] font-medium tracking-tight text-amber-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-amber-300">
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-[11px] font-medium tracking-tight text-amber-700 dark:border-slate-800 dark:bg-[#12141f] dark:text-amber-300">
             <Layers className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
             図鑑で発掘したパターンからの出題
           </div>
@@ -438,7 +517,7 @@ export default function WorkspaceView({
             type="button"
             onClick={() => setIsPatternPeekOpen((open) => !open)}
             aria-expanded={isPatternPeekOpen}
-            className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-medium tracking-tight text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-900"
+            className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-medium tracking-tight text-slate-700 transition-colors hover:bg-slate-100 dark:bg-[#0b0d14] dark:text-slate-200 dark:hover:bg-slate-900"
           >
             <Eye className="h-3.5 w-3.5" />
             解法パターンを確認する（タップで展開）
@@ -483,14 +562,24 @@ export default function WorkspaceView({
               {problem.unit}
             </span>
           </div>
-          <span className="flex items-center gap-1 text-xs text-slate-500">
-            <Clock className="h-3.5 w-3.5" />
-            {formattedTime}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAddToFileOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:border-cyan-400/60 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300 dark:hover:text-cyan-200"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+              ファイルに追加
+            </button>
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              <Clock className="h-3.5 w-3.5" />
+              {formattedTime}
+            </span>
+          </div>
         </div>
 
         <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">{problem.title}</h1>
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-4 text-sm leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-200">
+        <div className="rounded-xl surface-card p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
           <KaTeXText text={problem.questionText} />
         </div>
 
@@ -511,7 +600,7 @@ export default function WorkspaceView({
               onChange={(event) => persistSolutionNote(event.target.value)}
               rows={4}
               placeholder="解き方を自分の言葉で書いておこう。解答後の採点モーダルにもそのまま表示されます。"
-              className="min-h-[6rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-2.5 text-xs leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="min-h-[6rem] w-full resize-y rounded-lg surface-input p-2.5 text-xs leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:text-white"
             />
             {patternMemo && (
               <button
@@ -530,7 +619,7 @@ export default function WorkspaceView({
               type="button"
               onClick={() => setIsVisualOpen((open) => !open)}
               aria-expanded={isVisualOpen}
-              className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-medium tracking-tight text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-900"
+              className="flex w-full items-center justify-center gap-1.5 bg-slate-50 px-3 py-2.5 text-xs font-medium tracking-tight text-slate-700 transition-colors hover:bg-slate-100 dark:bg-[#0b0d14] dark:text-slate-200 dark:hover:bg-slate-900"
             >
               <LineChart className="h-3.5 w-3.5" />
               図形
@@ -576,7 +665,7 @@ export default function WorkspaceView({
       </div>
 
       {/* 右: タブ切り替えエリア */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60">
+      <div className="flex flex-col gap-3 rounded-2xl surface-panel p-5 backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-1.5">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -626,7 +715,7 @@ export default function WorkspaceView({
                         className={`rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
                           selected
                             ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-200'
-                            : 'border-slate-300 bg-white text-slate-800 hover:border-cyan-400/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200'
+                            : 'border-slate-300 bg-white text-slate-800 hover:border-cyan-400/40 dark:border-zinc-700/60 dark:bg-[#12141f] dark:text-slate-200 dark:shadow-lg dark:shadow-black/40'
                         }`}
                       >
                         <span className="mr-2 text-[11px] font-bold text-slate-500">
@@ -652,7 +741,7 @@ export default function WorkspaceView({
               {problem.hints.map((hint, index) => {
                 const isRevealed = revealedHintCount > index;
                 return (
-                  <div key={index} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/50 p-3">
+                  <div key={index} className="rounded-lg surface-card p-3">
                     <p className="mb-1 text-xs font-bold text-amber-300">ヒント {index + 1}</p>
                     {isRevealed ? (
                       <p className="text-sm text-slate-800 dark:text-slate-200">
@@ -692,7 +781,7 @@ export default function WorkspaceView({
               className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-2 py-3 text-sm font-medium tracking-tight text-cyan-700 transition-colors hover:bg-cyan-400/20 dark:text-cyan-200"
             >
               <ArrowRight className="h-4 w-4 shrink-0" />
-              次の問題へ
+              {isCustomFileMode && isLastCustomFileProblem ? 'ファイルを終了する' : '次の問題へ'}
             </button>
           </div>
         ) : (
@@ -708,7 +797,7 @@ export default function WorkspaceView({
 
       {isMemoOpen && patternMemo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-amber-400/30 bg-white/95 p-5 shadow-xl dark:bg-slate-950/95">
+          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-amber-400/30 surface-panel p-5 shadow-xl">
             <button
               type="button"
               onClick={() => setIsMemoOpen(false)}
@@ -754,11 +843,15 @@ export default function WorkspaceView({
       <button
         type="button"
         onClick={() => setIsCalculatorOpen(true)}
-        className="fixed right-0 top-1/3 z-40 hidden rounded-l-xl border border-r-0 border-cyan-400/40 bg-slate-950/90 px-2 py-3 text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.25)] md:flex md:items-center"
+        className="fixed right-0 top-1/3 z-40 hidden rounded-l-xl border border-r-0 border-cyan-400/40 bg-[#0b0d14] px-2 py-3 text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.25)] md:flex md:items-center"
         aria-label="電卓を開く"
       >
         <Calculator className="h-4 w-4" />
       </button>
+
+      {isAddToFileOpen && (
+        <AddToFileModal problem={problem} onClose={() => setIsAddToFileOpen(false)} />
+      )}
 
       <ScientificCalculator
         open={isCalculatorOpen}

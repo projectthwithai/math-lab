@@ -164,7 +164,7 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950/95"
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl surface-panel p-6 shadow-xl"
       >
         <button
           type="button"
@@ -203,7 +203,7 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
             {report.questions.map((item) => (
               <li
                 key={item.problem.id}
-                className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/60"
+                className="rounded-xl surface-card px-3 py-2.5"
               >
                 <div className="flex items-start gap-2">
                   {item.isCorrect ? (

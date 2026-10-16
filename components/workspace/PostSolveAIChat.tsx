@@ -136,7 +136,7 @@ export default function PostSolveAIChat({
                     type="button"
                     disabled={isSending}
                     onClick={() => void handleSend(chip)}
-                    className="rounded-full border border-cyan-400/40 bg-white/80 px-3 py-1 text-[11px] font-semibold text-cyan-700 transition hover:bg-cyan-400/15 disabled:opacity-50 dark:bg-slate-950/70 dark:text-cyan-200"
+                    className="rounded-full border border-cyan-400/40 bg-white/80 px-3 py-1 text-[11px] font-semibold text-cyan-700 transition hover:bg-cyan-400/15 disabled:opacity-50 dark:bg-[#12141f] dark:text-cyan-200"
                   >
                     {chip}
                   </button>
@@ -153,7 +153,7 @@ export default function PostSolveAIChat({
                 )}
               </div>
 
-              <div className="max-h-56 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/60">
+              <div className="max-h-56 space-y-3 overflow-y-auto rounded-xl surface-card p-3">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -201,7 +201,7 @@ export default function PostSolveAIChat({
                   }}
                   disabled={isSending}
                   placeholder="この行の変形がわからない、など自由に質問"
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="flex-1 rounded-lg surface-input px-3 py-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50 dark:text-white"
                 />
                 <button
                   type="button"

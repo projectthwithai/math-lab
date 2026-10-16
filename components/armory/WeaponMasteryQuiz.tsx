@@ -144,7 +144,7 @@ export default function WeaponMasteryQuiz({ weapon }: WeaponMasteryQuizProps) {
                         ? 'border-red-400/70 bg-red-400/10 text-red-100'
                         : active
                           ? 'border-cyan-400/70 bg-cyan-400/10 text-cyan-100'
-                          : 'border-slate-700 bg-slate-950/70 text-slate-200 hover:border-amber-400/40'
+                          : 'border-zinc-700/60 bg-[#12141f] text-slate-200 shadow-lg shadow-black/40 hover:border-amber-400/40'
                   }`}
                 >
                   <span className="mr-2 text-[11px] font-bold text-slate-500">{CHOICE_MARKS[index] ?? `${index + 1}.`}</span>

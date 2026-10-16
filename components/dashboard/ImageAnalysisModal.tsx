@@ -9,13 +9,14 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BookPlus, CheckCircle2, Flame, X } from 'lucide-react';
+import { BookPlus, CheckCircle2, Flame, FolderPlus, X } from 'lucide-react';
 
 import type { ImageAnalysisResult } from '@/types/mathLab';
 import { useUserStore } from '@/lib/store/userStore';
 import { setPendingWorkspaceProblem } from '@/lib/storage/pendingProblemStore';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import HandwritingReshootAlert from '@/components/workspace/HandwritingReshootAlert';
+import AddToFileModal from '@/components/library/AddToFileModal';
 import {
   IMAGE_ANALYSIS_INVALID_ERROR,
   IMAGE_ANALYSIS_RESHOOT_HEADING,
@@ -34,7 +35,7 @@ function ModalShell({ children, onClose }: { children: ReactNode; onClose: () =>
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 sm:p-6"
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl surface-panel p-5 shadow-xl backdrop-blur-md sm:p-6"
       >
         <button
           type="button"
@@ -55,6 +56,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
   const appendDiscoveredPatterns = useUserStore((state) => state.appendDiscoveredPatterns);
   const incrementPatternVariants = useUserStore((state) => state.incrementPatternVariants);
   const [addedNotice, setAddedNotice] = useState<string | null>(null);
+  const [isAddToFileOpen, setIsAddToFileOpen] = useState(false);
 
   if (isImageAnalysisBlocked(result)) {
     const errorText = result.error?.trim() || IMAGE_ANALYSIS_INVALID_ERROR;
@@ -121,7 +123,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
           原問の文章は保存・表示しません。解法構造だけを抽出し、完全オリジナルの類題を作りました。
         </p>
 
-        <section className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+        <section className="mt-4 rounded-xl surface-card p-3">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">抽出した解法構造</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             {result.logic.unit}（{result.logic.subject === 'math' ? '数学' : result.logic.subject === 'physics' ? '物理' : '化学'}）
@@ -155,7 +157,7 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
           <button
             type="button"
             onClick={openWorkspace}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-slate-700"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-[#0b0d14] dark:text-slate-200 dark:hover:border-slate-700"
           >
             <Flame className="h-3.5 w-3.5" />
             完全オリジナルの類題を生成して解く
@@ -163,18 +165,32 @@ export default function ImageAnalysisModal({ result, onClose }: ImageAnalysisMod
           <button
             type="button"
             onClick={handleAddPattern}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-slate-700"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-[#0b0d14] dark:text-slate-200 dark:hover:border-slate-700"
           >
             <BookPlus className="h-3.5 w-3.5" />
             {matchedExisting ? '既存パターンの類題として記録する' : 'この解法パターンを図鑑に自動追加する'}
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsAddToFileOpen(true)}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-cyan-400/50 dark:border-slate-800 dark:bg-[#0b0d14] dark:text-slate-200"
+        >
+          <FolderPlus className="h-3.5 w-3.5" />
+          ファイルに追加
+        </button>
 
         {addedNotice && (
           <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
             <CheckCircle2 className="h-3.5 w-3.5" />
             {addedNotice}
           </p>
+        )}
+        {isAddToFileOpen && (
+          <AddToFileModal
+            problem={result.variantProblem}
+            onClose={() => setIsAddToFileOpen(false)}
+          />
         )}
     </ModalShell>
   );

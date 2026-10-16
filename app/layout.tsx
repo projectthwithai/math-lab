@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_JP, JetBrains_Mono } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import UserStoreHydrator from "@/components/layout/UserStoreHydrator";
+import AppToast from "@/components/layout/AppToast";
 import AppThemeProvider from "@/components/layout/ThemeProvider";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppThemeProvider>
           <UserStoreHydrator />
           <Navbar />
+          <AppToast />
           <div className="flex-1 pb-20 md:pb-0">{children}</div>
           <BottomNav />
         </AppThemeProvider>

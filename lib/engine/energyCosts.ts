@@ -56,6 +56,12 @@ export const ENERGY_COST_LIBRARY_REVIEW = 0;
 /** 蓄積済みバリエーションの演習。解析時に課金済みなので常に 0 Energy */
 export const ENERGY_COST_PATTERN_VARIANT = 0;
 
+/** マイファイルの既習（復習）問題。過去に解いたスナップショットは 0 Energy */
+export const ENERGY_COST_CUSTOM_FILE_REVIEW = 0;
+
+/** マイファイルの未挑戦（初見）問題。通常の問題生成と同じ 10 Energy */
+export const ENERGY_COST_CUSTOM_FILE_NEW = ENERGY_COST_GENERATE_PROBLEM;
+
 /** デイリークエスト達成時の Energy 回復量 */
 export const DAILY_QUEST_ENERGY_REWARD = 30;
 
@@ -75,13 +81,26 @@ export function isPatternVariantSource(source?: string | null): boolean {
   return source === 'variant';
 }
 
-/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験 / 過去問復習 / 蓄積バリエーションは常に 0 */
+export function isCustomFileSource(source?: string | null): boolean {
+  return source === 'custom-file';
+}
+
+/** ワークスペースの問題生成コスト。デイリークエスト / ゲスト体験 / 過去問復習 / 蓄積バリエーションは 0。マイファイルは既習判定で別計算 */
 export function getGenerateEnergyCost(source?: string | null): number {
   if (isDailyQuestSource(source)) return ENERGY_COST_DAILY_QUEST;
   if (isGuestDemoSource(source)) return ENERGY_COST_GUEST_DEMO;
   if (isLibraryReviewSource(source)) return ENERGY_COST_LIBRARY_REVIEW;
   if (isPatternVariantSource(source)) return ENERGY_COST_PATTERN_VARIANT;
   return ENERGY_COST_GENERATE_PROBLEM;
+}
+
+/** マイファイル1問の消費。既習・開発者は 0、未挑戦は 10 */
+export function getCustomFilePracticeEnergyCost(options: {
+  practiced: boolean;
+  isDeveloper?: boolean;
+}): number {
+  if (options.isDeveloper) return ENERGY_COST_CUSTOM_FILE_REVIEW;
+  return options.practiced ? ENERGY_COST_CUSTOM_FILE_REVIEW : ENERGY_COST_CUSTOM_FILE_NEW;
 }
 
 export function formatEnergyShortage(cost: number, remaining: number): string {

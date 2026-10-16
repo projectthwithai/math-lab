@@ -97,7 +97,7 @@ export default function SolvedProblemCard({ record, onUpdated }: SolvedProblemCa
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-xl border bg-white/80 p-4 backdrop-blur-md dark:bg-slate-900/60 ${
+      className={`flex flex-col gap-3 rounded-xl border bg-white/80 p-4 backdrop-blur-md dark:bg-[#12141f] dark:shadow-lg dark:shadow-black/40 ${
         due ? 'border-amber-400/40' : accent.border
       }`}
     >
@@ -179,7 +179,7 @@ export default function SolvedProblemCard({ record, onUpdated }: SolvedProblemCa
                 onChange={(event) => setMistakeNote(event.target.value)}
                 rows={2}
                 placeholder="なぜ間違えたかを自分の言葉で..."
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="w-full resize-none rounded-lg surface-input p-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:text-white"
               />
               <button
                 type="button"
@@ -219,7 +219,7 @@ export default function SolvedProblemCard({ record, onUpdated }: SolvedProblemCa
             onChange={(event) => setNoteContent(event.target.value)}
             rows={3}
             placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-            className="w-full resize-none rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none"
+            className="w-full resize-none rounded-lg surface-input p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
             <button

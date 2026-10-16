@@ -67,7 +67,7 @@ export default function AISolutionChat({ problem }: AISolutionChatProps) {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/60">
+      <div className="flex-1 space-y-3 overflow-y-auto rounded-xl surface-card p-3">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -111,7 +111,7 @@ export default function AISolutionChat({ problem }: AISolutionChatProps) {
           }}
           disabled={isSending}
           placeholder="この別解でも解ける？ 途中方針を書いて検証してもらおう"
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          className="flex-1 rounded-lg surface-input px-3 py-2 text-xs text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none disabled:opacity-50 dark:text-white"
         />
         <button
           type="button"

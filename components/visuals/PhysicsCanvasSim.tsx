@@ -283,7 +283,7 @@ export default function PhysicsCanvasSim({ problem, scene, className }: PhysicsC
 
   return (
     <figure
-      className={`overflow-hidden rounded-xl border border-violet-400/30 bg-white/80 backdrop-blur-md dark:border-violet-400/20 dark:bg-slate-950/60 ${className ?? ''}`}
+      className={`overflow-hidden rounded-xl border border-violet-400/30 bg-white/80 backdrop-blur-md dark:border-violet-400/20 dark:bg-[#12141f] ${className ?? ''}`}
     >
       {resolved.kind === 'incline' && <InclineFigure scene={resolved} uid={uid} />}
       {resolved.kind === 'circuit' && <CircuitFigure scene={resolved} uid={uid} />}

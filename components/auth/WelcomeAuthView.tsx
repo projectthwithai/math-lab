@@ -90,7 +90,7 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
           className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center text-center"
         >
           <BrandMark size="hero" className="mb-6 justify-center" />
-          <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-wide text-slate-500 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-zinc-400">
+          <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-wide text-slate-500 dark:border-zinc-800/80 dark:bg-[#0b0d14] dark:text-zinc-400">
             <Flame className="h-3.5 w-3.5 text-orange-400" />
             理数AI学習OS
           </p>
@@ -110,7 +110,7 @@ export default function WelcomeAuthView({ onStartGuestDemo }: WelcomeAuthViewPro
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.12 + index * 0.08, duration: 0.4 }}
-                  className={`rounded-2xl border border-slate-200 bg-gradient-to-b ${feature.accent} p-4 text-left backdrop-blur-md dark:border-zinc-800/60`}
+                  className={`rounded-2xl border border-slate-200 bg-gradient-to-b ${feature.accent} p-4 text-left backdrop-blur-md dark:border-zinc-800/80`}
                 >
                   <Icon className="mb-3 h-5 w-5" />
                   <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">{feature.title}</h2>

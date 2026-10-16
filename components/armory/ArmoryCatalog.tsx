@@ -71,7 +71,7 @@ export default function ArmoryCatalog() {
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="公式名で探す"
-          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none sm:max-w-xs"
+          className="w-full rounded-xl surface-input px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none sm:max-w-xs"
         />
       </div>
 

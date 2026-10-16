@@ -140,7 +140,7 @@ export default function WeaknessRadarChart({ axes, size = 260 }: WeaknessRadarCh
         {axes.map((axis) => (
           <div
             key={axis.label}
-            className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5 text-center dark:border-zinc-800/60 dark:bg-[#0a0a0a]/80"
+            className="rounded-lg surface-card px-2 py-1.5 text-center"
           >
             <p className="truncate text-[10px] text-slate-500 dark:text-zinc-400">{axis.label}</p>
             <p className="text-sm font-bold text-cyan-600 dark:text-cyan-300">{axis.value}%</p>

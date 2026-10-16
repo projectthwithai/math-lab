@@ -34,7 +34,7 @@ export default function DerivationAnimator({ steps }: DerivationAnimatorProps) {
         ))}
       </div>
 
-      <div className="relative min-h-[100px] max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/60">
+      <div className="relative min-h-[100px] max-w-full overflow-x-auto rounded-xl surface-card p-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}

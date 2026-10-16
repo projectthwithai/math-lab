@@ -15,10 +15,11 @@
   --background: #000000; /* True Black */
   --foreground: #f4f4f5; /* zinc-100 */
   color-scheme: dark;
-  --color-slate-950: #000000;
-  --color-slate-900: #0a0a0a;
+  --color-slate-950: #0b0d14;
+  --color-slate-900: #12141f;
   --color-slate-800: #27272a;
-  --color-zinc-950: #0a0a0a;
+  --color-zinc-950: #0b0d14;
+  --color-zinc-900: #12141f;
 }
 
 @theme inline {
@@ -83,6 +84,17 @@ input[type="text"].font-mono {
   }
 }
 
+@keyframes math-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes graph-neon-reveal {
   0% {
     opacity: 0;
@@ -114,6 +126,44 @@ input[type="text"].font-mono {
 }
 
 .dark .glass-panel {
-  border-color: rgb(39 39 42 / 0.6);
-  background-color: rgb(10 10 10 / 0.8);
+  border-color: rgb(39 39 42 / 0.8);
+  background-color: #0b0d14;
+}
+
+/* 大枠パネル: 漆黒の背面から一段浮くサーフェス */
+.surface-panel {
+  border-width: 1px;
+  border-color: rgb(226 232 240);
+  background-color: rgb(255 255 255 / 0.8);
+}
+
+.dark .surface-panel {
+  border-color: rgb(39 39 42 / 0.8);
+  background-color: #0b0d14;
+}
+
+/* 子カード・入力: さらに一段明るい立体サーフェス */
+.surface-card {
+  border-width: 1px;
+  border-color: rgb(203 213 225);
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 4px 6px -4px rgb(15 23 42 / 0.06);
+}
+
+.dark .surface-card {
+  border-color: rgb(63 63 70 / 0.6);
+  background-color: #12141f;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+.surface-input {
+  border-width: 1px;
+  border-color: rgb(203 213 225);
+  background-color: #ffffff;
+}
+
+.dark .surface-input {
+  border-color: rgb(63 63 70 / 0.6);
+  background-color: #12141f;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
 }

@@ -17,7 +17,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { PatternNotesMap, PatternVariant, SolutionPattern } from '@/types/mathLab';
+import type { CustomProblemFile, GeneratedProblem, PatternNotesMap, PatternVariant, SolutionPattern } from '@/types/mathLab';
 import {
   collectLegacyPatternNotes,
   mergePatternNoteMaps,
@@ -42,6 +42,7 @@ import {
   syncDeviceEnergyRemaining,
 } from '@/lib/engine/deviceLock';
 import { clampDifficulty, DEFAULT_DIFFICULTY, DIFFICULTY_SCALE_VERSION, migrateStoredDifficulty } from '@/lib/engine/difficultyScale';
+import { isProblemPracticedFromLogs } from '@/lib/engine/customFileProblem';
 import { hasDeveloperPrivileges } from '@/lib/auth/developerAccess';
 import {
   findSolutionPatternById,
@@ -139,6 +140,47 @@ function normalizePatternVariants(value: unknown): Record<string, PatternVariant
   return next;
 }
 
+function cloneGeneratedProblem(problem: GeneratedProblem): GeneratedProblem {
+  return JSON.parse(JSON.stringify(problem)) as GeneratedProblem;
+}
+
+function isCustomProblemFileLike(value: unknown): value is CustomProblemFile {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.id === 'string' && typeof candidate.title === 'string' && Array.isArray(candidate.problems);
+}
+
+export function nextCustomFileTitle(files: CustomProblemFile[]): string {
+  const used = new Set(files.map((file) => file.title));
+  let index = 1;
+  while (used.has(`ファイル${index}`)) index += 1;
+  return `ファイル${index}`;
+}
+
+function newFileId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `file-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeCustomFiles(value: unknown): CustomProblemFile[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isCustomProblemFileLike).map((file) => {
+    const problems = file.problems.filter(isGeneratedProblemLike);
+    const problemIds = problems.map((problem) => problem.id);
+    return {
+      id: file.id,
+      title: file.title.trim() || '無題のファイル',
+      description: typeof file.description === 'string' ? file.description : undefined,
+      createdAt: typeof file.createdAt === 'string' ? file.createdAt : stampProgress(),
+      updatedAt: typeof file.updatedAt === 'string' ? file.updatedAt : stampProgress(),
+      problemIds,
+      problems,
+    };
+  });
+}
+
 function mergeDiscoveredPatterns(
   current: SolutionPattern[],
   incoming: SolutionPattern[]
@@ -234,6 +276,9 @@ interface UserStoreState {
   /** 新バリエーション解析で蓄積した変装問題（patternId 傘下） */
   patternVariants: Record<string, PatternVariant[]>;
 
+  /** 自分専用の問題ファイル（プレイリスト） */
+  customFiles: CustomProblemFile[];
+
   // --- 解放した武器（閲覧で収集。空でも図鑑は全公開） ---
   unlockedWeaponIds: string[];
   /** 成り立ち試練に正解した武器（MASTERED） */
@@ -310,6 +355,15 @@ interface UserStoreState {
   importLegacyPatternNotes: () => void;
   /** 旧 LocalStorage キーから発掘パターンを取り込み、Zustand へ統合する */
   importLegacyDiscoveredPatterns: () => void;
+  /** マイファイルを新規作成し、id を返す。空タイトルなら「ファイル〇」を自動採番 */
+  createCustomFile: (title?: string) => string;
+  /** 問題スナップショットをファイルへ追加。同一 id はスキップ */
+  addProblemToFile: (fileId: string, problem: GeneratedProblem) => boolean;
+  removeProblemFromFile: (fileId: string, problemId: string) => void;
+  renameCustomFile: (fileId: string, newTitle: string) => void;
+  deleteCustomFile: (fileId: string) => void;
+  /** 解答履歴・攻略パターンから、その問題（または同一パターン）を既に解いたか判定する */
+  isProblemPracticed: (problemId: string) => boolean;
 }
 
 export const useUserStore = create<UserStoreState>()(
@@ -339,6 +393,7 @@ export const useUserStore = create<UserStoreState>()(
       patternCustomNames: {},
       patternVariantCounts: {},
       patternVariants: {},
+      customFiles: [],
       unlockedWeaponIds: [],
       masteredWeaponIds: [],
 
@@ -727,6 +782,91 @@ export const useUserStore = create<UserStoreState>()(
           set({ discoveredPatterns: next, progressUpdatedAt: stampProgress() });
         }
       },
+
+      createCustomFile: (title) => {
+        const now = stampProgress();
+        const files = get().customFiles;
+        const resolvedTitle = title?.trim() || nextCustomFileTitle(files);
+        const file: CustomProblemFile = {
+          id: newFileId(),
+          title: resolvedTitle,
+          createdAt: now,
+          updatedAt: now,
+          problemIds: [],
+          problems: [],
+        };
+        set({ customFiles: [file, ...files], progressUpdatedAt: now });
+        return file.id;
+      },
+
+      addProblemToFile: (fileId, problem) => {
+        if (!isGeneratedProblemLike(problem)) return false;
+        let added = false;
+        const now = stampProgress();
+        set((state) => ({
+          customFiles: state.customFiles.map((file) => {
+            if (file.id !== fileId) return file;
+            if (file.problems.some((item) => item.id === problem.id)) return file;
+            const snapshot = cloneGeneratedProblem(problem);
+            const problems = [...file.problems, snapshot];
+            added = true;
+            return {
+              ...file,
+              problems,
+              problemIds: problems.map((item) => item.id),
+              updatedAt: now,
+            };
+          }),
+          progressUpdatedAt: now,
+        }));
+        return added;
+      },
+
+      removeProblemFromFile: (fileId, problemId) => {
+        const now = stampProgress();
+        set((state) => ({
+          customFiles: state.customFiles.map((file) => {
+            if (file.id !== fileId) return file;
+            const problems = file.problems.filter((item) => item.id !== problemId);
+            return {
+              ...file,
+              problems,
+              problemIds: problems.map((item) => item.id),
+              updatedAt: now,
+            };
+          }),
+          progressUpdatedAt: now,
+        }));
+      },
+
+      renameCustomFile: (fileId, newTitle) => {
+        const title = newTitle.trim();
+        if (!title) return;
+        const now = stampProgress();
+        set((state) => ({
+          customFiles: state.customFiles.map((file) =>
+            file.id === fileId ? { ...file, title, updatedAt: now } : file
+          ),
+          progressUpdatedAt: now,
+        }));
+      },
+
+      deleteCustomFile: (fileId) => {
+        set((state) => ({
+          customFiles: state.customFiles.filter((file) => file.id !== fileId),
+          progressUpdatedAt: stampProgress(),
+        }));
+      },
+
+      isProblemPracticed: (problemId) => {
+        const state = get();
+        return isProblemPracticedFromLogs({
+          problemId,
+          customFiles: state.customFiles,
+          clearedPatternIds: state.clearedPatternIds,
+          masteredPatterns: state.masteredPatterns,
+        });
+      },
     }),
     {
       name: 'math-lab:user-store',
@@ -789,6 +929,7 @@ export const useUserStore = create<UserStoreState>()(
             incoming.patternVariantCounts ?? current.patternVariantCounts
           ),
           patternVariants: normalizePatternVariants(incoming.patternVariants ?? current.patternVariants),
+          customFiles: normalizeCustomFiles(incoming.customFiles ?? current.customFiles),
           lastStreakGrantDateISO:
             typeof incoming.lastStreakGrantDateISO === 'string'
               ? incoming.lastStreakGrantDateISO

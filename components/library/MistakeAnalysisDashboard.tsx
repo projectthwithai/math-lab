@@ -145,7 +145,7 @@ export default function MistakeAnalysisDashboard({ records }: MistakeAnalysisDas
         : '比較できる週次データがまだありません';
 
   return (
-    <section className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60">
+    <section className="mb-8 rounded-2xl surface-panel p-5 backdrop-blur-md">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-bold tracking-tight text-slate-900 dark:text-white">
           <PieChart className="h-4 w-4 text-cyan-400" />

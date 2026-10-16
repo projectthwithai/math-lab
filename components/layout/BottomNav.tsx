@@ -44,7 +44,7 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="モバイルナビゲーション"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/85 pb-safe backdrop-blur-lg dark:border-zinc-800/60 dark:bg-black/85 md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/85 pb-safe backdrop-blur-lg dark:border-zinc-800/80 dark:bg-black/85 md:hidden"
     >
       <div className="grid grid-cols-5">
         {TABS.map((tab) => {

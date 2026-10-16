@@ -115,7 +115,7 @@ function StoryScratchpad({ resetKey }: { resetKey: string }) {
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
-        className="h-28 w-full touch-none rounded-xl border border-cyan-400/25 bg-slate-950"
+        className="h-28 w-full touch-none rounded-xl surface-card"
       />
     </div>
   );
@@ -228,7 +228,7 @@ export default function CounterChallengeStoryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-white">
+    <div className="fixed inset-0 z-[80] flex flex-col bg-[#0b0d14] text-white">
       <div className="flex gap-1.5 px-4 pt-3">
         {(total > 0 ? problems : [null, null]).map((item, barIndex) => {
           const filled =
@@ -350,7 +350,7 @@ export default function CounterChallengeStoryModal({
                 );
               })
             ) : (
-              <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+              <div className="rounded-xl border border-slate-800 bg-[#0b0d14] p-2">
                 <LaTeXKeypad value={answerInput} onChange={setAnswerInput} />
               </div>
             )}
@@ -376,7 +376,7 @@ export default function CounterChallengeStoryModal({
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0b0d14]"
           >
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
               {Array.from({ length: 28 }, (_, i) => {

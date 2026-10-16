@@ -72,7 +72,7 @@ export default function Navbar() {
   }, [pendingStreakCelebration, clearStreakCelebration]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-zinc-800/60 dark:bg-black/80">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md transition-colors duration-300 dark:border-zinc-800/80 dark:bg-black/80">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:py-3 lg:px-10">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -82,8 +82,8 @@ export default function Navbar() {
             <span
               className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium sm:px-2.5 sm:text-xs ${
                 streakGrantedToday
-                  ? 'border-orange-400/50 bg-orange-400/10 text-orange-600 dark:border-orange-400/40 dark:bg-zinc-950/80 dark:text-orange-400'
-                  : 'border-slate-200 bg-white text-orange-400/70 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-orange-400/55'
+                  ? 'border-orange-400/50 bg-orange-400/10 text-orange-600 dark:border-orange-400/40 dark:bg-[#0b0d14] dark:text-orange-400'
+                  : 'border-slate-200 bg-white text-orange-400/70 dark:border-zinc-800/80 dark:bg-[#0b0d14] dark:text-orange-400/55'
               }`}
               title={
                 streakGrantedToday
@@ -100,10 +100,10 @@ export default function Navbar() {
             <span
               className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 sm:px-2.5 ${
                 isDeveloper
-                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-600 dark:border-amber-400/40 dark:bg-zinc-950/80 dark:text-amber-300'
+                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-600 dark:border-amber-400/40 dark:bg-[#0b0d14] dark:text-amber-300'
                   : isOvercapped
-                    ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-600 dark:border-cyan-400/40 dark:bg-zinc-950/80 dark:text-cyan-300'
-                    : 'border-slate-200 bg-white text-amber-500 dark:border-zinc-800/60 dark:bg-zinc-950/80 dark:text-amber-400'
+                    ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-600 dark:border-cyan-400/40 dark:bg-[#0b0d14] dark:text-cyan-300'
+                    : 'border-slate-200 bg-white text-amber-500 dark:border-zinc-800/80 dark:bg-[#0b0d14] dark:text-amber-400'
               }`}
               title={
                 isDeveloper
@@ -147,7 +147,7 @@ export default function Navbar() {
                 {isActive && (
                   <motion.span
                     layoutId="navbar-tab-indicator"
-                    className="absolute inset-0 rounded-lg border border-slate-200 bg-slate-100 dark:border-zinc-800/60 dark:bg-zinc-950/80"
+                    className="absolute inset-0 rounded-lg border border-slate-200 bg-slate-100 dark:border-zinc-800/80 dark:bg-[#0b0d14]"
                     transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
                   />
                 )}
@@ -171,7 +171,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: 16, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.96 }}
-            className="fixed inset-x-4 top-20 z-[70] mx-auto w-[min(92vw,28rem)] rounded-2xl border border-orange-400/50 bg-slate-950/95 px-4 py-3.5 shadow-2xl sm:top-24"
+            className="fixed inset-x-4 top-20 z-[70] mx-auto w-[min(92vw,28rem)] rounded-2xl border border-orange-400/50 bg-[#0b0d14] px-4 py-3.5 shadow-2xl sm:top-24"
             role="status"
           >
             <p className="text-center text-sm font-bold leading-relaxed text-orange-100 sm:text-base">
@@ -187,7 +187,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="fixed bottom-24 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-slate-950/95 px-4 py-3 shadow-xl md:bottom-5"
+            className="fixed bottom-24 left-1/2 z-[60] w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-amber-400/50 bg-[#0b0d14] px-4 py-3 shadow-xl md:bottom-5"
             role="status"
           >
             <div className="flex items-start gap-2">

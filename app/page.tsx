@@ -37,7 +37,7 @@ function DashboardHome() {
     <main className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 sm:gap-6 sm:px-6 lg:px-10">
       <InstantGeneratorBar />
       <DailyMissionWidget />
-      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:p-5">
+      <section className="rounded-2xl surface-panel p-4 backdrop-blur-md sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />

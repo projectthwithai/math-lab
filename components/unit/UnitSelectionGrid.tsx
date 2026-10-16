@@ -89,7 +89,7 @@ export default function UnitSelectionGrid() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="単元・サブトピックで検索..."
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="w-full rounded-lg surface-input py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:text-white"
           />
         </div>
       </div>
@@ -203,14 +203,14 @@ function UnitCard({
 
   return (
     <div
-      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-zinc-950/80`}
+      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-[#0b0d14] dark:shadow-lg dark:shadow-black/40`}
     >
       <div>
         <div className="mb-2 flex items-start justify-between gap-2">
           <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent.bgSoft} ${accent.text}`}>
             <Icon className="h-4.5 w-4.5" />
           </span>
-          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] text-slate-400 dark:border-zinc-800/60">
+          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] text-slate-400 dark:border-zinc-800/80">
             {unit.recommendedGrade}
           </span>
         </div>
@@ -261,7 +261,7 @@ function SubtopicCard({
   const completionPercent = patterns.length > 0 ? Math.round((clearedCount / patterns.length) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/80 p-4 dark:border-zinc-800/60 dark:bg-zinc-950/80 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl surface-panel p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <span

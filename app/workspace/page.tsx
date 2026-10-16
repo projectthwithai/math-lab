@@ -11,6 +11,7 @@
 // 解法メモは WorkspaceView の workspaceNote と userStore.getPatternNote で
 // 解答前画面と採点モーダルを双方向同期する。
 // mode=review のときはマイライブラリからの過去問復習（0 Energy・ローカル再生成）。
+// source=custom-file は既習なら 0 Energy、未挑戦なら 10 Energy。
 
 import { RefreshCw } from 'lucide-react';
 
@@ -30,6 +31,8 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   const mode = firstQueryValue(searchParams.mode);
   const problemId = firstQueryValue(searchParams.problemId);
   const variantId = firstQueryValue(searchParams.variantId);
+  const fileId = firstQueryValue(searchParams.fileId);
+  const fileIndex = firstQueryValue(searchParams.index);
   const rawDifficulty = firstQueryValue(searchParams.difficulty);
   const parsedDifficulty = rawDifficulty ? Number(rawDifficulty) : NaN;
   const difficulty =
@@ -37,18 +40,25 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
       ? Math.round(parsedDifficulty)
       : undefined;
   const isReview = mode === 'review';
-  const workspaceSource = isReview ? 'review' : source;
+  const isCustomFile = source === 'custom-file' || Boolean(fileId);
+  const workspaceSource = isReview ? 'review' : isCustomFile ? 'custom-file' : source;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
       <PageBackButton
-        href={isReview ? '/library' : undefined}
-        fallbackHref={isReview ? '/library' : '/patterns'}
+        href={isCustomFile ? '/library?view=files' : isReview ? '/library' : undefined}
+        fallbackHref={isReview || isCustomFile ? '/library' : '/patterns'}
       />
       {isReview && (
         <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200">
           <RefreshCw className="h-3.5 w-3.5" />
           過去問復習モード (0 Energy)
+        </div>
+      )}
+      {isCustomFile && (
+        <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200">
+          <RefreshCw className="h-3.5 w-3.5" />
+          マイファイル演習
         </div>
       )}
       {workspaceSource === 'variant' && (
@@ -58,7 +68,7 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
         </div>
       )}
       <WorkspaceView
-        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${workspaceSource ?? ''}::${questId ?? ''}::${mode ?? ''}::${problemId ?? ''}::${variantId ?? ''}`}
+        key={`${unitId ?? 'none'}::${patternId ?? 'none'}::${subtopicId ?? 'none'}::${difficulty ?? 'auto'}::${prompt ?? ''}::${workspaceSource ?? ''}::${questId ?? ''}::${mode ?? ''}::${problemId ?? ''}::${variantId ?? ''}::${fileId ?? ''}::${fileIndex ?? ''}`}
         unitId={unitId}
         patternId={patternId}
         initialDifficulty={difficulty}
@@ -69,6 +79,8 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
         mode={mode}
         problemId={problemId}
         variantId={variantId}
+        fileId={fileId}
+        fileIndex={fileIndex}
       />
     </main>
   );

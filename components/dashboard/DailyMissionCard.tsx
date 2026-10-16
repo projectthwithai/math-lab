@@ -38,7 +38,7 @@ export default function DailyMissionCard({ pattern, missionIndex }: DailyMission
 
   return (
     <div
-      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-slate-900/60`}
+      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md transition-colors ${accent.borderHover} dark:bg-[#12141f] dark:shadow-lg dark:shadow-black/40`}
     >
       <div>
         <div className="mb-2 flex items-center justify-between">

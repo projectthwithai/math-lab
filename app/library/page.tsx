@@ -9,7 +9,7 @@
 // 「数字を変えて即挑戦」は簡易モーダルではなく /workspace?mode=review の全画面へ遷移する。
 
 import { useEffect, useMemo, useState } from 'react';
-import { BookMarked, CircleCheck, CircleX, Flame, Layers, Search } from 'lucide-react';
+import { BookMarked, CircleCheck, CircleX, Flame, Folder, Layers, Search } from 'lucide-react';
 
 import type { MistakeTag, Subject, SolvedProblemRecord } from '@/types/mathLab';
 import { getAllSolvedProblemRecords } from '@/lib/storage/solvedProblemsStore';
@@ -17,11 +17,13 @@ import { isDueForReview } from '@/lib/engine/forgettingCurve';
 import { MISTAKE_TAGS } from '@/lib/engine/mistakeTags';
 import SolvedProblemCard from '@/components/library/SolvedProblemCard';
 import MistakeAnalysisDashboard from '@/components/library/MistakeAnalysisDashboard';
+import CustomFileList from '@/components/library/CustomFileList';
 
 const SUBJECT_LABEL: Record<Subject, string> = { math: '数学', physics: '物理', chemistry: '化学' };
 const SUBJECT_FILTERS: Array<Subject | 'all'> = ['all', 'math', 'physics', 'chemistry'];
 
 type ResultFilter = 'all' | 'correct' | 'incorrect';
+type LibraryTab = 'history' | 'files';
 
 const RESULT_TABS: Array<{ id: ResultFilter; label: string; icon: typeof Layers }> = [
   { id: 'all', label: 'すべて', icon: Layers },
@@ -32,6 +34,7 @@ const RESULT_TABS: Array<{ id: ResultFilter; label: string; icon: typeof Layers 
 export default function LibraryPage() {
   const [records, setRecords] = useState<SolvedProblemRecord[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>('history');
   const [subjectFilter, setSubjectFilter] = useState<Subject | 'all'>('all');
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
   const [causeFilter, setCauseFilter] = useState<MistakeTag | 'all'>('all');
@@ -42,6 +45,9 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecords(getAllSolvedProblemRecords());
     setHasLoaded(true);
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'files') {
+      setLibraryTab('files');
+    }
   }, []);
 
   const filteredRecords = useMemo(() => {
@@ -82,14 +88,39 @@ export default function LibraryPage() {
         <BookMarked className="h-5 w-5 text-cyan-400" />
         <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">マイライブラリ</h1>
       </div>
-      <p className="mb-6 text-sm text-slate-500">
-        解いた問題は自動でここに記録され、正否と失点原因で絞り込んで弱点克服の復習ができます。
+      <p className="mb-4 text-sm text-slate-500">
+        解いた問題は自動でここに記録され、自分専用ファイルに集めた問題は連続演習できます。
       </p>
 
-      {!hasLoaded ? (
+      <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl surface-card p-1.5">
+        <button
+          type="button"
+          onClick={() => setLibraryTab('history')}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+            libraryTab === 'history' ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <BookMarked className="h-3.5 w-3.5" />
+          解答履歴
+        </button>
+        <button
+          type="button"
+          onClick={() => setLibraryTab('files')}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+            libraryTab === 'files' ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Folder className="h-3.5 w-3.5" />
+          マイファイル
+        </button>
+      </div>
+
+      {libraryTab === 'files' ? (
+        <CustomFileList />
+      ) : !hasLoaded ? (
         <p className="py-16 text-center text-sm text-slate-500">読み込み中...</p>
       ) : records.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-10 text-center backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="rounded-2xl surface-panel p-10 text-center backdrop-blur-md">
           <p className="text-sm text-slate-400">
             まだ解いた問題がありません。ワークスペースで問題を解くと、ここに記録されます。
           </p>
@@ -98,7 +129,7 @@ export default function LibraryPage() {
         <>
           <MistakeAnalysisDashboard records={records} />
 
-          <div className="mb-4 flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white/70 p-1.5 dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="mb-4 flex flex-wrap gap-1.5 rounded-xl surface-card p-1.5">
             {RESULT_TABS.map((tab) => {
               const Icon = tab.icon;
               const count =
@@ -212,7 +243,7 @@ export default function LibraryPage() {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="タイトル・単元で検索..."
-                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="w-full rounded-lg surface-input py-2 pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:text-white"
                 />
               </div>
             </div>

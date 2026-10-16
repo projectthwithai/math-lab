@@ -287,7 +287,7 @@ export default function ScoreResultModal({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95"
+        className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl surface-panel p-6 shadow-xl backdrop-blur-md"
       >
         <AnimatePresence>{xpResult.leveledUp && <ConfettiBurst />}</AnimatePresence>
 
@@ -304,7 +304,7 @@ export default function ScoreResultModal({
         </button>
 
         {/* ① 正誤判定 + XP獲得（コンパクトなヘッダー行） */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl surface-card p-3">
           <div className="flex items-center gap-2.5">
             {isCorrect ? (
               <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-400" />
@@ -391,7 +391,7 @@ export default function ScoreResultModal({
         )}
 
         {/* ② 解法の真髄（Apexガイド） + 鍵となる公式（最も大きく強調表示） */}
-        <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="mb-5 rounded-2xl surface-card p-5">
           <h3 className="mb-3 flex items-center justify-center gap-2 text-center text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
             <Sparkles className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
             解法の真髄（Apexガイド）
@@ -403,7 +403,7 @@ export default function ScoreResultModal({
               </li>
             ))}
           </ol>
-          <div className="mb-3 rounded-xl border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-950/50">
+          <div className="mb-3 rounded-xl surface-card p-4 text-center">
             <p className="mb-1.5 flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-widest text-cyan-600 dark:text-cyan-400">
               <KeyRound className="h-3.5 w-3.5" />
               鍵となる公式
@@ -461,7 +461,7 @@ export default function ScoreResultModal({
                 onChange={(event) => onSolutionNoteChange(event.target.value)}
                 rows={8}
                 placeholder="この問題の解き方を、自分の言葉でまとめてみよう..."
-                className="min-h-[10rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="min-h-[10rem] w-full resize-y rounded-lg surface-input p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-fuchsia-400/60 focus:outline-none dark:text-white"
               />
             </motion.div>
             <div className="mt-3">
@@ -561,7 +561,7 @@ export default function ScoreResultModal({
                 </p>
               )}
               {aiDiagnosis && (
-                <div className="mb-3 rounded-lg border border-amber-400/30 bg-slate-950/50 p-3">
+                <div className="mb-3 rounded-lg border border-amber-400/30 bg-[#12141f] p-3">
                   <p className="text-sm leading-relaxed text-amber-50">
                     {aiDiagnosis.mistakeAnalysisText}
                   </p>
@@ -589,7 +589,7 @@ export default function ScoreResultModal({
                       className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                         selected
                           ? 'border-amber-400/70 bg-amber-400/20 text-amber-100'
-                          : 'border-slate-300 bg-white/70 text-slate-600 hover:border-amber-400/40 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300'
+                          : 'border-slate-300 bg-white/70 text-slate-600 hover:border-amber-400/40 dark:border-slate-700 dark:bg-[#12141f] dark:text-slate-300'
                       }`}
                     >
                       {tag.label}
@@ -603,7 +603,7 @@ export default function ScoreResultModal({
                 onBlur={() => persistMistake(mistakeTag, mistakeNote)}
                 rows={6}
                 placeholder="どこで、なぜ間違えたかを自分の言葉で残そう..."
-                className="min-h-[8rem] w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="min-h-[8rem] w-full resize-y rounded-lg surface-input p-3 text-sm leading-relaxed text-slate-900 placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none dark:text-white"
               />
               <button
                 type="button"

@@ -191,7 +191,7 @@ export default function ChemistryCanvasSim({ problem, scene, className }: Chemis
 
   return (
     <figure
-      className={`overflow-hidden rounded-xl border border-emerald-400/30 bg-white/80 backdrop-blur-md dark:border-emerald-400/20 dark:bg-slate-950/60 ${className ?? ''}`}
+      className={`overflow-hidden rounded-xl border border-emerald-400/30 bg-white/80 backdrop-blur-md dark:border-emerald-400/20 dark:bg-[#12141f] ${className ?? ''}`}
     >
       {resolved.kind === 'energy' && <EnergyFigure scene={resolved} />}
       {resolved.kind === 'pv' && <ChemistryPvFigure scene={resolved} />}

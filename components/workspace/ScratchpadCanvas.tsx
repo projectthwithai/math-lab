@@ -267,7 +267,7 @@ export default function ScratchpadCanvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        className="w-full touch-none rounded-xl border border-slate-200 dark:border-slate-800"
+        className="w-full touch-none rounded-xl surface-card"
       />
 
       <div className="grid grid-cols-1 gap-2">
@@ -316,7 +316,7 @@ export default function ScratchpadCanvas({
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-red-400/30 bg-slate-950/95 p-5 shadow-xl"
+              className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-red-400/30 bg-[#0b0d14] p-5 shadow-xl shadow-black/40"
             >
               <button
                 type="button"

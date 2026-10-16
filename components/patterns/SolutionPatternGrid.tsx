@@ -25,6 +25,7 @@ import {
   Layers,
   AlertTriangle,
   VenetianMask,
+  FolderPlus,
 } from 'lucide-react';
 
 import type { GeneratedProblem, PatternVariant, SolutionPattern } from '@/types/mathLab';
@@ -57,6 +58,8 @@ import { startUnitReviewExam } from '@/lib/engine/unitReview';
 import { resolvePatternDisplayName } from '@/lib/engine/patternDisplay';
 import KaTeXText from '@/components/workspace/KaTeXText';
 import AiSolutionCheckPanel from '@/components/workspace/AiSolutionCheckPanel';
+import AddToFileModal from '@/components/library/AddToFileModal';
+import { problemFromPatternExample } from '@/lib/engine/customFileProblem';
 
 const COURSE_TABS: Array<'all' | UnitCategory> = ['all', ...UNIT_CATEGORIES];
 const STAR_FILTERS: Array<1 | 2 | 3 | 4 | 'all'> = ['all', 1, 2, 3, 4];
@@ -90,6 +93,7 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
   const [selectedVariantId, setSelectedVariantId] = useState<string | 'base'>('base');
   const [isGeneratingVariant, setIsGeneratingVariant] = useState(false);
   const [variantNotice, setVariantNotice] = useState<string | null>(null);
+  const [isAddToFileOpen, setIsAddToFileOpen] = useState(false);
   const variantsCount = Math.max(pattern.variantsCount ?? 0, variantExtra, storedVariants.length);
   const variantCost =
     isDeveloper || hasDeveloperPrivileges() ? 0 : ENERGY_COST_GENERATE_VARIANT;
@@ -100,6 +104,9 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
   const exampleText = selectedStored
     ? stripBannedVariantMeta(selectedStored.problem.questionText)
     : pattern.exampleQuestion;
+  const fileProblem = selectedStored
+    ? selectedStored.problem
+    : problemFromPatternExample(pattern, displayName);
 
   const displayedStrategy = note?.customText ?? pattern.strategyText;
 
@@ -202,7 +209,7 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex flex-col gap-3 rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md dark:bg-zinc-950/80`}
+      className={`flex flex-col gap-3 rounded-xl border ${accent.border} bg-white/80 p-4 backdrop-blur-md dark:bg-[#12141f] dark:shadow-lg dark:shadow-black/40`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -240,7 +247,7 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
                 }
                 if (event.key === 'Escape') setIsRenaming(false);
               }}
-              className="min-w-0 flex-1 rounded-lg border border-cyan-400/50 bg-white px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none dark:bg-slate-950 dark:text-white"
+              className="min-w-0 flex-1 rounded-lg surface-input px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none dark:text-white"
               autoFocus
             />
             <button
@@ -325,7 +332,7 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               rows={5}
-              className="w-full min-w-0 flex-1 resize-none rounded-lg border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-800 focus:border-fuchsia-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+              className="w-full min-w-0 flex-1 resize-none rounded-lg surface-input p-3 text-xs leading-relaxed text-slate-800 focus:border-fuchsia-400/60 focus:outline-none dark:text-slate-200"
             />
             <div className="sm:w-52">
               <AiSolutionCheckPanel
@@ -430,6 +437,14 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
           </button>
           <button
             type="button"
+            onClick={() => setIsAddToFileOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-cyan-400/50 dark:border-slate-700 dark:text-slate-300"
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            ファイルに追加
+          </button>
+          <button
+            type="button"
             onClick={handleSolve}
             className={`ml-auto flex items-center gap-1.5 rounded-lg border ${accent.border} px-3 py-1.5 text-xs font-medium tracking-tight ${accent.text} transition-colors ${accent.bgSoftHover}`}
           >
@@ -441,6 +456,9 @@ function PatternCard({ pattern, isCleared, onToggleCleared }: PatternCardProps) 
           <p className="text-[11px] text-violet-600 dark:text-violet-300">{variantNotice}</p>
         )}
       </div>
+      {isAddToFileOpen && (
+        <AddToFileModal problem={fileProblem} onClose={() => setIsAddToFileOpen(false)} />
+      )}
     </motion.div>
   );
 }
@@ -473,7 +491,7 @@ function UnitBranchCard({
       layout
       whileHover={{ y: -2 }}
       onClick={() => onSelect(unit.id)}
-      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-zinc-950/80 ${accent.borderHover}`}
+      className={`flex flex-col justify-between rounded-xl border ${accent.border} bg-white/80 p-4 text-left backdrop-blur-md transition-colors dark:bg-[#0b0d14] dark:shadow-lg dark:shadow-black/40 ${accent.borderHover}`}
     >
       <div>
         <div className="mb-2 flex items-start justify-between gap-2">
@@ -638,7 +656,7 @@ export default function SolutionPatternGrid() {
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder={selectedUnitId ? 'パターン名・例題で検索...' : '単元名・パターン名で検索...'}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:w-64"
+          className="w-full rounded-lg surface-input px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none dark:text-white sm:w-64"
         />
       </div>
 
@@ -745,7 +763,7 @@ export default function SolutionPatternGrid() {
                 return (
                   <div
                     key={subtopic.id}
-                    className="overflow-hidden rounded-xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/60"
+                    className="overflow-hidden rounded-xl surface-panel"
                   >
                     <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <button
@@ -806,7 +824,7 @@ export default function SolutionPatternGrid() {
                                 void handleDiscoverPatterns(subtopic.id);
                               }}
                               disabled={isDiscovering}
-                              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold tracking-tight text-slate-800 transition-colors hover:border-slate-300 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-100"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold tracking-tight text-slate-800 transition-colors hover:border-slate-300 disabled:opacity-60 dark:border-slate-800 dark:bg-[#12141f] dark:text-slate-100"
                             >
                               {isDiscovering ? (
                                 <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />

@@ -131,7 +131,7 @@ export default function PaperScratchpadModal({ problem = null, onClose }: PaperS
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-red-400/30 bg-slate-950/95 p-5 shadow-xl"
+        className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-red-400/30 bg-[#0b0d14] p-5 shadow-xl shadow-black/40"
       >
         <button
           type="button"

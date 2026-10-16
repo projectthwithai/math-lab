@@ -38,7 +38,7 @@ export default function PageBackButton({ fallbackHref = '/patterns', href }: Pag
       type="button"
       onClick={handleBack}
       aria-label="戻る"
-      className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white/80 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950/70"
+      className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white/80 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:bg-[#0b0d14]"
     >
       <ArrowLeft className="h-5 w-5 text-zinc-400 transition-colors hover:text-zinc-100" />
     </button>

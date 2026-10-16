@@ -70,6 +70,18 @@ export interface GeneratedProblem {
 // CustomDailyQuest（カスタムデイリークエスト。演習特化）
 // ------------------------------------------
 
+export interface CustomProblemFile {
+  id: string;
+  /** 例: "ファイル1", "週末用・ベクトル特訓" */
+  title: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  problemIds: string[];
+  /** オフライン・即時演習用のスナップショット */
+  problems: GeneratedProblem[];
+}
+
 export interface CustomDailyQuest {
   id: string;
   questNumber: number; // 1 ~ 10

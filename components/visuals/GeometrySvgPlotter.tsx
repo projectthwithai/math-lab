@@ -112,7 +112,7 @@ export default function GeometrySvgPlotter({ problem, scene, className }: Geomet
 
   return (
     <figure
-      className={`overflow-hidden rounded-xl border border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/60 ${className ?? ''}`}
+      className={`overflow-hidden rounded-xl surface-card backdrop-blur-md ${className ?? ''}`}
     >
       <svg
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
