@@ -9,6 +9,7 @@
 import type { GeneratedProblem, MistakeTag, SolvedProblemRecord } from '@/types/mathLab';
 import { isMistakeTag } from '@/lib/engine/mistakeTags';
 import { advanceReviewStage, computeNextReviewAt } from '@/lib/engine/forgettingCurve';
+import { markProgressDirty } from '@/lib/supabase/progressDirty';
 
 const STORAGE_KEY = 'math-lab:solved-problems';
 /** 1ユーザーあたり保持する解答履歴の上限（LocalStorage肥大化防止） */
@@ -34,9 +35,15 @@ function writeAllRecords(records: SolvedProblemRecord[]): void {
   if (!isBrowser()) return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    markProgressDirty();
   } catch (error) {
     console.error('[solvedProblemsStore] 保存に失敗しました', error);
   }
+}
+
+export function replaceAllSolvedProblemRecords(records: SolvedProblemRecord[]): void {
+  const next = Array.isArray(records) ? records.slice(0, MAX_RECORDS) : [];
+  writeAllRecords(next);
 }
 
 /** 全ての解答履歴を、解いた日時が新しい順で取得する */

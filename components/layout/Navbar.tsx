@@ -15,6 +15,7 @@ import { STREAK_QUEST_GOAL } from '@/data/dailyQuests';
 import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import AuthButton from '@/components/layout/AuthButton';
+import CloudSyncIndicator from '@/components/layout/CloudSyncIndicator';
 import BrandMark from '@/components/layout/BrandMark';
 import { SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { signOut } from '@/lib/supabase/authSync';
@@ -124,6 +125,7 @@ export default function Navbar() {
               )}
             </span>
             <ThemeToggle />
+            <CloudSyncIndicator />
             <AuthButton
               onLogout={handleSecureLogout}
               onNotice={(message) => {
