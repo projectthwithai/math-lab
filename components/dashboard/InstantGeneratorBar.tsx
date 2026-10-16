@@ -82,12 +82,20 @@ export default function InstantGeneratorBar() {
         return;
       }
       const result = data as ImageAnalysisResult;
-      if (!result.variantProblem || !result.pattern) {
+      const detected = Array.isArray(result.detectedProblems)
+        ? result.detectedProblems.filter((item) => item && typeof item === 'object' && item.questionText)
+        : [];
+      const variantProblem = result.variantProblem ?? detected[0];
+      if (!variantProblem || !result.pattern) {
         useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);
         setAnalysis({ isValid: false, error: formatAiAnalysisError('類題 JSON が不完全です') });
         return;
       }
-      setAnalysis(result);
+      setAnalysis({
+        ...result,
+        variantProblem,
+        detectedProblems: detected.length > 0 ? detected.slice(0, 5) : [variantProblem],
+      });
     } catch (error) {
       console.error('[InstantGeneratorBar] 画像解析に失敗しました', error);
       useUserStore.getState().refundEnergy(ENERGY_COST_ANALYZE_IMAGE);

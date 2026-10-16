@@ -179,13 +179,21 @@ function patternFromPayload(
 }
 
 function sanitizeOriginalCopy(result: ImageAnalysisResult): ImageAnalysisResult {
+  const detected =
+    result.detectedProblems.length > 0 ? result.detectedProblems.slice(0, 5) : [result.variantProblem];
+  const variantProblem = {
+    ...detected[0],
+    patternId: result.pattern.id,
+  };
   return {
     isValid: true,
     logic: result.logic,
-    variantProblem: {
-      ...result.variantProblem,
-      patternId: result.pattern.id,
-    },
+    variantProblem,
+    detectedProblems: detected.map((problem, index) => ({
+      ...problem,
+      patternId: problem.patternId ?? result.pattern.id,
+      title: problem.title?.trim() || `類題 (${index + 1})`,
+    })),
     pattern: result.pattern,
     source: 'llm',
     matchedExisting: result.matchedExisting === true,
@@ -248,7 +256,8 @@ async function analyzeViaVision(
     userPrompt:
       '【重要】このリクエストには写真が添付されている。写真を必ず見て教科を判定すること。' +
       '写真が数学なら physics / chemistry の類題は禁止。斜面の物体など定番の力学ダミーを出すことは禁止。' +
-      '問題が無ければ isValid:false。あれば OCR したうえで同じ教科・同じ単元のオリジナル類題とパターンを返す。原問は書き写さない。\n' +
+      '問題が無ければ isValid:false。あれば OCR したうえで同じ教科・同じ単元のオリジナル類題とパターンを返す。原問は書き写さない。' +
+      '(1)(2)(3) や 問1・問2 など複数あれば detectedProblems に最大5問まで分割して入れる。1問だけなら配列長1。\n' +
       JSON.stringify({ existingCatalog: catalogForPrompt }),
     image: { mimeType: image.mimeType || 'image/jpeg', base64: image.base64 },
     temperature: 0.2,
@@ -276,17 +285,40 @@ async function analyzeViaVision(
     matchRaw && typeof matchRaw === 'object' ? (matchRaw as { patternId?: unknown }).patternId : undefined;
   const matchId = typeof matchIdRaw === 'string' ? matchIdRaw.trim() : undefined;
 
-  const variantProblem = problemFromPayload(parsed.variantProblem, {
-    unit: logic.unit,
-    subject: logic.subject,
-    difficulty: DEFAULT_DIFFICULTY,
-    idPrefix: 'ocr-original',
-  });
+  const detectedRaw = Array.isArray(parsed.detectedProblems)
+    ? parsed.detectedProblems
+    : parsed.variantProblem
+      ? [parsed.variantProblem]
+      : [];
+  const detectedProblems = detectedRaw
+    .slice(0, 5)
+    .flatMap((item, index) => {
+      const problem = problemFromPayload(item, {
+        unit: logic.unit,
+        subject: logic.subject,
+        difficulty: DEFAULT_DIFFICULTY,
+        idPrefix: `ocr-original-${index + 1}`,
+      });
+      if (!problem) return [];
+      problem.subject = logic.subject;
+      problem.unit = problem.unit || logic.unit;
+      return [problem];
+    });
+
+  const variantProblem =
+    detectedProblems[0] ??
+    problemFromPayload(parsed.variantProblem, {
+      unit: logic.unit,
+      subject: logic.subject,
+      difficulty: DEFAULT_DIFFICULTY,
+      idPrefix: 'ocr-original',
+    });
   if (!variantProblem) throw new Error('類題 JSON が不完全です');
   if (variantProblem.subject !== logic.subject) {
     variantProblem.subject = logic.subject;
     variantProblem.unit = logic.unit;
   }
+  if (detectedProblems.length === 0) detectedProblems.push(variantProblem);
 
   const catalogHit = matchExisting ? resolveCatalogPattern(matchId, extraPatterns) : null;
   if (catalogHit) {
@@ -296,6 +328,11 @@ async function analyzeViaVision(
     return sanitizeOriginalCopy({
       logic,
       variantProblem: { ...variantProblem, subject: logic.subject, unit: logic.unit, patternId: catalogHit.id },
+      detectedProblems: detectedProblems.map((problem) => ({
+        ...problem,
+        subject: logic.subject,
+        patternId: catalogHit.id,
+      })),
       pattern: catalogHit,
       source: 'llm',
       matchedExisting: true,
@@ -319,6 +356,11 @@ async function analyzeViaVision(
       unit: logic.unit,
       patternId: pattern.id,
     },
+    detectedProblems: detectedProblems.map((problem) => ({
+      ...problem,
+      subject: logic.subject,
+      patternId: pattern.id,
+    })),
     pattern: {
       ...pattern,
       subject: logic.subject,

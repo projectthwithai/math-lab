@@ -395,8 +395,10 @@ export interface ImageAnalysisResult {
   error?: string;
   /** 抽象化した解法構造のみ。原問の文章・数値・設定は含めない */
   logic: ImageLogicSummary;
-  /** 100%オリジナルの新規創作問題（類題） */
+  /** 100%オリジナルの新規創作問題（類題）。複数検出時は先頭 */
   variantProblem: GeneratedProblem;
+  /** 写真内の大問・小問から作った類題。1〜5問。単一なら長さ1 */
+  detectedProblems: GeneratedProblem[];
   pattern: SolutionPattern;
   source: 'llm' | 'local';
   /** 解き方が既存パターンと同一で、バリエーションとして分類したとき true */

@@ -15,33 +15,43 @@ import { nextCustomFileTitle, useUserStore } from '@/lib/store/userStore';
 import { useAppToastStore } from '@/lib/store/appToastStore';
 
 interface AddToFileModalProps {
-  problem: GeneratedProblem;
+  problem?: GeneratedProblem;
+  problems?: GeneratedProblem[];
   onClose: () => void;
 }
 
-export default function AddToFileModal({ problem, onClose }: AddToFileModalProps) {
+export default function AddToFileModal({ problem, problems, onClose }: AddToFileModalProps) {
   const customFiles = useUserStore((state) => state.customFiles);
   const createCustomFile = useUserStore((state) => state.createCustomFile);
   const addProblemToFile = useUserStore((state) => state.addProblemToFile);
   const showToast = useAppToastStore((state) => state.showToast);
 
+  const items = useMemo(() => {
+    if (problems && problems.length > 0) return problems;
+    return problem ? [problem] : [];
+  }, [problem, problems]);
+
   const defaultTitle = useMemo(() => nextCustomFileTitle(customFiles), [customFiles]);
   const [newTitle, setNewTitle] = useState(defaultTitle);
 
-  const addToFile = (fileId: string) => {
+  const addAllToFile = (fileId: string) => {
     const file = useUserStore.getState().customFiles.find((item) => item.id === fileId);
     if (!file) return;
-    const added = addProblemToFile(fileId, problem);
-    showToast(added ? `「${file.title}」に問題を追加しました` : `「${file.title}」にはすでに入っています`);
+    let added = 0;
+    for (const item of items) {
+      if (addProblemToFile(fileId, item)) added += 1;
+    }
+    const label = file.title;
+    if (items.length > 1) {
+      showToast(added > 0 ? `「${label}」に${added}問を追加しました` : `「${label}」にはすでに入っています`);
+    } else {
+      showToast(added > 0 ? `「${label}」に問題を追加しました` : `「${label}」にはすでに入っています`);
+    }
     onClose();
   };
 
   const handleCreateAndAdd = () => {
-    const fileId = createCustomFile(newTitle);
-    const file = useUserStore.getState().customFiles.find((item) => item.id === fileId);
-    addProblemToFile(fileId, problem);
-    showToast(`「${file?.title ?? (newTitle.trim() || defaultTitle)}」に問題を追加しました`);
-    onClose();
+    addAllToFile(createCustomFile(newTitle));
   };
 
   const dialog = (
@@ -65,7 +75,9 @@ export default function AddToFileModal({ problem, onClose }: AddToFileModalProps
           Custom File
         </p>
         <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">ファイルに追加</h2>
-        <p className="mt-1 line-clamp-2 text-xs text-slate-500">{problem.title}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+          {items.length > 1 ? `${items.length}問をまとめて追加` : items[0]?.title}
+        </p>
 
         <form
           className="mt-4 rounded-xl surface-card p-3"
@@ -99,12 +111,12 @@ export default function AddToFileModal({ problem, onClose }: AddToFileModalProps
             </li>
           ) : (
             customFiles.map((file) => {
-              const alreadyIn = file.problems.some((item) => item.id === problem.id);
+              const alreadyIn = items.every((item) => file.problems.some((stored) => stored.id === item.id));
               return (
                 <li key={file.id}>
                   <button
                     type="button"
-                    onClick={() => addToFile(file.id)}
+                    onClick={() => addAllToFile(file.id)}
                     className="flex w-full items-center justify-between gap-3 rounded-xl surface-card px-3 py-3 text-left transition hover:border-cyan-400/50"
                   >
                     <span>
