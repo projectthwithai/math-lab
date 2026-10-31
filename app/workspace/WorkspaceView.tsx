@@ -424,7 +424,7 @@ export default function WorkspaceView({
         router.push(startCustomFilePracticePath(fileId, nextIndex));
         return;
       }
-      router.push('/library?view=files');
+      router.push('/?tab=library&view=files');
       return;
     }
     if (isReviewMode || isVariantMode) {
@@ -451,7 +451,7 @@ export default function WorkspaceView({
         {isReviewMode || isCustomFileMode ? (
           <button
             type="button"
-            onClick={() => router.push(isCustomFileMode ? '/library?view=files' : '/library')}
+            onClick={() => router.push(isCustomFileMode ? '/?tab=library&view=files' : '/?tab=library')}
             className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-700 dark:text-cyan-200"
           >
             マイライブラリへ戻る

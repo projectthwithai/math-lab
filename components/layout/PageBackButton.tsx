@@ -8,16 +8,28 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
+import { shellHref } from '@/lib/navigation/mainTabs';
+
 interface PageBackButtonProps {
   fallbackHref?: string;
   /** 指定時は履歴を使わず、このパスへ直接戻る */
   href?: string;
+  /** 指定時は遷移せず、常駐タブの切り替えなど呼び出し側に任せる */
+  onBack?: () => void;
 }
 
-export default function PageBackButton({ fallbackHref = '/patterns', href }: PageBackButtonProps) {
+export default function PageBackButton({
+  fallbackHref = shellHref('patterns'),
+  href,
+  onBack,
+}: PageBackButtonProps) {
   const router = useRouter();
 
   const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
     if (href) {
       router.push(href);
       return;

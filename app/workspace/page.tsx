@@ -17,6 +17,7 @@ import { RefreshCw } from 'lucide-react';
 
 import PageBackButton from '@/components/layout/PageBackButton';
 import { firstQueryValue } from '@/lib/engine/queryParam';
+import { shellHref } from '@/lib/navigation/mainTabs';
 import WorkspaceView from './WorkspaceView';
 
 export default async function WorkspacePage(props: PageProps<'/workspace'>) {
@@ -46,8 +47,8 @@ export default async function WorkspacePage(props: PageProps<'/workspace'>) {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
       <PageBackButton
-        href={isCustomFile ? '/library?view=files' : isReview ? '/library' : undefined}
-        fallbackHref={isReview || isCustomFile ? '/library' : '/patterns'}
+        href={isCustomFile ? shellHref('library', { libraryView: 'files' }) : isReview ? shellHref('library') : undefined}
+        fallbackHref={isReview || isCustomFile ? shellHref('library') : shellHref('patterns')}
       />
       {isReview && (
         <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-200">

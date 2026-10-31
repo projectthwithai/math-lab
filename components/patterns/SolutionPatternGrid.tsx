@@ -41,6 +41,7 @@ import {
 import { UNIT_CATEGORIES, UNITS_DATA, type UnitCategory, type UnitInfo } from '@/data/unitsData';
 import { getUnitIcon } from '@/components/unit/unitIcons';
 import { SUBJECT_ACCENT } from '@/lib/theme/subjectAccent';
+import { useCatalogStore } from '@/lib/store/catalogStore';
 import { useUserStore } from '@/lib/store/userStore';
 import {
   ENERGY_COST_DISCOVER_PATTERNS,
@@ -528,6 +529,8 @@ export default function SolutionPatternGrid() {
   const discovered = useUserStore((state) => state.discoveredPatterns);
   const appendDiscoveredPatterns = useUserStore((state) => state.appendDiscoveredPatterns);
   const patternCustomNames = useUserStore((state) => state.patternCustomNames);
+  const loadedPatternCount = useCatalogStore((state) => state.patterns.length);
+  const staticPatternCount = loadedPatternCount > 0 ? loadedPatternCount : SOLUTION_PATTERNS.length;
 
   const [courseFilter, setCourseFilter] = useState<'all' | UnitCategory>('all');
   const [starFilter, setStarFilter] = useState<1 | 2 | 3 | 4 | 'all'>('all');
@@ -670,7 +673,7 @@ export default function SolutionPatternGrid() {
             className="flex flex-col gap-4"
           >
             <p className="text-xs text-slate-500">
-              静的 {SOLUTION_PATTERNS.length} ＋発掘 {discovered.length} パターン（上限なし）
+              静的 {staticPatternCount} ＋発掘 {discovered.length} パターン（上限なし）
             </p>
             {UNIT_CATEGORIES.filter((category) => unitsInView.some((unit) => unit.category === category)).map(
               (category) => (

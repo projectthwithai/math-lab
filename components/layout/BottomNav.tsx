@@ -3,43 +3,51 @@
 // ==========================================
 // Apex Suite: Math Lab - Mobile Bottom Nav
 // ==========================================
-// 黄金の5大タブ。全角 2 文字ラベルで親指操作・文字見切れを防ぐ。
+// 黄金の5大タブ。シェル上ではページ遷移せず、表示中のタブだけを切り替える。
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { BookOpen, GraduationCap, Home, Library, Shield } from 'lucide-react';
 
-const TABS = [
-  { href: '/', label: 'ホーム', icon: Home, match: (path: string) => path === '/' },
+import { useMainTab } from '@/components/layout/MainTabProvider';
+import type { MainTabKey } from '@/lib/navigation/mainTabs';
+import { usePathname } from 'next/navigation';
+
+const TABS: Array<{
+  key: MainTabKey;
+  label: string;
+  icon: typeof Home;
+  match: (path: string) => boolean;
+}> = [
+  { key: 'home', label: 'ホーム', icon: Home, match: (path) => path === '/' },
   {
-    href: '/patterns',
+    key: 'patterns',
     label: '図鑑',
     icon: BookOpen,
-    match: (path: string) =>
+    match: (path) =>
       path === '/unit' || path.startsWith('/units') || path.startsWith('/patterns') || path.startsWith('/workspace'),
   },
   {
-    href: '/mock-exam',
+    key: 'mock',
     label: '模試',
     icon: GraduationCap,
-    match: (path: string) => path.startsWith('/mock-exam'),
+    match: (path) => path.startsWith('/mock-exam'),
   },
   {
-    href: '/armory',
+    key: 'armory',
     label: '武器庫',
     icon: Shield,
-    match: (path: string) => path.startsWith('/armory'),
+    match: (path) => path.startsWith('/armory'),
   },
   {
-    href: '/library',
+    key: 'library',
     label: '復習',
     icon: Library,
-    match: (path: string) => path.startsWith('/library'),
+    match: (path) => path.startsWith('/library'),
   },
-] as const;
+];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { activeTab, onShell, setActiveTab } = useMainTab();
 
   return (
     <nav
@@ -49,13 +57,14 @@ export default function BottomNav() {
       <div className="grid grid-cols-5">
         {TABS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = tab.match(pathname);
+          const isActive = onShell ? activeTab === tab.key : tab.match(pathname);
           return (
-            <Link
-              key={tab.href}
-              href={tab.href}
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex min-w-0 flex-col items-center gap-0.5 px-1 pt-2 pb-2.5 text-center ${
+              className={`relative flex min-w-0 cursor-pointer flex-col items-center gap-0.5 border-0 bg-transparent px-1 pt-2 pb-2.5 text-center ${
                 isActive ? 'font-semibold text-cyan-400' : 'text-slate-500 dark:text-zinc-400'
               }`}
             >
@@ -64,7 +73,7 @@ export default function BottomNav() {
               {isActive && (
                 <span className="absolute bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.85)]" />
               )}
-            </Link>
+            </button>
           );
         })}
       </div>

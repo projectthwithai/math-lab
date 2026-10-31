@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_JP, JetBrains_Mono } from "next/font/google";
+import { MainTabProvider } from "@/components/layout/MainTabProvider";
+import AppShell from "@/components/layout/AppShell";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import UserStoreHydrator from "@/components/layout/UserStoreHydrator";
@@ -44,11 +46,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-black dark:text-zinc-100">
         <AppThemeProvider>
-          <UserStoreHydrator />
-          <Navbar />
-          <AppToast />
-          <div className="flex-1 pb-20 md:pb-0">{children}</div>
-          <BottomNav />
+          <MainTabProvider>
+            <UserStoreHydrator />
+            <Navbar />
+            <AppToast />
+            <div className="flex-1 pb-20 md:pb-0">
+              <AppShell />
+              {children}
+            </div>
+            <BottomNav />
+          </MainTabProvider>
         </AppThemeProvider>
       </body>
     </html>

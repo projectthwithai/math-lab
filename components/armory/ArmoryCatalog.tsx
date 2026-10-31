@@ -11,6 +11,7 @@ import { UNIT_CATEGORIES, type UnitCategory } from '@/data/unitsData';
 import { WEAPONS_DATA } from '@/data/weaponsData';
 import WeaponCard from '@/components/armory/WeaponCard';
 import WeaponDetailModal from '@/components/armory/WeaponDetailModal';
+import { useCatalogStore } from '@/lib/store/catalogStore';
 import { useUserStore } from '@/lib/store/userStore';
 
 function weaponCourse(weapon: WeaponItem): UnitCategory {
@@ -25,11 +26,13 @@ export default function ArmoryCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponItem | null>(null);
   const masteredWeaponIds = useUserStore((state) => state.masteredWeaponIds);
+  const catalogWeapons = useCatalogStore((state) => state.weapons);
+  const weapons = catalogWeapons.length > 0 ? catalogWeapons : WEAPONS_DATA;
   const masteredSet = useMemo(() => new Set(masteredWeaponIds), [masteredWeaponIds]);
 
   const filteredWeapons = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return WEAPONS_DATA.filter((weapon) => {
+    return weapons.filter((weapon) => {
       if (weaponCourse(weapon) !== course) return false;
       if (query.length === 0) return true;
       return (
@@ -37,7 +40,7 @@ export default function ArmoryCatalog() {
         weapon.usageScenario.toLowerCase().includes(query)
       );
     });
-  }, [course, searchQuery]);
+  }, [course, searchQuery, weapons]);
 
   return (
     <div>

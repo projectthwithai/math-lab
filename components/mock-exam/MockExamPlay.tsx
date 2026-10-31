@@ -55,7 +55,7 @@ export default function MockExamPlay() {
   useEffect(() => {
     const config = loadMockExamConfig();
     if (!config) {
-      router.replace('/mock-exam');
+      router.replace('/?tab=mock');
       return;
     }
 

@@ -277,7 +277,7 @@ export default function MockReportModal({ report, onClose }: MockReportModalProp
           </button>
           <button
             type="button"
-            onClick={() => router.push('/mock-exam')}
+            onClick={() => router.push('/?tab=mock')}
             className="flex-1 rounded-lg border border-slate-800 bg-slate-900 py-2.5 text-sm font-semibold text-white dark:border-slate-200 dark:bg-white dark:text-slate-950"
           >
             設定に戻る

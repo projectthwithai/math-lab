@@ -5,11 +5,11 @@
 // ==========================================
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Shield, Library, Flame, Zap, Home, Infinity as InfinityIcon, X, ClipboardCheck } from 'lucide-react';
 
+import { useMainTab } from '@/components/layout/MainTabProvider';
+import type { MainTabKey } from '@/lib/navigation/mainTabs';
 import { useUserStore, DEFAULT_MAX_ENERGY, isQuestStreakGrantedToday } from '@/lib/store/userStore';
 import { STREAK_QUEST_GOAL } from '@/data/dailyQuests';
 import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
@@ -21,22 +21,21 @@ import { SUPABASE_BOOTING_HINT } from '@/lib/supabase/config';
 import { signOut } from '@/lib/supabase/authSync';
 
 interface NavTab {
-  href: string;
+  key: MainTabKey;
   label: string;
   icon: typeof BookOpen;
-  exact?: boolean;
 }
 
 const NAV_TABS: NavTab[] = [
-  { href: '/', label: 'ホーム', icon: Home, exact: true },
-  { href: '/patterns', label: 'パターン図鑑', icon: BookOpen },
-  { href: '/mock-exam', label: '模試', icon: ClipboardCheck },
-  { href: '/armory', label: '武器庫', icon: Shield },
-  { href: '/library', label: 'ライブラリ', icon: Library },
+  { key: 'home', label: 'ホーム', icon: Home },
+  { key: 'patterns', label: 'パターン図鑑', icon: BookOpen },
+  { key: 'mock', label: '模試', icon: ClipboardCheck },
+  { key: 'armory', label: '武器庫', icon: Shield },
+  { key: 'library', label: 'ライブラリ', icon: Library },
 ];
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const { activeTab, onShell, setActiveTab } = useMainTab();
   const streakDays = useUserStore((state) => state.streakDays);
   const lastStreakGrantDateISO = useUserStore((state) => state.lastStreakGrantDateISO);
   const pendingStreakCelebration = useUserStore((state) => state.pendingStreakCelebration);
@@ -77,9 +76,13 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:py-3 lg:px-10">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Link href="/" className="flex min-w-0 shrink items-center overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setActiveTab('home')}
+              className="flex min-w-0 shrink cursor-pointer items-center overflow-hidden border-0 bg-transparent p-0"
+            >
               <BrandMark size="nav" />
-            </Link>
+            </button>
             <span
               className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium sm:px-2.5 sm:text-xs ${
                 streakGrantedToday
@@ -137,14 +140,15 @@ export default function Navbar() {
 
         <nav aria-label="メインナビゲーション" className="hidden flex-wrap gap-1.5 md:flex">
           {NAV_TABS.map((tab) => {
-            const isActive = tab.exact ? pathname === tab.href : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+            const isActive = onShell && activeTab === tab.key;
             const Icon = tab.icon;
             return (
-              <Link
-                key={tab.href}
-                href={tab.href}
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
                 aria-current={isActive ? 'page' : undefined}
-                className="relative rounded-lg px-3 py-1.5 text-xs font-medium tracking-tight transition-colors sm:text-sm"
+                className="relative cursor-pointer rounded-lg border-0 bg-transparent px-3 py-1.5 text-xs font-medium tracking-tight transition-colors sm:text-sm"
               >
                 {isActive && (
                   <motion.span
@@ -161,7 +165,7 @@ export default function Navbar() {
                   <Icon className="h-3.5 w-3.5" />
                   {tab.label}
                 </span>
-              </Link>
+              </button>
             );
           })}
         </nav>
