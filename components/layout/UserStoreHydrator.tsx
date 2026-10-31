@@ -3,19 +3,22 @@
 // ==========================================
 // Apex Suite: Math Lab - User Store Hydrator
 // ==========================================
-// `lib/store/userStore.ts` は `skipHydration: true` でSSRとの
-// ハイドレーションミスマッチを防いでいるため、クライアントマウント後に
-// このコンポーネントが明示的に localStorage からの復元(rehydrate)と、
-// 日次の Energy リフィルと、未達成日のストリーク失効を行う。
-// `app/layout.tsx` に1度だけ配置する（何も描画しない）。
+// 全ページの layout に常駐し、次を順に行う:
+// 1. LocalStorage から Zustand を復元
+// 2. ログイン中ならクラウドの学習データを即時上書き復元
+// 3. ストア変更を 1 秒デバウンスで user_app_data へ自動保存
 
 import { useEffect } from 'react';
-import { useUserStore } from '@/lib/store/userStore';
+
 import { useDailyQuestStore } from '@/lib/store/dailyQuestStore';
+import { useUserStore } from '@/lib/store/userStore';
 import { startAuthSync } from '@/lib/supabase/authSync';
+import { startCloudSyncAutoPush } from '@/lib/supabase/cloudSync';
 
 export default function UserStoreHydrator() {
   useEffect(() => {
+    let cancelled = false;
+
     const hydrate = async () => {
       await useUserStore.persist.rehydrate();
       useUserStore.getState().importLegacyDiscoveredPatterns();
@@ -27,10 +30,15 @@ export default function UserStoreHydrator() {
       useDailyQuestStore.getState().setHasHydrated(true);
       useDailyQuestStore.getState().ensureToday();
 
+      if (cancelled) return;
+      startCloudSyncAutoPush();
       startAuthSync();
     };
 
     void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return null;

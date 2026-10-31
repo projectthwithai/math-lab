@@ -1,8 +1,8 @@
 // ==========================================
 // Apex Suite: Math Lab - Progress dirty signal
 // ==========================================
-// Zustand 外（解法ノート等）の変更を authSync に伝える。
-// authSync を直接 import しないことで循環参照を避ける。
+// Zustand 外（解法ノート等）の変更を cloudSync に伝える。
+// cloudSync を直接 import しないことで循環参照を避ける。
 
 type Listener = () => void;
 

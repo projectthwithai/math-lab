@@ -5,14 +5,18 @@
 
 import { create } from 'zustand';
 
+export type AppToastTone = 'success' | 'error';
+
 interface AppToastState {
   message: string | null;
-  showToast: (message: string) => void;
+  tone: AppToastTone;
+  showToast: (message: string, tone?: AppToastTone) => void;
   clearToast: () => void;
 }
 
 export const useAppToastStore = create<AppToastState>((set) => ({
   message: null,
-  showToast: (message) => set({ message: message.trim() || null }),
-  clearToast: () => set({ message: null }),
+  tone: 'success',
+  showToast: (message, tone = 'success') => set({ message: message.trim() || null, tone }),
+  clearToast: () => set({ message: null, tone: 'success' }),
 }));
