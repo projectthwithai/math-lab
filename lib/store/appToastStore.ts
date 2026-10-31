@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 
-export type AppToastTone = 'success' | 'error';
+export type AppToastTone = 'success' | 'error' | 'info';
 
 interface AppToastState {
   message: string | null;

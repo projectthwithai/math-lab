@@ -6,19 +6,15 @@
 
 import {
   USER_APP_DATA_TABLE,
-  USER_PROGRESS_TABLE,
   appDataRowToSnapshot,
   emptyDailyQuestSnapshot,
-  isMissingRelationError,
-  legacyProgressRowToSnapshot,
   levelFieldsFromXp,
   snapshotToAppDataRow,
   type UserAppDataRow,
-  type UserProgressRow,
   type UserProgressSnapshot,
 } from '@/lib/supabase/progress';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { isSupabaseConfigured, isSupabaseNetworkError } from '@/lib/supabase/config';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { onProgressDirty } from '@/lib/supabase/progressDirty';
 import { getAllCustomSolutionNotes, replaceAllCustomSolutionNotes } from '@/lib/storage/customSolutionNotesStore';
 import { getAllPatternOverrides, replaceAllPatternOverrides } from '@/lib/storage/patternStrategyStore';
@@ -253,38 +249,84 @@ export function hydrateStoresFromSnapshot(snapshot: UserProgressSnapshot, userId
   }
 }
 
-export function describeCloudSyncError(error: unknown): string {
-  if (isMissingRelationError(error)) {
-    return `テーブル ${USER_APP_DATA_TABLE} が存在しません`;
-  }
-  if (isSupabaseNetworkError(error)) {
-    return 'ネットワークに接続できません';
-  }
-  if (!error) return '原因不明のエラー';
+function extractErrorMessage(error: unknown): string {
   if (typeof error === 'string' && error.trim()) return error.trim();
   if (error instanceof Error && error.message.trim()) return error.message.trim();
-  if (typeof error === 'object') {
-    const record = error as { message?: string; code?: string; details?: string; hint?: string };
-    if (record.code === '42501' || record.code === 'PGRST301') return '保存権限がありません（RLS）';
-    if (typeof record.message === 'string' && record.message.trim()) {
-      return record.details ? `${record.message}（${record.details}）` : record.message;
-    }
-    if (typeof record.details === 'string' && record.details.trim()) return record.details;
-    if (typeof record.hint === 'string' && record.hint.trim()) return record.hint;
+  if (error && typeof error === 'object') {
+    const record = error as { message?: string; details?: string; hint?: string };
+    if (typeof record.message === 'string' && record.message.trim()) return record.message.trim();
+    if (typeof record.details === 'string' && record.details.trim()) return record.details.trim();
+    if (typeof record.hint === 'string' && record.hint.trim()) return record.hint.trim();
   }
-  return '原因不明のエラー';
+  return 'unknown error';
 }
 
-function notifyCloudSyncError(error: unknown, context: string): void {
-  const reason = describeCloudSyncError(error);
-  console.error(`[cloudSync] ${context}`, error);
-  useCloudSyncStore.getState().setError(reason);
-  useAppToastStore.getState().showToast(`クラウド同期エラー: ${reason}`, 'error');
+function isNoRowResult(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const record = error as { code?: string; message?: string; details?: string };
+  const text = `${record.code ?? ''} ${record.message ?? ''} ${record.details ?? ''}`.toLowerCase();
+  return (
+    record.code === 'PGRST116' ||
+    text.includes('0 rows') ||
+    text.includes('no rows') ||
+    text.includes('multiple (or no) rows')
+  );
 }
 
-async function selectAppData(userId: string): Promise<UserProgressSnapshot | null> {
+function markCloudSynced(): void {
+  useCloudSyncStore.getState().setSynced();
+  const toast = useAppToastStore.getState();
+  if (toast.message?.includes('クラウド同期')) {
+    toast.clearToast();
+  }
+}
+
+function notifyCloudSyncRetry(error: unknown, context: string): void {
+  console.error(`[cloudSync] ${context}`, extractErrorMessage(error), error);
+  useCloudSyncStore.getState().setSyncing();
+  useAppToastStore.getState().showToast('クラウド同期を再試行しています', 'info');
+}
+
+async function insertInitialUserRow(userId: string): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) throw new Error('Supabase クライアントを初期化できません');
+
+  const snapshot = collectUserDataSnapshot();
+  const updatedAt = new Date().toISOString();
+  const row = snapshotToAppDataRow(userId, {
+    ...snapshot,
+    progressUpdatedAt: updatedAt,
+  });
+  const { error } = await supabase.from(USER_APP_DATA_TABLE).insert({
+    ...row,
+    user_id: userId,
+    updated_at: updatedAt,
+  });
+
+  if (error) {
+    const record = error as { code?: string };
+    if (record.code === '23505') {
+      const { data } = await supabase
+        .from(USER_APP_DATA_TABLE)
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data) {
+        hydrateStoresFromSnapshot(appDataRowToSnapshot(data as UserAppDataRow), userId);
+        lastPushedAt = (data as UserAppDataRow).updated_at ?? updatedAt;
+        return;
+      }
+    }
+    throw error;
+  }
+  lastPushedAt = updatedAt;
+}
+
+async function loadUserDataFromCloudOnce(userId: string): Promise<boolean> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error('Supabase クライアントを初期化できません');
+
+  useCloudSyncStore.getState().setSyncing();
 
   const { data, error } = await supabase
     .from(USER_APP_DATA_TABLE)
@@ -292,86 +334,50 @@ async function selectAppData(userId: string): Promise<UserProgressSnapshot | nul
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (error) throw error;
-  if (!data) return null;
-  return appDataRowToSnapshot(data as UserAppDataRow);
-}
-
-async function selectLegacyProgress(userId: string): Promise<UserProgressSnapshot | null> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return null;
-
-  const { data, error } = await supabase
-    .from(USER_PROGRESS_TABLE)
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingRelationError(error)) return null;
+  if (error && !isNoRowResult(error)) {
     throw error;
   }
-  if (!data) return null;
-  return legacyProgressRowToSnapshot(data as UserProgressRow);
-}
 
-async function insertInitialRow(userId: string, snapshot: UserProgressSnapshot): Promise<boolean> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) throw new Error('Supabase クライアントを初期化できません');
-
-  const row = snapshotToAppDataRow(userId, {
-    ...snapshot,
-    progressUpdatedAt: new Date().toISOString(),
-  });
-  const { error } = await supabase.from(USER_APP_DATA_TABLE).insert(row);
-  if (error) {
-    const record = error as { code?: string };
-    if (record.code === '23505') {
-      const existing = await selectAppData(userId);
-      if (existing) {
-        hydrateStoresFromSnapshot(existing, userId);
-        lastPushedAt = existing.progressUpdatedAt;
-        return true;
-      }
-    }
-    throw error;
+  if (data) {
+    hydrateStoresFromSnapshot(appDataRowToSnapshot(data as UserAppDataRow), userId);
+    lastPushedAt = (data as UserAppDataRow).updated_at ?? null;
+    markCloudSynced();
+    return true;
   }
-  lastPushedAt = row.updated_at ?? null;
+
+  await insertInitialUserRow(userId);
+  markCloudSynced();
   return true;
 }
 
 /**
  * クラウドの学習データを端末へ完全復元する。
- * レコードがなければ、現在のストア初期状態で INSERT する。
+ * レコードがなければエラーにせず、現在のストア初期状態で INSERT する。
  */
 export async function loadUserDataFromCloud(userId: string): Promise<boolean> {
   if (!userId || !isSupabaseConfigured()) return false;
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    notifyCloudSyncError(new Error('Supabase クライアントを初期化できません'), 'クラウド読込に失敗しました');
+  if (!getSupabaseBrowserClient()) {
+    console.error('[cloudSync] クラウド読込に失敗しました', 'Supabase クライアントを初期化できません');
+    useAppToastStore.getState().showToast('クラウド同期を再試行しています', 'info');
     return false;
   }
 
-  useCloudSyncStore.getState().setSyncing();
   try {
-    const remote = await selectAppData(userId);
-    if (remote) {
-      hydrateStoresFromSnapshot(remote, userId);
-      lastPushedAt = remote.progressUpdatedAt;
-      useCloudSyncStore.getState().setSynced();
-      scheduleCloudSave();
-      return true;
-    }
-
-    const legacy = await selectLegacyProgress(userId);
-    const seed = legacy ?? collectUserDataSnapshot();
-    if (legacy) hydrateStoresFromSnapshot(legacy, userId);
-    await insertInitialRow(userId, seed);
-    useCloudSyncStore.getState().setSynced();
-    return true;
+    return await loadUserDataFromCloudOnce(userId);
   } catch (error) {
-    notifyCloudSyncError(error, 'user_app_data の読込に失敗しました');
-    return false;
+    notifyCloudSyncRetry(error, 'user_app_data の読込に失敗しました');
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      return await loadUserDataFromCloudOnce(userId);
+    } catch (retryError) {
+      console.error(
+        '[cloudSync] クラウド同期の再試行に失敗しました',
+        extractErrorMessage(retryError),
+        retryError
+      );
+      useCloudSyncStore.getState().setSyncing();
+      return false;
+    }
   }
 }
 
@@ -382,29 +388,49 @@ export async function saveUserDataToCloud(userId: string, state?: unknown): Prom
   if (!userId || !isSupabaseConfigured()) return false;
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    notifyCloudSyncError(new Error('Supabase クライアントを初期化できません'), 'クラウド保存に失敗しました');
+    console.error('[cloudSync] クラウド保存に失敗しました', 'Supabase クライアントを初期化できません');
+    useAppToastStore.getState().showToast('クラウド同期を再試行しています', 'info');
     return false;
   }
 
   const snapshot = snapshotFromState(state);
+  const updatedAt = new Date().toISOString();
   const row = snapshotToAppDataRow(userId, {
     ...snapshot,
-    progressUpdatedAt: new Date().toISOString(),
+    progressUpdatedAt: updatedAt,
   });
 
   useCloudSyncStore.getState().setSyncing();
   try {
     const { error } = await supabase.from(USER_APP_DATA_TABLE).upsert(
-      { ...row, user_id: userId, updated_at: row.updated_at },
+      { ...row, user_id: userId, updated_at: updatedAt },
       { onConflict: 'user_id' }
     );
     if (error) throw error;
-    lastPushedAt = row.updated_at ?? null;
-    useCloudSyncStore.getState().setSynced();
+    lastPushedAt = updatedAt;
+    markCloudSynced();
     return true;
   } catch (error) {
-    notifyCloudSyncError(error, 'user_app_data の保存に失敗しました');
-    return false;
+    notifyCloudSyncRetry(error, 'user_app_data の保存に失敗しました');
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      const { error: retryError } = await supabase.from(USER_APP_DATA_TABLE).upsert(
+        { ...row, user_id: userId, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      if (retryError) throw retryError;
+      lastPushedAt = updatedAt;
+      markCloudSynced();
+      return true;
+    } catch (retryError) {
+      console.error(
+        '[cloudSync] クラウド保存の再試行に失敗しました',
+        extractErrorMessage(retryError),
+        retryError
+      );
+      useCloudSyncStore.getState().setSyncing();
+      return false;
+    }
   }
 }
 
@@ -413,7 +439,7 @@ export function applyRemoteAppDataRow(row: UserAppDataRow, userId: string): void
   if (row.updated_at && row.updated_at === lastPushedAt) return;
   hydrateStoresFromSnapshot(appDataRowToSnapshot(row), userId);
   lastPushedAt = row.updated_at ?? lastPushedAt;
-  useCloudSyncStore.getState().setSynced();
+  markCloudSynced();
 }
 
 export function scheduleCloudSave(): void {
